@@ -1,0 +1,178 @@
+{
+  "userId": "cmf32xbfs0000on15wpwqrfrr",
+  "userDetails": {
+    "fullName": "Brad Allen Johnson",
+    "birthDate": {
+      "day": 1,
+      "month": 1,
+      "year": 2000
+    },
+    "birthTime": {
+      "hour": 12,
+      "minute": 0
+    },
+    "placeOfBirth": ""
+  },
+  "sealConfig": {
+    "centralDesign": "sri-yantra",
+    "category": "Mind & Memory",
+    "subCategory": "Anxiety & Stress Relief"
+  },
+  "chatGptInstructions": "{\n  \"ring1\": [\n    {\n      \"number\": 1,\n      \"color\": \"YELLOW\",\n      \"position\": \"12:00\",\n      \"reason\": \"Initiates clarity and individual strength for mind focus\"\n    },\n    {\n      \"number\": 11,\n      \"color\": \"GOLD\",\n      \"position\": \"02:00\",\n      \"reason\": \"Master number for heightened intuition and mental inspiration\"\n    },\n    {\n      \"number\": 4,\n      \"color\": \"GREEN\",\n      \"position\": \"04:00\",\n      \"reason\": \"Stabilizes memory and harmonizes thought patterns\"\n    },\n    {\n      \"number\": 7,\n      \"color\": \"BLUE\",\n      \"position\": \"06:00\",\n      \"reason\": \"Enhances mental clarity and calmness for stress relief\"\n    },\n    {\n      \"number\": 22,\n      \"color\": \"SILVER\",\n      \"position\": \"08:00\",\n      \"reason\": \"Master number for integration and balance in the mental field\"\n    },\n    {\n      \"number\": 9,\n      \"color\": \"AQUA\",\n      \"position\": \"10:00\",\n      \"reason\": \"Encourages release of old worries and completion of mental cycles\"\n    },\n    {\n      \"number\": 8,\n      \"color\": \"INDIGO\",\n      \"position\": \"11:30\",\n      \"reason\": \"Supports integration and deep intuitive insight\"\n    },\n    {\n      \"number\": 999,\n      \"color\": \"VIOLET\",\n      \"position\": \"03:30\",\n      \"reason\": \"Master number for spiritual completion and transmutation of anxiety\"\n    }\n  ],\n  \"ring2\": [\n    {\n      \"glyph\": \"brain.png\",\n      \"color\": \"YELLOW\",\n      \"position\": \"12:30\",\n      \"reason\": \"Direct focus on memory, logic, and cognitive function\"\n    },\n    {\n      \"glyph\": \"3rd-eye-chakra.png\",\n      \"color\": \"INDIGO\",\n      \"position\": \"01:30\",\n      \"reason\": \"Facilitates intuition and calming of mental noise\"\n    },\n    {\n      \"glyph\": \"crown-center.png\",\n      \"color\": \"VIOLET\",\n      \"position\": \"02:30\",\n      \"reason\": \"Connects to higher awareness, easing stress through divine connection\"\n    },\n    {\n      \"glyph\": \"water.png\",\n      \"color\": \"AQUA\",\n      \"position\": \"05:00\",\n      \"reason\": \"Promotes emotional clarity and the gentle flow of thoughts\"\n    },\n    {\n      \"glyph\": \"air-element.png\",\n      \"color\": \"BLUE\",\n      \"position\": \"06:30\",\n      \"reason\": \"Symbolizes expansive, clear, and peaceful thinking\"\n    },\n    {\n      \"glyph\": \"om.png\",\n      \"color\": \"WHITE\",\n      \"position\": \"09:00\",\n      \"reason\": \"Resonates with universal harmony, reducing anxiety\"\n    },\n    {\n      \"glyph\": \"lotus.png\",\n      \"color\": \"PURPLE\",\n      \"position\": \"07:30\",\n      \"reason\": \"Supports mental purity and transformation\"\n    },\n    {\n      \"glyph\": \"ward.png\",\n      \"color\": \"GRAY\",\n      \"position\": \"10:30\",\n      \"reason\": \"Placeholder for energetic protection and balance\"\n    }\n  ],\n  \"ring3\": {\n    \"text\": \"My mind is clear and at peace\",\n    \"repetitions\": 1\n  },\n  \"summary\": \"This Sri Yantra-based seal array is designed to harmonize Brad Allen Johnson’s mind and memory, specifically targeting anxiety and stress relief. By combining master numbers, calming and integrative colors, and glyphs representing mental clarity, intuition, and peaceful emotion, the array supports the dissolution of mental tension and the enhancement of cognitive function. The affirmation reinforces a tranquil mindset, while the array's geometry and symbolism offer protection and balance for sustained mental well-being.\"\n}",
+  "sealData": {
+    "centralDesign": "sri-yantra",
+    "ring1Tokens": [
+      {
+        "position": "12:00",
+        "angle": 0,
+        "color": "BLUE",
+        "content": 7,
+        "type": "number"
+      },
+      {
+        "position": "1:00",
+        "angle": 30,
+        "color": "ORANGE",
+        "content": 22,
+        "type": "number"
+      },
+      {
+        "position": "2:30",
+        "angle": 75,
+        "color": "GREEN",
+        "content": 33,
+        "type": "number"
+      },
+      {
+        "position": "3:30",
+        "angle": 105,
+        "color": "PURPLE",
+        "content": 18,
+        "type": "number"
+      },
+      {
+        "position": "5:00",
+        "angle": 150,
+        "color": "YELLOW",
+        "content": 13,
+        "type": "number"
+      },
+      {
+        "position": "6:00",
+        "angle": 180,
+        "color": "BLUE",
+        "content": 26,
+        "type": "number"
+      },
+      {
+        "position": "7:00",
+        "angle": 210,
+        "color": "ORANGE",
+        "content": 44,
+        "type": "number"
+      },
+      {
+        "position": "8:30",
+        "angle": 255,
+        "color": "GREEN",
+        "content": 77,
+        "type": "number"
+      },
+      {
+        "position": "9:30",
+        "angle": 285,
+        "color": "PURPLE",
+        "content": 8,
+        "type": "number"
+      },
+      {
+        "position": "11:00",
+        "angle": 330,
+        "color": "YELLOW",
+        "content": 555,
+        "type": "number"
+      }
+    ],
+    "ring2Tokens": [
+      {
+        "position": "12:30",
+        "angle": 15,
+        "color": "AQUA",
+        "content": "om.png",
+        "type": "glyph"
+      },
+      {
+        "position": "2:00",
+        "angle": 60,
+        "color": "RED",
+        "content": "ankh.png",
+        "type": "glyph"
+      },
+      {
+        "position": "3:00",
+        "angle": 90,
+        "color": "GOLD",
+        "content": "lotus.png",
+        "type": "glyph"
+      },
+      {
+        "position": "4:00",
+        "angle": 120,
+        "color": "INDIGO",
+        "content": "eye-of-horus.png",
+        "type": "glyph"
+      },
+      {
+        "position": "5:30",
+        "angle": 165,
+        "color": "GREEN",
+        "content": "heart-chakra.png",
+        "type": "glyph"
+      },
+      {
+        "position": "6:30",
+        "angle": 195,
+        "color": "AQUA",
+        "content": "taurus.png",
+        "type": "glyph"
+      },
+      {
+        "position": "8:00",
+        "angle": 240,
+        "color": "RED",
+        "content": "leo.png",
+        "type": "glyph"
+      },
+      {
+        "position": "9:00",
+        "angle": 270,
+        "color": "GOLD",
+        "content": "scorpio.png",
+        "type": "glyph"
+      },
+      {
+        "position": "10:00",
+        "angle": 300,
+        "color": "INDIGO",
+        "content": "root-chakra.png",
+        "type": "glyph"
+      },
+      {
+        "position": "11:30",
+        "angle": 345,
+        "color": "GREEN",
+        "content": "crown-center.png",
+        "type": "glyph"
+      }
+    ],
+    "ring3Affirmation": "Om Shanti Shanti Shanti",
+    "userConfig": {
+      "name": "Brad Allen Johnson",
+      "category": "Mind & Memory",
+      "subCategory": "Anxiety & Stress Relief"
+    }
+  },
+  "summary": "Welcome, Brad Allen Johnson. Your intention for Mind & Memory, with a focus on Anxiety & Stress Relief, has been beautifully encoded into a Sri Yantra-based seal. The sacred geometry of the Sri Yantra, renowned for harmonizing the mind and dissolving inner obstacles, provides a powerful foundation uniquely aligned to your essence and request.\n\n**Ring One: Numbers & Colors**  \nThis ring is composed of ten numbers, each paired with a healing color, carefully chosen to anchor specific qualities into your seal:\n- 7 (BLUE): Brings calmness and clarity to the mind, soothing stress and supporting tranquil thought.\n- 22 (ORANGE): A master number signifying integration and creative transformation, combined with orange to spark joy and release tension.\n- 33 (GREEN): The master number for compassion and spiritual upliftment, paired with green to harmonize and heal thought patterns.\n- 18 (PURPLE): Supports spiritual insight and transformation, with purple aiding mental transmutation and peace.\n- 13 (YELLOW): Represents renewal and clear beginnings, with yellow igniting clarity and personal empowerment.\n- 26 (BLUE): Infuses further calm, balance, and open-mindedness, reinforcing mental peace.\n- 44 (ORANGE): Master builder number, bringing stability and optimistic energy to create new mental foundations.\n- 77 (GREEN): Amplifies spiritual awakening and mental harmony, the green color nurturing emotional recovery.\n- 8 (PURPLE): Symbolizes strength, resilience, and regeneration, with purple for deep mental restoration.\n- 555 (YELLOW): Powerful vibration of positive change and release, yellow again illuminating clarity and mental freedom.\n\nTogether, these numbers and colors create an energetic field of stability, clarity, and gentle transformation, directly supporting the relief of anxiety and the enhancement of memory and cognitive peace.\n\n**Ring Two: Glyphs & Colors**  \nThis ring contains sacred symbols, each radiating its own vibration and quality:\n- Om (AQUA): The primordial sound of harmony; aqua soothes emotional waters, bringing serenity to the mind.\n- Ankh (RED): Symbol of life force and vitality; red energizes and grounds, giving courage to release anxiety.\n- Lotus (GOLD): Signifies mental purity and enlightenment; gold elevates and empowers your higher mind.\n- Eye of Horus (INDIGO): Ancient symbol of protection and insight; indigo deepens intuition and dissolves mental negativity.\n- Heart Chakra (GREEN): Opens the heart for self-compassion and emotional healing; green stabilizes and nurtures.\n- Taurus (AQUA): Earthy grounding and steady presence; aqua helps thoughts flow gently and steadily.\n- Leo (RED): Courage, self-expression, and radiant confidence; red fuels inner strength.\n- Scorpio (GOLD): Deep transformation and emotional release; gold supports alchemical change and renewal.\n- Root Chakra (INDIGO): Grounds energy and reduces fear; indigo calms the mind’s base anxieties.\n- Crown Center (GREEN): Elevates consciousness, connecting to divine peace; green bridges the mind and spirit.\n\nEach glyph and its color pairing work in harmony, reinforcing your intention for a peaceful, protected, and clear mental state.\n\n**Ring Three: Affirmation/Mantra**  \nThe affirmation at the heart of your seal is:  \nOm Shanti Shanti Shanti  \nRepeated once, this sacred Sanskrit mantra invites deep peace on all levels—body, mind, and spirit. “Shanti” means “peace,” and its threefold repetition sends calming waves through your consciousness, dissolving anxiety and anchoring serenity.\n\n- Affirmation: Om Shanti Shanti Shanti  \n- Pronunciation of Affirmation: [ohm SHAHN-tee SHAHN-tee SHAHN-tee]  \n- Definition of Affirmation: “Om, Peace, Peace, Peace”—invoking profound tranquility and harmony in all aspects of being.\n\nYour seal array is now charged with Source Center Vibration and stands as a living metaphysical tool for you. Trust in its geometry and symbols—they amplify your intention, offering you a continuous field of clarity, calm, and gentle transformation. Use your seal with openness and confidence, knowing it is a direct extension of your highest aspiration for peace of mind.",
+  "sealImageUrl": "/api/files/generated-seals/seal_Brad_Allen_Johnson_sri-yantra_1757110447901.json",
+  "timestamp": "2025-09-05T22:14:34.736Z"
+}

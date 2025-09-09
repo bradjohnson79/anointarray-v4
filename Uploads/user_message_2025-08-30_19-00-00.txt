@@ -1,0 +1,142 @@
+Abacus Task: Enable DDP Customs + Canadian Tax System + Admin UI
+
+Context: For Canada→US shipments, our Canada Post integration currently sends no customs data and creates DDU labels. We must (1) add a full customs model and DDP label flow, (2) implement Canadian tax calculation (GST/HST/PST) including 5% GST for digital goods sold to Canadian customers, (3) add Admin UI to manage all of this, and (4) enforce validation and error handling.
+
+✅ Deliverables (in this order)
+
+1) Database migrations (CRITICAL)
+
+Create/update tables with these exact fields:
+
+products
+	•	hs_code TEXT NULL
+	•	country_of_origin CHAR(2) NULL  – ISO-2 (e.g., “CA”, “US”)
+	•	customs_description TEXT NULL
+	•	default_customs_value_cad NUMERIC(12,2) NULL
+	•	mass_grams INTEGER NULL
+	•	is_digital BOOLEAN NOT NULL DEFAULT false
+
+orders
+	•	buyer_country CHAR(2) NOT NULL
+	•	shipping_country CHAR(2) NOT NULL
+	•	tax_subtotal_cad NUMERIC(12,2) NOT NULL DEFAULT 0
+	•	tax_breakdown JSONB NOT NULL DEFAULT ‘{}’   – { gst:…, hst:…, pst:… }
+	•	duties_estimated_cad NUMERIC(12,2) NOT NULL DEFAULT 0
+	•	taxes_estimated_cad NUMERIC(12,2) NOT NULL DEFAULT 0
+	•	duties_taxes_currency CHAR(3) NOT NULL DEFAULT ‘CAD’
+	•	incoterm TEXT NOT NULL DEFAULT ‘DDP’        – ‘DDP’ required for US shipments
+
+order_items  (snapshot from products at purchase time)
+	•	hs_code TEXT
+	•	country_of_origin CHAR(2)
+	•	customs_description TEXT
+	•	unit_value_cad NUMERIC(12,2)
+	•	quantity INTEGER
+	•	mass_grams_each INTEGER
+	•	is_digital BOOLEAN NOT NULL DEFAULT false
+
+shipments
+	•	order_id FK
+	•	carrier TEXT NOT NULL DEFAULT ‘canadapost’
+	•	incoterm TEXT NOT NULL DEFAULT ‘DDP’        – enforced to DDP for US
+	•	customs_reason TEXT NOT NULL DEFAULT ‘SOLD’
+	•	label_meta JSONB NULL                        – Canada Post response incl. DDP indicator
+	•	api_audit JSONB NULL                         – sanitized request/response
+
+Add indexes where sensible (e.g., shipments(order_id)).
+
+2) Canadian tax system (HIGH)
+
+Implement a pure function:
+calculateCanadianTaxes({
+  destinationProvince,     // e.g., 'ON', 'BC'
+  buyerCountry,            // 'CA'|'US'|…
+  items: [{ isDigital, priceCents, quantity, productProvinceOfSupply? }],
+}) => {
+  return {
+    gstCents, hstCents, pstCents, totalTaxCents,
+    breakdownByItem: [...]
+  }
+}
+
+Rules to implement:
+	•	If buyerCountry != ‘CA’ → taxes = 0 (export).
+	•	Digital products sold to Canadian customers → apply 5% GST nationwide (no PST/HST).
+	•	Physical goods: use destination-based tax by province/territory:
+	•	HST provinces: ON 13%, NB 15%, NL 15%, NS 15%, PE 15%
+	•	GST only: AB, NT, NU, YT → 5% GST
+	•	GST+PST:
+	•	BC: 5% GST + 7% PST
+	•	SK: 5% GST + 6% PST
+	•	MB: 5% GST + 7% PST
+	•	QC: 5% GST + 9.975% QST (treat QST as ‘pst’ in breakdown)
+	•	Prorate on a per-item basis and round to cents correctly (banker’s rounding or standard round half up—be consistent).
+	•	Store results to orders.tax_subtotal_cad and orders.tax_breakdown on checkout/confirm.
+
+3) DDP customs block for Canada Post (HIGH)
+
+For Canada → US shipments:
+	•	Build the customs payload with per-item details:
+	•	description, quantity, unit-weight (kg), unit-value (CAD), hs-tariff-code, country-of-origin
+	•	reason-for-export = SOLD
+	•	Set the DDP flag (e.g., duties-and-taxes-prepaid: true or equivalent/the API’s “terms of trade: DDP”). Use exact field names from the current Canada Post API you detect in the project; adapt if naming differs.
+	•	If any required customs field is missing → block label creation with a structured validation error telling exactly which item/field is missing.
+	•	Persist sanitized request + response to shipments.api_audit and the DDP indicator into shipments.label_meta.
+	•	Cache rating requests by cart hash (optional but preferred).
+
+4) Admin UI (MEDIUM)
+	•	Product Management → “Customs & Compliance” panel
+	•	Inputs: HS code, Country of Origin (ISO-2), Customs Description, Default Value (CAD), Weight (grams), Is Digital (toggle).
+	•	Client validation (non-empty for customs fields if product is physical and sellable to US).
+	•	Order Management → “Taxes & Duties” sidebar
+	•	Show computed GST/HST/PST breakdown and total.
+	•	Show “DDP required for US shipments” badge.
+	•	Show per-item customs snapshot (editable by Admin only).
+	•	Shipment Builder
+	•	Destination US → show Incoterm locked to DDP.
+	•	“Generate Canada Post Label” button disabled until all customs validations pass.
+
+5) Error handling & validation (LOW)
+	•	Add a validation layer before label creation:
+	•	For US shipments: ensure every item has hs_code, country_of_origin, customs_description, unit_value_cad, mass_grams_each > 0.
+	•	Surface clear, user-friendly error messages:
+Missing HS code for item {sku} – please set HS code in Product → Customs & Compliance.
+	•	Log all carrier 4xx/5xx responses with correlation IDs in shipments.api_audit.
+
+6) Tests (integration + unit)
+
+Create tests that demonstrate:
+	•	Taxes
+	•	Physical goods to ON: 13% HST is applied.
+	•	Physical goods to BC: 5% GST + 7% PST applied.
+	•	Digital goods to any CA province: 5% GST only.
+	•	Buyer outside Canada: 0 tax.
+	•	DDP Customs
+	•	Canada→US label with complete customs → success; response indicates DDP/prepaid.
+	•	Missing HS code for any item → label blocked with specific error.
+	•	UI
+	•	Product customs fields persist and load correctly.
+	•	Shipment Builder blocks/enables label button based on validation state.
+
+7) Feature flag & rollout
+
+Add env flag CA_POST_DDP_ENFORCED=true (default true in production).
+When true, Incoterm for US is locked to DDP and label creation enforces the customs checks.
+
+⸻
+
+Implementation Notes
+	•	Use our existing Canada Post client; extend requests rather than rewriting. Keep function boundaries small and typed.
+	•	Do not expose secret keys in logs or UI; sanitize api_audit.
+	•	Use currency CAD consistently for values we send to Canada Post.
+	•	Follow existing error/notification patterns in Abacus.
+
+Acceptance Criteria
+	•	US labels include a valid customs block and are created with DDP; missing data blocks label creation with actionable errors.
+	•	Canadian tax totals are correct per province and product type; breakdown stored to DB and shown in Admin.
+	•	Admins can manage customs data per product and see per-order duties/taxes.
+	•	All tests pass and we can show one sandbox DDP label sample with the API audit (secrets removed).
+
+⸻
+
+Start by running the migrations and posting a short progress note. Then implement taxes, then DDP labels, then the Admin UI, followed by tests.

@@ -1,0 +1,178 @@
+{
+  "userId": "cmf32xbfs0000on15wpwqrfrr",
+  "userDetails": {
+    "fullName": "Brad Allen Johnson",
+    "birthDate": {
+      "day": 1,
+      "month": 1,
+      "year": 2000
+    },
+    "birthTime": {
+      "hour": 12,
+      "minute": 0
+    },
+    "placeOfBirth": ""
+  },
+  "sealConfig": {
+    "centralDesign": "torus-field",
+    "category": "Dreams & Subconscious",
+    "subCategory": "Lucid Dream Induction"
+  },
+  "chatGptInstructions": "{\n  \"ring1\": [\n    { \"number\": 1, \"color\": \"WHITE\", \"position\": \"12:00\", \"reason\": \"Brings purity and clarity to dreamwork, supporting higher awareness.\" },\n    { \"number\": 11, \"color\": \"INDIGO\", \"position\": \"03:00\", \"reason\": \"Master number for intuition and psychic vision, enhancing lucid dreams.\" },\n    { \"number\": 22, \"color\": \"AQUA\", \"position\": \"06:00\", \"reason\": \"Master builder energy, stabilizing subconscious exploration.\" },\n    { \"number\": 7, \"color\": \"BLUE\", \"position\": \"09:00\", \"reason\": \"Activates spiritual insight and inner wisdom for dream navigation.\" },\n    { \"number\": 8, \"color\": \"SILVER\", \"position\": \"01:30\", \"reason\": \"Amplifies subconscious mastery and moon resonance for dream recall.\" },\n    { \"number\": 21, \"color\": \"VIOLET\", \"position\": \"04:30\", \"reason\": \"Facilitates transmutation and spiritual guidance in altered states.\" },\n    { \"number\": 200, \"color\": \"GOLD\", \"position\": \"07:30\", \"reason\": \"Provides enlightenment and mastery over the dream realm.\" },\n    { \"number\": 6, \"color\": \"GRAY\", \"position\": \"10:30\", \"reason\": \"Promotes integration and transition between waking and dreaming.\" }\n  ],\n  \"ring2\": [\n    { \"glyph\": \"3rd-eye-chakra.png\", \"color\": \"INDIGO\", \"position\": \"12:30\", \"reason\": \"Opens the third eye for lucid vision and dream awareness.\" },\n    { \"glyph\": \"crown-center.png\", \"color\": \"VIOLET\", \"position\": \"01:00\", \"reason\": \"Connects to higher consciousness and astral realms.\" },\n    { \"glyph\": \"water.png\", \"color\": \"AQUA\", \"position\": \"02:00\", \"reason\": \"Encourages flow and intuitive movement through dreamscapes.\" },\n    { \"glyph\": \"rat.png\", \"color\": \"SILVER\", \"position\": \"03:30\", \"reason\": \"Rat (Chinese Zodiac for 2000) supports resourcefulness in dreams.\" },\n    { \"glyph\": \"brain.png\", \"color\": \"BLUE\", \"position\": \"05:00\", \"reason\": \"Activates conscious and subconscious mind for dream lucidity.\" },\n    { \"glyph\": \"lotus.png\", \"color\": \"WHITE\", \"position\": \"06:30\", \"reason\": \"Symbolizes spiritual awakening during dream states.\" },\n    { \"glyph\": \"seed-of-life.png\", \"color\": \"GOLD\", \"position\": \"08:00\", \"reason\": \"Sacred geometry for new dream creation and manifestation.\" },\n    { \"glyph\": \"ward.png\", \"color\": \"GRAY\", \"position\": \"09:30\", \"reason\": \"Provides metaphysical protection during dream journeys.\" },\n    { \"glyph\": \"eye-of-horus.png\", \"color\": \"PURPLE\", \"position\": \"11:00\", \"reason\": \"Egyptian symbol for protected vision and insight in the astral.\" },\n    { \"glyph\": \"ward.png\", \"color\": \"GREEN\", \"position\": \"11:30\", \"reason\": \"Balances the ring and maintains energetic harmony.\" }\n  ],\n  \"ring3\": {\n    \"text\": \"I awaken within my dreams and remember my purpose.\",\n    \"repetitions\": 1\n  },\n  \"summary\": \"This Seal Array is designed to support lucid dream induction and mastery of the subconscious. The selected numbers bring together strong vibrations for intuition, spiritual insight, and integration of dream experiences. Glyphs such as the Third Eye, Crown Chakra, and Seed of Life enhance psychic perception and the creation of new dream realities, while the Rat supports resourcefulness (aligning with your birth year in the Chinese Zodiac). Protective symbols and sacred geometries stabilize and harmonize the dreamspace. The affirmation anchors your intention to awaken and remember your purpose within dreams, providing clarity, protection, and spiritual empowerment throughout your journeys in the dream realm.\"\n}",
+  "sealData": {
+    "centralDesign": "torus-field",
+    "ring1Tokens": [
+      {
+        "position": "12:00",
+        "angle": 0,
+        "color": "BLUE",
+        "content": 7,
+        "type": "number"
+      },
+      {
+        "position": "1:00",
+        "angle": 30,
+        "color": "ORANGE",
+        "content": 22,
+        "type": "number"
+      },
+      {
+        "position": "2:30",
+        "angle": 75,
+        "color": "GREEN",
+        "content": 33,
+        "type": "number"
+      },
+      {
+        "position": "3:30",
+        "angle": 105,
+        "color": "PURPLE",
+        "content": 18,
+        "type": "number"
+      },
+      {
+        "position": "5:00",
+        "angle": 150,
+        "color": "YELLOW",
+        "content": 13,
+        "type": "number"
+      },
+      {
+        "position": "6:00",
+        "angle": 180,
+        "color": "BLUE",
+        "content": 26,
+        "type": "number"
+      },
+      {
+        "position": "7:00",
+        "angle": 210,
+        "color": "ORANGE",
+        "content": 44,
+        "type": "number"
+      },
+      {
+        "position": "8:30",
+        "angle": 255,
+        "color": "GREEN",
+        "content": 77,
+        "type": "number"
+      },
+      {
+        "position": "9:30",
+        "angle": 285,
+        "color": "PURPLE",
+        "content": 8,
+        "type": "number"
+      },
+      {
+        "position": "11:00",
+        "angle": 330,
+        "color": "YELLOW",
+        "content": 555,
+        "type": "number"
+      }
+    ],
+    "ring2Tokens": [
+      {
+        "position": "12:30",
+        "angle": 15,
+        "color": "AQUA",
+        "content": "om.png",
+        "type": "glyph"
+      },
+      {
+        "position": "2:00",
+        "angle": 60,
+        "color": "RED",
+        "content": "ankh.png",
+        "type": "glyph"
+      },
+      {
+        "position": "3:00",
+        "angle": 90,
+        "color": "GOLD",
+        "content": "lotus.png",
+        "type": "glyph"
+      },
+      {
+        "position": "4:00",
+        "angle": 120,
+        "color": "INDIGO",
+        "content": "eye-of-horus.png",
+        "type": "glyph"
+      },
+      {
+        "position": "5:30",
+        "angle": 165,
+        "color": "GREEN",
+        "content": "heart-chakra.png",
+        "type": "glyph"
+      },
+      {
+        "position": "6:30",
+        "angle": 195,
+        "color": "AQUA",
+        "content": "taurus.png",
+        "type": "glyph"
+      },
+      {
+        "position": "8:00",
+        "angle": 240,
+        "color": "RED",
+        "content": "leo.png",
+        "type": "glyph"
+      },
+      {
+        "position": "9:00",
+        "angle": 270,
+        "color": "GOLD",
+        "content": "scorpio.png",
+        "type": "glyph"
+      },
+      {
+        "position": "10:00",
+        "angle": 300,
+        "color": "INDIGO",
+        "content": "root-chakra.png",
+        "type": "glyph"
+      },
+      {
+        "position": "11:30",
+        "angle": 345,
+        "color": "GREEN",
+        "content": "crown-center.png",
+        "type": "glyph"
+      }
+    ],
+    "ring3Affirmation": "Lux in Tenebris",
+    "userConfig": {
+      "name": "Brad Allen Johnson",
+      "category": "Dreams & Subconscious",
+      "subCategory": "Lucid Dream Induction"
+    }
+  },
+  "summary": "Welcome, Brad Allen Johnson. Your intention for lucid dream induction and exploration of the subconscious has been received and honored. The Torus Field has been chosen as your sacred geometry foundation, reflecting the infinite flow and interconnectedness of consciousness. This seal array is uniquely attuned to your essence and dreams, aligning with your journey into deeper awareness.\n\nRing One: The Numbers & Colors  \nEncircling the array are ten powerful number and color pairings, each activating a distinct aspect of your dreamwork:\n- 7 (BLUE): Invokes spiritual insight and inner wisdom, helping you navigate dream realms with clarity.\n- 22 (ORANGE): A master builder number, this brings creative expansion and the ability to construct new dream experiences.\n- 33 (GREEN): Symbolizes compassion and heart-centered growth, fostering harmony within your subconscious.\n- 18 (PURPLE): Supports transformation and spiritual awakening, aiding you in recognizing and embracing lucid states.\n- 13 (YELLOW): Illuminates the path to conscious awareness and mental clarity within dreamscapes.\n- 26 (BLUE): Deepens intuitive guidance, further enhancing your connection to higher wisdom.\n- 44 (ORANGE): Grounds visionary potential, granting stability as you traverse shifting dream realities.\n- 77 (GREEN): Magnifies spiritual mastery and healing, supporting renewal in both dreams and waking life.\n- 8 (PURPLE): Embodies balance and infinite potential, opening the gateways to deeper understanding.\n- 555 (YELLOW): Heralds significant transformation, empowering breakthrough insights and profound shifts in dream awareness.\n\nTogether, these combinations infuse the seal with energies of insight, creativity, healing, and transformation—serving as guardians and catalysts for your lucid dreaming intentions.\n\nRing Two: The Glyphs & Colors  \nThe second ring is woven with ten sacred glyphs, each paired with a color to harmonize and amplify your dreamwork:\n- Om (AQUA): Resonates with universal consciousness, encouraging flow and unity across dream thresholds.\n- Ankh (RED): The Egyptian symbol of life, empowering eternal vitality and spiritual awakening within the dream state.\n- Lotus (GOLD): Represents purity and enlightenment, assisting in blossoming higher awareness.\n- Eye of Horus (INDIGO): Provides protected vision, insight, and deep perception in the astral realms.\n- Heart Chakra (GREEN): Centers your dream journeys in love, compassion, and emotional balance.\n- Taurus (AQUA): Grounds your explorations, offering stability and strength as you traverse dreamscapes.\n- Leo (RED): Infuses your dreams with courage and self-expression, helping you shine within subconscious realms.\n- Scorpio (GOLD): Guides transformation and the unveiling of hidden truths, supporting rebirth in your inner world.\n- Root Chakra (INDIGO): Anchors your awareness, ensuring safety and energetic grounding as you move between worlds.\n- Crown Center (GREEN): Opens your connection to higher wisdom and the divine, expanding your consciousness in dreamtime.\n\nThese glyphs create a protective and empowering field, guiding you safely and insightfully through the landscapes of your dreams.\n\nRing Three: Affirmation  \nAt the heart of the seal rests your affirmation: Lux in Tenebris. This Latin phrase, meaning \"Light in Darkness,\" is woven once into the array, acting as a beacon for clarity and awareness within the hidden realms of your subconscious. Its singular repetition imbues the seal with focused, unwavering intent—illuminating your path through the mysteries of the dream world.\n\nYour seal array is now infused with Source Center Vibration, becoming a living metaphysical tool for your dream journeys. Trust in its power—each number, glyph, and word amplifies your intention, supporting you as you awaken and remember within your dreams. Let this sacred geometry guide and protect you, opening new vistas of insight and transformation.\n\n- Affirmation: Lux in Tenebris\n- Definition of Affirmation: \"Light in Darkness\"—a guiding phrase to bring clarity, awareness, and illumination to your dream explorations.",
+  "sealImageUrl": "/api/files/generated-seals/seal_Brad_Allen_Johnson_torus-field_1757109015404.json",
+  "timestamp": "2025-09-05T21:50:32.264Z"
+}

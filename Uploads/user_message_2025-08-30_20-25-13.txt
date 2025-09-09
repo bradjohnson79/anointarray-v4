@@ -1,0 +1,237 @@
+Abacus Task — Canada Post SOAP Label Creation (with SOAP UI Demo Project)
+
+Goal: Use the official Canada Post SOAP UI demo to implement rates + label creation for Canada→US shipments, including DDP (duties paid) customs. Produce a working sandbox flow that generates a PDF label (Base64 from SOAP), store it, and log sanitized request/response.
+
+Reference:
+SOAP UI Demo: https://www.canadapost-postescanada.ca/info/mc/business/productsservices/developers/services/soapuidemo.jsf
+(Download the SOAPUI project from that page. Use the latest WSDLs and sample requests from the demo.)
+
+⸻
+
+0) Artifacts & Discovery (post a short report first)
+	1.	Download & import the official Canada Post SOAPUI Demo Project.
+	•	Identify the WSDL endpoints, SOAP namespaces, SOAP actions, and the request samples for:
+	•	Get Rates (non-contract)
+	•	Create Non-Contract Shipment (label generation)
+	•	Note required SOAP headers (e.g., Authorization Basic Auth header, or special headers) and schema versions.
+	2.	Confirm the Sandbox and Production base endpoints and auth format:
+	•	Sandbox URL
+	•	Production URL
+	•	Creds required: Customer Number, Username/Password/API Keys (whatever the SOAP demo indicates), and (if applicable) Mailed By / Mailed At numbers for contract vs non-contract flows.
+	3.	Post a brief summary with exact endpoint URLs, required headers, and critical nodes used by the demo samples.
+
+Only proceed after posting this short report.
+
+⸻
+
+1) Environment & Secrets
+
+Add these env keys (pull values from our secret manager; do not hardcode):
+	•	CA_POST_ENV = sandbox | production
+	•	CA_POST_SOAP_ENDPOINT_SANDBOX
+	•	CA_POST_SOAP_ENDPOINT_PROD
+	•	CA_POST_CUSTOMER_NUMBER
+	•	CA_POST_USERNAME
+	•	CA_POST_PASSWORD
+	•	CA_POST_MAILED_BY (if required)
+	•	CA_POST_MAILED_AT (if required)
+	•	CA_POST_DDP_ENFORCED = true (default)
+
+Rule: Use sandbox by default. Never log secrets. Redact in stored traces.
+
+⸻
+
+2) SOAP Client Implementation
+
+Implement a minimal SOAP client (Node preferred; adapt if our runtime differs):
+	•	Use a light XML builder (e.g., xmlbuilder2) or a SOAP client library that supports raw envelopes.
+	•	Add a utility: soapRequest(operation, xmlBody, { sandbox|prod })
+	•	Builds SOAP envelope (namespaces from WSDL).
+	•	Sets required HTTP headers exactly as per SOAP UI demo (e.g., Content-Type: text/xml; charset=utf-8, SOAPAction for the operation, and Auth header format demo uses).
+	•	Sends request via HTTPS.
+	•	Parses XML response → JS object.
+	•	Returns { status, headers, body, parsed, requestXml, responseXml }.
+	•	Implement exponential backoff (3 retries) on 5xx or connection timeouts.
+
+⸻
+
+3) Data Mapping (reuse our existing DB)
+
+Ensure we map our objects to SOAP structures:
+
+From DB (orders, order_items, shipments, products):
+	•	Sender (ship-from) & Recipient (ship-to) full addresses.
+	•	Per item: description, quantity, unit_value_cad, mass_grams_each, hs_code, country_of_origin.
+	•	Shipment meta: service code, incoterm (force DDP for US), customs reason (SOLD).
+	•	Currency: CAD.
+	•	Totals: duties/taxes estimated if available.
+
+Create a mapper:
+buildCanadaPostSoapPayload({ order, items, shipment }) => { rateXML, labelXML }
+	•	Uses exact node names from the SOAP UI demo templates.
+	•	For DDP set the specific duties prepaid / terms-of-trade = DDP fields EXACTLY as the SOAP sample specifies (names differ across API versions—follow the demo).
+
+⸻
+
+4) Operations to Implement
+
+A) Get Rates (non-contract)
+	•	Build the SOAP body using the demo sample.
+	•	Include weights, dimensions (if required), and customs indicators as needed.
+	•	Parse service options and costs from the response.
+	•	Cache per cart hash for 10 minutes.
+
+B) Create Non-Contract Shipment (Label)
+	•	Build the SOAP customs block:
+	•	content-details with per-item: description, qty, unit weight (kg), unit value (CAD), hs-tariff-code, country-of-origin.
+	•	reason-for-export = SOLD.
+	•	Set DDP flag / field (e.g., duties-and-taxes-prepaid=true or equivalent per demo).
+	•	Send request; on success parse:
+	•	Label file (PDF) as Base64 → store as a binary blob (or upload to our storage), persist URL in shipments.label_meta.
+	•	Tracking number(s), shipment ID(s), and any DDP indicator present in response → store in shipments.label_meta.
+
+Hard-stop validations before the call for US shipments:
+Missing any of: hs_code, country_of_origin, customs_description, unit_value_cad, mass_grams_each > 0 → block with a clear error.
+
+⸻
+
+5) SOAP Envelope Templates
+
+Use the demo project’s exact envelope/namespace shape. Implement with placeholders; examples below are illustrative—replace element/namespace names with the demo’s exact values:
+
+<!-- Example scaffold: Get Rates -->
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+                  xmlns:tns="http://www.canadapost.ca/ws/ship/rate-vX">
+  <soapenv:Header>
+    <!-- If the demo shows custom headers, include them -->
+  </soapenv:Header>
+  <soapenv:Body>
+    <tns:get-rates-request>
+      <tns:customer-number>${CUSTOMER_NUMBER}</tns:customer-number>
+      <tns:parcel-characteristics>
+        <tns:weight>0.75</tns:weight>
+        <!-- dimensions if required -->
+      </tns:parcel-characteristics>
+      <tns:origin-postal-code>${SHIP_FROM_POSTAL}</tns:origin-postal-code>
+      <tns:destination>
+        <tns:country-code>${DEST_COUNTRY}</tns:country-code>
+        <tns:postal-zip-code>${DEST_ZIP}</tns:postal-zip-code>
+      </tns:destination>
+      <!-- Add customs hint nodes if demo requires for cross-border -->
+    </tns:get-rates-request>
+  </soapenv:Body>
+</soapenv:Envelope>
+
+<!-- Example scaffold: Create Non-Contract Shipment (Label) -->
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+                  xmlns:tns="http://www.canadapost.ca/ws/ncshipment-vX">
+  <soapenv:Header/>
+  <soapenv:Body>
+    <tns:non-contract-shipment-request>
+      <tns:customer-number>${CUSTOMER_NUMBER}</tns:customer-number>
+      <tns:shipment>
+        <tns:sender>
+          <tns:name>${FROM_NAME}</tns:name>
+          <tns:address-details>
+            <tns:address-line-1>${FROM_ADDR1}</tns:address-line-1>
+            <tns:city>${FROM_CITY}</tns:city>
+            <tns:prov-state>${FROM_PROVINCE}</tns:prov-state>
+            <tns:postal-zip-code>${FROM_POSTAL}</tns:postal-zip-code>
+            <tns:country-code>CA</tns:country-code>
+          </tns:address-details>
+        </tns:sender>
+        <tns:destination>
+          <tns:name>${TO_NAME}</tns:name>
+          <tns:address-details>
+            <tns:address-line-1>${TO_ADDR1}</tns:address-line-1>
+            <tns:city>${TO_CITY}</tns:city>
+            <tns:prov-state>${TO_STATE}</tns:prov-state>
+            <tns:postal-zip-code>${TO_ZIP}</tns:postal-zip-code>
+            <tns:country-code>US</tns:country-code>
+          </tns:address-details>
+        </tns:destination>
+
+        <tns:parcel-characteristics>
+          <tns:weight>0.75</tns:weight>
+        </tns:parcel-characteristics>
+
+        <tns:customs>
+          <tns:currency>CAD</tns:currency>
+          <tns:reason-for-export>SOLD</tns:reason-for-export>
+          <!-- DDP flag/terms per demo: set "duties and taxes prepaid" or Incoterm DDP -->
+          <tns:duties-and-taxes-prepaid>true</tns:duties-and-taxes-prepaid>
+          <tns:content-details>
+            <tns:item>
+              <tns:description>${ITEM_DESC}</tns:description>
+              <tns:quantity>${QTY}</tns:quantity>
+              <tns:unit-weight>0.25</tns:unit-weight>
+              <tns:unit-value>24.11</tns:unit-value>
+              <tns:hs-tariff-code>${HS_CODE}</tns:hs-tariff-code>
+              <tns:country-of-origin>${ORIGIN_COUNTRY}</tns:country-of-origin>
+            </tns:item>
+            <!-- repeat per line item -->
+          </tns:content-details>
+        </tns:customs>
+
+        <tns:preferences>
+          <tns:show-packing-instructions>false</tns:show-packing-instructions>
+        </tns:preferences>
+      </tns:shipment>
+    </tns:non-contract-shipment-request>
+  </soapenv:Body>
+</soapenv:Envelope>
+
+Replace tns prefix, version -vX, and element names with whatever the demo project actually uses. Follow its sample exactly.
+
+⸻
+
+6) Validation & DDP Enforcement
+	•	If destination country = US and CA_POST_DDP_ENFORCED=true, enforce:
+	•	All items have: hs_code, country_of_origin, customs_description, unit_value_cad, mass_grams_each > 0.
+	•	If any missing → block with a typed error referencing the exact item.
+	•	When building the SOAP customs, always set the demo’s DDP field(s):
+	•	Either a boolean duties-and-taxes-prepaid or a terms-of-trade = DDP (whatever the sample shows).
+	•	Persist the DDP indicator returned in the response.
+
+⸻
+
+7) Persistence & Audit
+
+On successful label creation:
+	•	Decode Base64 PDF → store in our storage; persist URL + metadata in shipments.label_meta.
+	•	Save sanitized request and response XML (strip secrets) into shipments.api_audit.
+	•	Store tracking number(s) and shipment identifiers.
+
+On failure:
+	•	Save sanitized request/response and a machine-readable error code/message.
+
+⸻
+
+8) Admin UI Additions
+	•	In Shipment Builder, add a “Generate Canada Post (SOAP) Label” button.
+	•	Disable the button with inline validation messages until all customs + address requirements pass.
+	•	When success: show tracking number, download label (PDF) link, and the DDP badge.
+
+⸻
+
+9) Tests (Sandbox)
+
+Create automated tests that use sandbox:
+	1.	Rates: Canada→US with valid data returns service options.
+	2.	Label (DDP): Canada→US with full customs returns a label; PDF is storable; DDP indicated.
+	3.	Missing HS Code: label creation blocked with a clear validation error.
+	4.	Non-US: label creation works with current logic (no forced DDP).
+	5.	Retry: transient 5xx triggers retry and eventually succeeds/fails deterministically.
+
+⸻
+
+10) Deliverables
+	•	SOAP client utilities, payload mappers, and operations (rates + label).
+	•	Admin UI changes.
+	•	Migrations (if any new fields needed) + updated env docs (no secrets in code).
+	•	Test results with at least one sandbox label (attach sanitized request/response and a sample PDF to the task).
+	•	A short “Operator Notes” doc on: which fields are mandatory, where to update HS codes, and how to flip sandbox/production.
+
+⸻
+
+Start by importing the SOAP UI demo, posting the endpoint/namespace/header summary, then implement steps 1→10. Keep everything typed, small, and logged (sanitized). DDP is mandatory for US shipments when the flag is on.

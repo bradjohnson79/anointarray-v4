@@ -1,0 +1,59 @@
+{
+  "timestamp": "2025-09-05T15:46:15.751Z",
+  "base": "http://localhost:3002",
+  "results": [
+    {
+      "path": "/",
+      "url": "http://localhost:3002/",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "path": "/auth/login",
+      "url": "http://localhost:3002/auth/login",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "path": "/auth/signup",
+      "url": "http://localhost:3002/auth/signup",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "path": "/products/body-deck-aetherx-healing-code-cards",
+      "url": "http://localhost:3002/products/body-deck-aetherx-healing-code-cards",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "path": "/products/mind-deck-aetherx-healing-code-cards",
+      "url": "http://localhost:3002/products/mind-deck-aetherx-healing-code-cards",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "path": "/products/energy-deck-aetherx-healing-code-cards",
+      "url": "http://localhost:3002/products/energy-deck-aetherx-healing-code-cards",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "path": "/products/wooden-rejuvenation-wall-arrays",
+      "url": "http://localhost:3002/products/wooden-rejuvenation-wall-arrays",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "path": "/products/anoint-essential-essence-oils",
+      "url": "http://localhost:3002/products/anoint-essential-essence-oils",
+      "status": 200,
+      "ok": true
+    }
+  ],
+  "summary": {
+    "scanned": 8,
+    "ok": 8,
+    "broken": 0
+  }
+}

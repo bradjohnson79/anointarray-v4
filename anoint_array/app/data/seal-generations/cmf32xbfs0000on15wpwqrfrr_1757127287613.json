@@ -1,0 +1,178 @@
+{
+  "userId": "cmf32xbfs0000on15wpwqrfrr",
+  "userDetails": {
+    "fullName": "Brad Allen Johnson",
+    "birthDate": {
+      "day": 1,
+      "month": 1,
+      "year": 2000
+    },
+    "birthTime": {
+      "hour": 12,
+      "minute": 0
+    },
+    "placeOfBirth": ""
+  },
+  "sealConfig": {
+    "centralDesign": "sri-yantra",
+    "category": "Energy & Protection",
+    "subCategory": "Psychic Shielding"
+  },
+  "chatGptInstructions": "{\n  \"ring1\": [\n    { \"number\": 1, \"color\": \"WHITE\", \"position\": \"12:00\", \"reason\": \"Promotes clarity and new beginnings; root of psychic shielding.\" },\n    { \"number\": 11, \"color\": \"SILVER\", \"position\": \"01:30\", \"reason\": \"Master number of intuition, enhancing psychic protection.\" },\n    { \"number\": 22, \"color\": \"BLUE\", \"position\": \"03:00\", \"reason\": \"Master builder energy, stabilizing the auric shield.\" },\n    { \"number\": 7, \"color\": \"INDIGO\", \"position\": \"04:30\", \"reason\": \"Spiritual insight, amplifying psychic defense.\" },\n    { \"number\": 8, \"color\": \"GOLD\", \"position\": \"06:00\", \"reason\": \"Empowers boundaries and energetic mastery.\" },\n    { \"number\": 2000, \"color\": \"GRAY\", \"position\": \"07:30\", \"reason\": \"(Substituted by ward-star due to number range constraint; will use ward-star glyph)\" },\n    { \"number\": 33, \"color\": \"VIOLET\", \"position\": \"09:00\", \"reason\": \"Master healer, transmuting negative energy.\" },\n    { \"number\": 1, \"color\": \"RED\", \"position\": \"10:30\", \"reason\": \"Vital root energy, grounding the field.\" },\n    { \"number\": 44, \"color\": \"GREEN\", \"position\": \"11:30\", \"reason\": \"Stabilizes and heals the energetic structure.\" }\n  ],\n  \"ring2\": [\n    { \"glyph\": \"capricorn.png\", \"color\": \"GRAY\", \"position\": \"12:00\", \"reason\": \"Capricorn Sun—structure and endurance for psychic shielding.\" },\n    { \"glyph\": \"dragon.png\", \"color\": \"GOLD\", \"position\": \"01:30\", \"reason\": \"Chinese Dragon—empowering, protective, and assertive spiritual force.\" },\n    { \"glyph\": \"root-chakra.png\", \"color\": \"RED\", \"position\": \"03:00\", \"reason\": \"Root Chakra—grounds and strengthens energetic boundaries.\" },\n    { \"glyph\": \"3rd-eye-chakra.png\", \"color\": \"INDIGO\", \"position\": \"04:30\", \"reason\": \"Third Eye—enhances psychic awareness and perception.\" },\n    { \"glyph\": \"ward.png\", \"color\": \"BLUE\", \"position\": \"06:00\", \"reason\": \"Ward Star—direct protection and energetic sealing.\" },\n    { \"glyph\": \"crown-center.png\", \"color\": \"WHITE\", \"position\": \"07:30\", \"reason\": \"Crown Chakra—connects to higher guidance for protection.\" },\n    { \"glyph\": \"sri-yantra.png\", \"color\": \"SILVER\", \"position\": \"09:00\", \"reason\": \"Sri Yantra—harmonizes and fortifies the subtle field.\" },\n    { \"glyph\": \"ward.png\", \"color\": \"PURPLE\", \"position\": \"10:30\", \"reason\": \"Ward Star—amplifies spiritual protection.\" },\n    { \"glyph\": \"ward.png\", \"color\": \"GREEN\", \"position\": \"11:30\", \"reason\": \"Ward Star—balances and heals psychic wounds.\" }\n  ],\n  \"ring3\": {\n    \"text\": \"I am shielded in divine clarity and power\",\n    \"repetitions\": 1\n  },\n  \"summary\": \"This Sri Yantra Psychic Shielding Seal Array integrates numerological master numbers, astrological, and energetic glyphs to form a comprehensive psychic barrier. Numbers 1, 11, and 22 anchor clarity, intuition, and stability, while the presence of master healer 33 and grounding 44/1 energies foster resilience and protection. Capricorn and Dragon glyphs infuse endurance and assertive defense, while chakra and ward symbols fortify the aura at every level. The affirmation, 'I am shielded in divine clarity and power,' seals the array’s intention. This configuration provides multidimensional energetic protection, amplifies psychic perception, and harmonizes your field for sustained spiritual security.\"\n}",
+  "sealData": {
+    "centralDesign": "sri-yantra",
+    "ring1Tokens": [
+      {
+        "position": "12:00",
+        "angle": 0,
+        "color": "BLUE",
+        "content": 7,
+        "type": "number"
+      },
+      {
+        "position": "1:00",
+        "angle": 30,
+        "color": "ORANGE",
+        "content": 22,
+        "type": "number"
+      },
+      {
+        "position": "2:30",
+        "angle": 75,
+        "color": "GREEN",
+        "content": 33,
+        "type": "number"
+      },
+      {
+        "position": "3:30",
+        "angle": 105,
+        "color": "PURPLE",
+        "content": 18,
+        "type": "number"
+      },
+      {
+        "position": "5:00",
+        "angle": 150,
+        "color": "YELLOW",
+        "content": 13,
+        "type": "number"
+      },
+      {
+        "position": "6:00",
+        "angle": 180,
+        "color": "BLUE",
+        "content": 26,
+        "type": "number"
+      },
+      {
+        "position": "7:00",
+        "angle": 210,
+        "color": "ORANGE",
+        "content": 44,
+        "type": "number"
+      },
+      {
+        "position": "8:30",
+        "angle": 255,
+        "color": "GREEN",
+        "content": 77,
+        "type": "number"
+      },
+      {
+        "position": "9:30",
+        "angle": 285,
+        "color": "PURPLE",
+        "content": 8,
+        "type": "number"
+      },
+      {
+        "position": "11:00",
+        "angle": 330,
+        "color": "YELLOW",
+        "content": 555,
+        "type": "number"
+      }
+    ],
+    "ring2Tokens": [
+      {
+        "position": "12:30",
+        "angle": 15,
+        "color": "AQUA",
+        "content": "om.png",
+        "type": "glyph"
+      },
+      {
+        "position": "2:00",
+        "angle": 60,
+        "color": "RED",
+        "content": "ankh.png",
+        "type": "glyph"
+      },
+      {
+        "position": "3:00",
+        "angle": 90,
+        "color": "GOLD",
+        "content": "lotus.png",
+        "type": "glyph"
+      },
+      {
+        "position": "4:00",
+        "angle": 120,
+        "color": "INDIGO",
+        "content": "eye-of-horus.png",
+        "type": "glyph"
+      },
+      {
+        "position": "5:30",
+        "angle": 165,
+        "color": "GREEN",
+        "content": "heart-chakra.png",
+        "type": "glyph"
+      },
+      {
+        "position": "6:30",
+        "angle": 195,
+        "color": "AQUA",
+        "content": "taurus.png",
+        "type": "glyph"
+      },
+      {
+        "position": "8:00",
+        "angle": 240,
+        "color": "RED",
+        "content": "leo.png",
+        "type": "glyph"
+      },
+      {
+        "position": "9:00",
+        "angle": 270,
+        "color": "GOLD",
+        "content": "scorpio.png",
+        "type": "glyph"
+      },
+      {
+        "position": "10:00",
+        "angle": 300,
+        "color": "INDIGO",
+        "content": "root-chakra.png",
+        "type": "glyph"
+      },
+      {
+        "position": "11:30",
+        "angle": 345,
+        "color": "GREEN",
+        "content": "crown-center.png",
+        "type": "glyph"
+      }
+    ],
+    "ring3Affirmation": "Gayatri: Om Bhur Bhuvah Svah",
+    "userConfig": {
+      "name": "Brad Allen Johnson",
+      "category": "Energy & Protection",
+      "subCategory": "Psychic Shielding"
+    }
+  },
+  "summary": "Beloved Brad Allen Johnson, welcome to the unveiling of your Sri Yantra Psychic Shielding Seal Array. Your intention for energy protection and psychic shielding has been attuned with the sacred geometry of the Sri Yantra, a profound symbol of spiritual alignment and multidimensional harmony. This seal has been meticulously aligned to your essence and request, creating a living field of clarity, resilience, and empowered protection.\n\n**Ring One – Numbers & Colors:**  \nYour outer ring is woven with the following numbers and their associated colors, each selected for its metaphysical resonance:\n\n- **7 (BLUE):** Spiritual insight and intuitive clarity, encouraging a clear psychic channel.\n- **22 (ORANGE):** Master builder energy and creative power, stabilizing your auric boundaries with vibrant life-force.\n- **33 (GREEN):** The master healer, infusing your field with compassionate renewal and transmutation of negativity.\n- **18 (PURPLE):** Spiritual wisdom and protection, deepening your shield with higher awareness.\n- **13 (YELLOW):** Transformation and illumination, bringing optimism and mental clarity to your energetic defenses.\n- **26 (BLUE):** Balance and harmony, reinforcing your shield with calming, stabilizing vibrations.\n- **44 (ORANGE):** Strength and endurance, fortifying your psychic structure with creative resilience.\n- **77 (GREEN):** Divine guidance and healing, nurturing your energetic body with restorative frequencies.\n- **8 (PURPLE):** Empowerment and mastery, reinforcing your boundaries with spiritual authority.\n- **555 (YELLOW):** Dynamic change and adaptability, ensuring your shield remains flexible and responsive.\n\nTogether, these numbers and colors form a radiant matrix designed to protect, balance, and uplift your energetic field in alignment with your intention.\n\n**Ring Two – Glyphs & Colors:**  \nThe second ring integrates sacred glyphs, each paired with a color to magnify its power:\n\n- **Om (AQUA):** Universal resonance and deep peace, harmonizing your field with the primordial sound of creation.\n- **Ankh (RED):** Vitality and life-force, anchoring protective energy into your core.\n- **Lotus (GOLD):** Spiritual purity and awakening, elevating your psychic defenses.\n- **Eye of Horus (INDIGO):** Insight and intuitive vigilance, guarding your perception from psychic intrusion.\n- **Heart Chakra (GREEN):** Compassion and emotional balance, ensuring your shield is both strong and nurturing.\n- **Taurus (AQUA):** Stability and groundedness, strengthening your energetic roots.\n- **Leo (RED):** Courage and radiant energy, empowering your shield with assertive presence.\n- **Scorpio (GOLD):** Transformative power and deep protection, helping you transmute and release negative influences.\n- **Root Chakra (INDIGO):** Grounding and security, connecting your shield to the earth’s stabilizing energy.\n- **Crown Center (GREEN):** Connection to higher wisdom, enveloping your field in divine consciousness.\n\nThese symbols collaborate to create a multidimensional shield, blending ancient wisdom, astrological power, and chakra harmonization for comprehensive psychic protection.\n\n**Ring Three – Affirmation/Mantra:**  \nAt the core of your seal is the sacred mantra:\n\n*Gayatri: Om Bhur Bhuvah Svah*\n\nThis ancient Sanskrit invocation is uttered once, focusing its energy as a single, potent anchor. The Gayatri mantra is renowned for invoking clarity, purification, and divine illumination, acting as a radiant shield around your mind and spirit. Its recitation seals the intention of psychic protection and spiritual awakening into the very heart of your array.\n\n---\n\nAffirmation: Gayatri: Om Bhur Bhuvah Svah  \nPronunciation of Affirmation: Ohm Bhoor Bhoo-vah Swaah  \nDefinition of Affirmation: “We meditate on the Source that pervades earth, atmosphere, and heavens—may that Light illuminate our understanding.”\n\nYour seal array is now alive with Source Center Vibration, empowered to serve as a metaphysical shield and guide. Trust in its geometry and sacred symbols, for they amplify your intention and protect your field. Use this seal with openness and confidence, knowing it is uniquely attuned to your path of energetic sovereignty and psychic resilience.",
+  "sealImageUrl": "/api/files/generated-seals/seal_Brad_Allen_Johnson_sri-yantra_1757127268876.json",
+  "timestamp": "2025-09-06T02:54:47.613Z"
+}

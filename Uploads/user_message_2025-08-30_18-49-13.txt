@@ -1,0 +1,143 @@
+We need to add a new section to the Order Management called Taxes & Duties. All of our products are going to be sent out through Canada, so we need to create the appropriate taxes for each Canadian province to be added to any order. Be familiar with our Canadian Tax System, and charge appropriate taxes by province. We also need to charge 5% Goods and Services Tax on digital products for Canadians (GST).
+
+Secondly, it's the new policy of Canada Post that duties for packages sent from Canada to the USA have DDP regulations. Here's the info: https://www.canadapost-postescanada.ca/cpc/en/support/campaign/shipping-to-us-duty-updates.page
+
+Instructions for DDP for Canada Post Shipments to the US:
+
+Abacus Task — Enforce DDP (Duties Paid) for Canada Post US Shipments
+
+Goal: For all shipments from Canada → USA, we must collect duties & taxes at checkout and generate DDP/“duties paid” labels through the Canada Post API. If DDP data is missing, block label creation and surface actionable errors.
+
+Use our existing Canada Post integration. Read the latest fields/names from the official API docs (Create Shipment/Non-Contract Shipment & Get Rates) and use the exact property names provided there (e.g., customs, duties-and-taxes-prepaid, hs-tariff-code, etc.). If the API you detect uses slightly different names, adapt accordingly—but keep the behavior identical.
+
+⸻
+
+0) Discovery (post a short report first)
+	1.	Inspect our current Canada Post rate and label requests for US shipments.
+	•	Do we send a customs block?
+	•	Do we set a “duties paid / DDP” flag (e.g., duties-and-taxes-prepaid: true, “terms of trade”: DDP)?
+	•	Are per-item hs-tariff-code, origin-country, unit-value, quantity, and weight sent?
+	2.	Verify we have the sandbox + production creds active. Confirm which environment Abacus is using right now.
+	3.	Post a short summary with any gaps.
+
+Only proceed once the report is posted.
+
+⸻
+
+1) Data Model (DB) — add/ensure customs fields exist
+
+Create/ensure tables and columns to persist product & order customs data:
+	•	products
+	•	hs_code (string, nullable)
+	•	country_of_origin (string, ISO-2)
+	•	customs_description (string)
+	•	default_customs_value_cad (decimal, optional)
+	•	mass_grams (int)
+	•	order_items (snapshot at time of order)
+	•	hs_code (string)
+	•	country_of_origin (string, ISO-2)
+	•	customs_description (string)
+	•	unit_value_cad (decimal)
+	•	quantity (int)
+	•	mass_grams_each (int)
+	•	shipments
+	•	incoterm (enum: DDP, DDU) — default & enforced to DDP for US
+	•	duties_estimated_cad (decimal)
+	•	taxes_estimated_cad (decimal)
+	•	duties_taxes_currency (string, default CAD)
+	•	customs_reason (enum: SOLD, GIFT, SAMPLE, DOCUMENTS; default SOLD)
+	•	recipient_tax_id (string, nullable)
+	•	importer_tax_id (string, nullable)
+	•	brokerage (jsonb, nullable) (for future broker settings)
+
+Run migrations; backfill order_items from products for existing orders.
+
+⸻
+
+2) Admin UI
+	•	Product Management → Customs panel
+	•	Inputs: HS code, Country of Origin, Customs Description, Default Value (CAD), Weight (g).
+	•	Order → Shipment Builder
+	•	Show read-only Incoterm = DDP for destination = US (and prevent changing it).
+	•	Display per-item customs snapshot (editable only by Admin).
+	•	Validate all US shipments have: HS code, origin country, values, weight, description.
+
+⸻
+
+3) Checkout & Rating (DDP)
+	•	When destination country = US, force DDP estimation.
+	•	On Get Rates: include the customs payload (per Canada Post API) with line items.
+	•	If the API provides a way to return duty & tax totals in the quote, surface them in checkout.
+	•	If not available via the API, display “Duties & taxes paid by shipper (DDP)” and sum them as 0.00 for now (or use our rules engine/Upstash cache for any interim estimate). Persist what we display into shipments.duties_estimated_cad/taxes_estimated_cad.
+
+Cache quotes per cart hash in Upstash to cut API calls.
+
+⸻
+
+4) Label Creation (mandatory DDP)
+
+For Canada Post Create Shipment (contract or non-contract), build the request with:
+	•	customs block including:
+	•	content-details: array of items with:
+	•	description
+	•	quantity
+	•	unit-weight (kg) or grams → convert as required
+	•	unit-value (CAD)
+	•	hs-tariff-code
+	•	country-of-origin
+	•	reason-for-export (SOLD unless overridden)
+	•	DDP flag: set “duties and taxes prepaid” true / terms-of-trade DDP (use the exact field required by the current API version; adapt naming).
+	•	Correct currency = CAD.
+	•	Names/Phones/Addresses in required formats (state codes, zip).
+	•	If the API requires importer/recipient tax IDs for DDP, map from shipments.importer_tax_id or leave blank if not required (log a warning).
+
+Validation (hard stop): For US shipments, if any item lacks HS code, origin, value, or weight → block label creation with a structured error guiding Admin to fix the data.
+
+Persist the created label’s response including the DDP indicator/code returned by Canada Post (some labels show a printed DTP/DDP notation).
+
+⸻
+
+5) Error handling & Observability
+	•	Log to our monitoring (console + Abacus logs) when:
+	•	Canada Post rejects customs/DDP fields (include response XML/JSON).
+	•	Required customs data missing (emit typed error with field & order_item_id).
+	•	Retry policy for transient 5xx.
+	•	Store the full request/response (sanitized) on shipments.api_audit for support.
+
+⸻
+
+6) Feature flag & rollout
+	•	Add env flag CA_POST_DDP_ENFORCED=true.
+	•	If true, DDP becomes mandatory for US.
+	•	If false, allow legacy behavior (for safe rollback). Default it to true in Production.
+
+⸻
+
+7) Automated Tests
+
+Create integration tests (Abacus test runner):
+	1.	Rating (US): with proper item customs → rate OK and duties/taxes displayed or “paid by shipper”.
+	2.	Rating (US): missing HS code → rate OK but label later must fail unless fixed.
+	3.	Label (US, DDP): create label returns success, response shows DDP/“prepaid” indicator.
+	4.	Label (US, missing customs): returns 4xx with our structured error.
+	5.	Non-US: keep existing behavior; no regression.
+
+⸻
+
+8) Acceptance Criteria
+	•	Every Canada→USA label request includes a complete customs block and DDP flag.
+	•	Admins cannot generate a US label unless all customs fields are present.
+	•	The label PDF/PNG produced by Canada Post indicates duties/taxes prepaid when applicable.
+	•	Checkout shows DDP status and (if available via API) duty/tax amounts.
+	•	Works in Sandbox and Production with our existing API keys.
+	•	Clean, typed errors and audit trail stored on each shipment.
+
+⸻
+
+9) Deliverables
+	•	DB migrations, API request builders, Admin UI changes.
+	•	Updated secrets/ENV documentation.
+	•	Test results & screenshots of a DDP label sample.
+	•	A brief “Operator Notes” section: how to update HS codes, overrides, and how to read the DDP indicator on labels.
+
+Please start by posting the discovery report (Step 0), then implement steps 1–9. When the first DDP label is generated in sandbox, attach the label sample and the exact request/response (with secrets removed) to confirm compliance.

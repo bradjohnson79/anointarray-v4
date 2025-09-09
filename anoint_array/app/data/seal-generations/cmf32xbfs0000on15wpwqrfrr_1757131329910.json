@@ -1,0 +1,178 @@
+{
+  "userId": "cmf32xbfs0000on15wpwqrfrr",
+  "userDetails": {
+    "fullName": "Brad Allen Johnson",
+    "birthDate": {
+      "day": 1,
+      "month": 1,
+      "year": 2000
+    },
+    "birthTime": {
+      "hour": 12,
+      "minute": 0
+    },
+    "placeOfBirth": ""
+  },
+  "sealConfig": {
+    "centralDesign": "sri-yantra",
+    "category": "Chakra & Spiritual Growth",
+    "subCategory": "Kundalini Support"
+  },
+  "chatGptInstructions": "{\n  \"ring1\": [\n    { \"number\": 1, \"color\": \"RED\", \"position\": \"12:00\", \"reason\": \"Activates root energy and personal strength for grounding Kundalini.\" },\n    { \"number\": 7, \"color\": \"PURPLE\", \"position\": \"02:00\", \"reason\": \"Enhances spiritual insight and connection to higher chakras.\" },\n    { \"number\": 11, \"color\": \"GOLD\", \"position\": \"04:00\", \"reason\": \"Master number for intuitive awakening and enlightenment.\" },\n    { \"number\": 8, \"color\": \"AQUA\", \"position\": \"06:00\", \"reason\": \"Balances energy flow for harmonious Kundalini movement.\" },\n    { \"number\": 22, \"color\": \"SILVER\", \"position\": \"08:00\", \"reason\": \"Master builder number, supporting integration of spiritual growth.\" },\n    { \"number\": 9, \"color\": \"VIOLET\", \"position\": \"10:00\", \"reason\": \"Supports the completion of cycles and transmutation of energy.\" },\n    { \"number\": 1, \"color\": \"WHITE\", \"position\": \"12:30\", \"reason\": \"Purifies and uplifts core intentions with clarity.\" },\n    { \"number\": 2, \"color\": \"GREEN\", \"position\": \"01:30\", \"reason\": \"Promotes balance and harmony within the chakra system.\" }\n  ],\n  \"ring2\": [\n    { \"glyph\": \"root-chakra.png\", \"color\": \"RED\", \"position\": \"12:00\", \"reason\": \"Anchors Kundalini energy at the root.\" },\n    { \"glyph\": \"sacral-chakra.png\", \"color\": \"ORANGE\", \"position\": \"01:30\", \"reason\": \"Stimulates creative and sensual Kundalini expression.\" },\n    { \"glyph\": \"navel-chakra.png\", \"color\": \"YELLOW\", \"position\": \"03:00\", \"reason\": \"Empowers willpower and energetic transformation.\" },\n    { \"glyph\": \"heart-chakra.png\", \"color\": \"GREEN\", \"position\": \"04:30\", \"reason\": \"Facilitates heart-centered spiritual expansion.\" },\n    { \"glyph\": \"throat-chakra.png\", \"color\": \"BLUE\", \"position\": \"06:00\", \"reason\": \"Supports authentic expression of Kundalini insights.\" },\n    { \"glyph\": \"3rd-eye-chakra.png\", \"color\": \"INDIGO\", \"position\": \"07:30\", \"reason\": \"Activates intuition and inner spiritual vision.\" },\n    { \"glyph\": \"crown-center.png\", \"color\": \"VIOLET\", \"position\": \"09:00\", \"reason\": \"Connects to cosmic consciousness and higher guidance.\" },\n    { \"glyph\": \"spine.png\", \"color\": \"SILVER\", \"position\": \"10:30\", \"reason\": \"Symbolizes the Kundalini pathway through the chakras.\" },\n    { \"glyph\": \"sri-yantra.png\", \"color\": \"GOLD\", \"position\": \"12:30\", \"reason\": \"Empowers the central intention with sacred geometry for spiritual ascent.\" },\n    { \"glyph\": \"ward.png\", \"color\": \"GRAY\", \"position\": \"11:30\", \"reason\": \"Provides metaphysical protection and energetic integrity to the array.\" }\n  ],\n  \"ring3\": {\n    \"text\": \"Om Namah Shivaya\",\n    \"repetitions\": 1\n  },\n  \"summary\": \"This Sri Yantra seal array is meticulously crafted to support Kundalini activation and spiritual growth for Brad Allen Johnson. The selected master numbers and numerological frequencies energize and harmonize the chakra system, while the corresponding chakra glyphs, spine, and sacred geometry provide a metaphysical pathway for the safe and balanced ascent of Kundalini energy. The mantra 'Om Namah Shivaya' anchors transformative, purifying vibration, fostering inner clarity and divine connection. Protective elements ensure that the process remains grounded and shielded, creating a powerful tool for conscious spiritual evolution.\"\n}",
+  "sealData": {
+    "centralDesign": "sri-yantra",
+    "ring1Tokens": [
+      {
+        "position": "12:00",
+        "angle": 0,
+        "color": "BLUE",
+        "content": 7,
+        "type": "number"
+      },
+      {
+        "position": "1:00",
+        "angle": 30,
+        "color": "ORANGE",
+        "content": 22,
+        "type": "number"
+      },
+      {
+        "position": "2:30",
+        "angle": 75,
+        "color": "GREEN",
+        "content": 33,
+        "type": "number"
+      },
+      {
+        "position": "3:30",
+        "angle": 105,
+        "color": "PURPLE",
+        "content": 18,
+        "type": "number"
+      },
+      {
+        "position": "5:00",
+        "angle": 150,
+        "color": "YELLOW",
+        "content": 13,
+        "type": "number"
+      },
+      {
+        "position": "6:00",
+        "angle": 180,
+        "color": "BLUE",
+        "content": 26,
+        "type": "number"
+      },
+      {
+        "position": "7:00",
+        "angle": 210,
+        "color": "ORANGE",
+        "content": 44,
+        "type": "number"
+      },
+      {
+        "position": "8:30",
+        "angle": 255,
+        "color": "GREEN",
+        "content": 77,
+        "type": "number"
+      },
+      {
+        "position": "9:30",
+        "angle": 285,
+        "color": "PURPLE",
+        "content": 8,
+        "type": "number"
+      },
+      {
+        "position": "11:00",
+        "angle": 330,
+        "color": "YELLOW",
+        "content": 555,
+        "type": "number"
+      }
+    ],
+    "ring2Tokens": [
+      {
+        "position": "12:30",
+        "angle": 15,
+        "color": "AQUA",
+        "content": "om.png",
+        "type": "glyph"
+      },
+      {
+        "position": "2:00",
+        "angle": 60,
+        "color": "RED",
+        "content": "ankh.png",
+        "type": "glyph"
+      },
+      {
+        "position": "3:00",
+        "angle": 90,
+        "color": "GOLD",
+        "content": "lotus.png",
+        "type": "glyph"
+      },
+      {
+        "position": "4:00",
+        "angle": 120,
+        "color": "INDIGO",
+        "content": "eye-of-horus.png",
+        "type": "glyph"
+      },
+      {
+        "position": "5:30",
+        "angle": 165,
+        "color": "GREEN",
+        "content": "heart-chakra.png",
+        "type": "glyph"
+      },
+      {
+        "position": "6:30",
+        "angle": 195,
+        "color": "AQUA",
+        "content": "taurus.png",
+        "type": "glyph"
+      },
+      {
+        "position": "8:00",
+        "angle": 240,
+        "color": "RED",
+        "content": "leo.png",
+        "type": "glyph"
+      },
+      {
+        "position": "9:00",
+        "angle": 270,
+        "color": "GOLD",
+        "content": "scorpio.png",
+        "type": "glyph"
+      },
+      {
+        "position": "10:00",
+        "angle": 300,
+        "color": "INDIGO",
+        "content": "root-chakra.png",
+        "type": "glyph"
+      },
+      {
+        "position": "11:30",
+        "angle": 345,
+        "color": "GREEN",
+        "content": "crown-center.png",
+        "type": "glyph"
+      }
+    ],
+    "ring3Affirmation": "I rise in truth and grace",
+    "userConfig": {
+      "name": "Brad Allen Johnson",
+      "category": "Chakra & Spiritual Growth",
+      "subCategory": "Kundalini Support"
+    }
+  },
+  "summary": "Welcome, Brad Allen Johnson. Your seal array has been woven upon the sacred Sri Yantra, a timeless geometric emblem of spiritual ascent and cosmic harmony. This array has been specifically attuned to your intention for Chakra and Spiritual Growth, focusing on the gentle and powerful support of Kundalini energy within your unique energetic field.\n\n**Ring One: Numbers & Colors**  \nEncircling your core, the sequence of numbers and their colors forms a radiant circuit of energy:\n- **7 (Blue):** Inspires spiritual wisdom and truth, opening pathways for higher understanding.\n- **22 (Orange):** Represents the master builder in vibrant orange, fueling creativity and the realization of your spiritual intentions in the physical world.\n- **33 (Green):** The master healer, colored green, fosters deep heart-centered integration and harmony through all layers of your being.\n- **18 (Purple):** Symbolizes transformation and spiritual maturity, with purple channeling intuition and divine guidance.\n- **13 (Yellow):** A number of renewal and positive change, yellow brings clarity, optimism, and empowered insight.\n- **26 (Blue):** Reinforces communication and emotional flow, encouraging trust in your intuitive voice.\n- **44 (Orange):** Anchors abundant stability and creative drive, supporting grounded expansion.\n- **77 (Green):** Amplifies spiritual connection and healing, inviting deep balance and wholeness.\n- **8 (Purple):** Aligns with infinite energy and the harmonious flow of Kundalini, opening you to higher consciousness.\n- **555 (Yellow):** A powerful sign of transformation and dynamic shifts, yellow illuminating the path of awakening.\n\nThese combinations create a field of protection, expansion, balance, and clarity, directly nurturing your Kundalini journey.\n\n**Ring Two: Glyphs & Colors**  \nWithin the second ring, sacred symbols and archetypes are set to anchor and guide the energy:\n- **Om (Aqua):** The primal sound of creation, aqua infuses peace and flow into your spiritual currents.\n- **Ankh (Red):** The Egyptian sign of life, red grounds vitality and the eternal spark within your root.\n- **Lotus (Gold):** Symbol of spiritual unfolding, gold channels divine purity and enlightenment.\n- **Eye of Horus (Indigo):** Guardian of intuition and protection, indigo awakens your inner vision.\n- **Heart Chakra (Green):** Center of love and compassion, green harmonizes and connects you to universal empathy.\n- **Taurus (Aqua):** The sign of steadfastness, aqua supports patience and gentle perseverance in your growth.\n- **Leo (Red):** Boldness and radiant strength, red ignites courage and self-expression.\n- **Scorpio (Gold):** Transformation and rebirth, gold empowers the alchemy of inner change.\n- **Root Chakra (Indigo):** Grounds your energetic foundation, indigo deepens spiritual security.\n- **Crown Center (Green):** Gateway to higher consciousness, green unites the wisdom of earth and spirit.\n\nEach glyph and color pairing fortifies your intention, harmonizing the energetic ascent of Kundalini with protection, clarity, and grace.\n\n**Ring Three: Affirmation**  \nAt the heart of your seal is the affirmation, spoken once:  \n**“I rise in truth and grace.”**  \nThis simple yet profound statement becomes a living mantra, integrating the energies of ascent, authenticity, and gentle empowerment throughout your seal. Its singular repetition focuses and magnifies your intention, weaving it into every layer of your being.\n\nWith this, your Sri Yantra seal array is fully charged with the vibration of Source. Trust in its living energy as a sacred tool for your journey—every number, color, and symbol amplifies your intention, guiding and supporting you as you awaken to your highest potential.\n\n---\nAffirmation: I rise in truth and grace  \nDefinition of Affirmation: I move forward in my life and spiritual journey with honesty, authenticity, and a spirit of gentle empowerment.",
+  "sealImageUrl": "/api/files/generated-seals/seal_Brad_Allen_Johnson_sri-yantra_1757131314950.json",
+  "timestamp": "2025-09-06T04:02:09.910Z"
+}

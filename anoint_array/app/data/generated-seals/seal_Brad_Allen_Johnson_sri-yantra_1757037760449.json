@@ -1,0 +1,153 @@
+{
+  "centralDesign": "sri-yantra",
+  "ring1Tokens": [
+    {
+      "position": "12:00",
+      "angle": 0,
+      "color": "BLUE",
+      "content": 7,
+      "type": "number"
+    },
+    {
+      "position": "1:00",
+      "angle": 30,
+      "color": "ORANGE",
+      "content": 22,
+      "type": "number"
+    },
+    {
+      "position": "2:00",
+      "angle": 60,
+      "color": "GREEN",
+      "content": 33,
+      "type": "number"
+    },
+    {
+      "position": "3:00",
+      "angle": 90,
+      "color": "PURPLE",
+      "content": 18,
+      "type": "number"
+    },
+    {
+      "position": "4:00",
+      "angle": 120,
+      "color": "YELLOW",
+      "content": 13,
+      "type": "number"
+    },
+    {
+      "position": "5:00",
+      "angle": 150,
+      "color": "BLUE",
+      "content": 26,
+      "type": "number"
+    },
+    {
+      "position": "6:00",
+      "angle": 180,
+      "color": "ORANGE",
+      "content": 44,
+      "type": "number"
+    },
+    {
+      "position": "7:00",
+      "angle": 210,
+      "color": "GREEN",
+      "content": 77,
+      "type": "number"
+    },
+    {
+      "position": "8:00",
+      "angle": 240,
+      "color": "PURPLE",
+      "content": 8,
+      "type": "number"
+    },
+    {
+      "position": "9:00",
+      "angle": 270,
+      "color": "YELLOW",
+      "content": 555,
+      "type": "number"
+    }
+  ],
+  "ring2Tokens": [
+    {
+      "position": "12:30",
+      "angle": 15,
+      "color": "AQUA",
+      "content": "om.png",
+      "type": "glyph"
+    },
+    {
+      "position": "1:30",
+      "angle": 45,
+      "color": "RED",
+      "content": "ankh.png",
+      "type": "glyph"
+    },
+    {
+      "position": "2:30",
+      "angle": 75,
+      "color": "GOLD",
+      "content": "lotus.png",
+      "type": "glyph"
+    },
+    {
+      "position": "3:30",
+      "angle": 105,
+      "color": "INDIGO",
+      "content": "eye-of-horus.png",
+      "type": "glyph"
+    },
+    {
+      "position": "4:30",
+      "angle": 135,
+      "color": "GREEN",
+      "content": "heart-chakra.png",
+      "type": "glyph"
+    },
+    {
+      "position": "5:30",
+      "angle": 165,
+      "color": "AQUA",
+      "content": "taurus.png",
+      "type": "glyph"
+    },
+    {
+      "position": "6:30",
+      "angle": 195,
+      "color": "RED",
+      "content": "leo.png",
+      "type": "glyph"
+    },
+    {
+      "position": "7:30",
+      "angle": 225,
+      "color": "GOLD",
+      "content": "scorpio.png",
+      "type": "glyph"
+    },
+    {
+      "position": "8:30",
+      "angle": 255,
+      "color": "INDIGO",
+      "content": "root-chakra.png",
+      "type": "glyph"
+    },
+    {
+      "position": "9:30",
+      "angle": 285,
+      "color": "GREEN",
+      "content": "crown-center.png",
+      "type": "glyph"
+    }
+  ],
+  "ring3Affirmation": "I am pure healing energy",
+  "userConfig": {
+    "name": "Brad Allen Johnson",
+    "category": "Healing & Detoxification",
+    "subCategory": "Full Body Detoxification"
+  }
+}

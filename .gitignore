@@ -1,0 +1,20 @@
+# Node / Next.js
+node_modules/
+.next/
+.turbo/
+*.log
+.DS_Store
+
+# Env files (never commit secrets)
+.env
+.env.*
+anoint_array/app/.env.local
+anoint_array/app/.env*
+
+# Build outputs
+dist/
+build/
+
+# Editor settings
+.vscode/
+.idea/

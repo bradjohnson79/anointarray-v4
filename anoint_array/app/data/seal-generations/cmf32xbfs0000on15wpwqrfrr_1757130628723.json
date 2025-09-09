@@ -1,0 +1,178 @@
+{
+  "userId": "cmf32xbfs0000on15wpwqrfrr",
+  "userDetails": {
+    "fullName": "Brad Allen Johnson",
+    "birthDate": {
+      "day": 1,
+      "month": 1,
+      "year": 2000
+    },
+    "birthTime": {
+      "hour": 12,
+      "minute": 0
+    },
+    "placeOfBirth": ""
+  },
+  "sealConfig": {
+    "centralDesign": "sri-yantra",
+    "category": "Environmental Enhancement",
+    "subCategory": "Nature Resonance Array"
+  },
+  "chatGptInstructions": "{\n  \"ring1\": [\n    { \"number\": 1, \"color\": \"GREEN\", \"position\": \"12:00\", \"reason\": \"Represents new beginnings and aligns with nature resonance for growth.\" },\n    { \"number\": 11, \"color\": \"AQUA\", \"position\": \"02:00\", \"reason\": \"Master number for inspiration and environmental attunement.\" },\n    { \"number\": 22, \"color\": \"YELLOW\", \"position\": \"04:00\", \"reason\": \"Master builder number, supporting harmony in the environment.\" },\n    { \"number\": 33, \"color\": \"RED\", \"position\": \"06:00\", \"reason\": \"Master healer number, energizing life force for nature.\" },\n    { \"number\": 8, \"color\": \"GOLD\", \"position\": \"08:00\", \"reason\": \"Symbolizes abundance and ongoing cycles in nature.\" },\n    { \"number\": 4, \"color\": \"GREEN\", \"position\": \"10:00\", \"reason\": \"Foundation and stability, grounding environmental energies.\" },\n    { \"number\": 44, \"color\": \"SILVER\", \"position\": \"11:00\", \"reason\": \"Master stabilizer, supporting integration and reflection in nature.\" },\n    { \"number\": 24, \"color\": \"AQUA\", \"position\": \"03:00\", \"reason\": \"Integration and peace, supporting environmental clarity.\" },\n    { \"number\": 7, \"color\": \"BLUE\", \"position\": \"05:00\", \"reason\": \"Spiritual growth and environmental wisdom.\" },\n    { \"number\": 2, \"color\": \"WHITE\", \"position\": \"07:00\", \"reason\": \"Harmony and balance for nature resonance.\" },\n    { \"number\": 6, \"color\": \"GREEN\", \"position\": \"09:00\", \"reason\": \"Healing and compassionate energy for environmental enhancement.\" },\n    { \"number\": 9, \"color\": \"PURPLE\", \"position\": \"01:00\", \"reason\": \"Completion and universal connection to the environment.\" }\n  ],\n  \"ring2\": [\n    { \"glyph\": \"earth.png\", \"color\": \"GREEN\", \"position\": \"12:00\", \"reason\": \"Earth element strengthens grounding and connection to nature.\" },\n    { \"glyph\": \"water.png\", \"color\": \"AQUA\", \"position\": \"02:00\", \"reason\": \"Water element enhances flow and adaptability in the environment.\" },\n    { \"glyph\": \"heart-chakra.png\", \"color\": \"GREEN\", \"position\": \"04:00\", \"reason\": \"Heart chakra opens compassion and harmony with nature.\" },\n    { \"glyph\": \"rat.png\", \"color\": \"YELLOW\", \"position\": \"06:00\", \"reason\": \"Rat Chinese Zodiac (Year 2000) symbolizes resourcefulness and renewal.\" },\n    { \"glyph\": \"sri-yantra.png\", \"color\": \"GOLD\", \"position\": \"08:00\", \"reason\": \"Sri Yantra at key point for sacred geometry resonance.\" },\n    { \"glyph\": \"seed-of-life.png\", \"color\": \"GREEN\", \"position\": \"10:00\", \"reason\": \"Seed of Life supports generative patterns in nature.\" },\n    { \"glyph\": \"lotus.png\", \"color\": \"WHITE\", \"position\": \"11:00\", \"reason\": \"Lotus represents purity and unfolding in the environment.\" },\n    { \"glyph\": \"root-chakra.png\", \"color\": \"RED\", \"position\": \"03:00\", \"reason\": \"Root chakra grounds and stabilizes environmental energy.\" },\n    { \"glyph\": \"ward.png\", \"color\": \"SILVER\", \"position\": \"05:00\", \"reason\": \"Protection and energetic balance as placeholder.\" },\n    { \"glyph\": \"ward.png\", \"color\": \"SILVER\", \"position\": \"07:00\", \"reason\": \"Protection and energetic balance as placeholder.\" },\n    { \"glyph\": \"ward.png\", \"color\": \"SILVER\", \"position\": \"09:00\", \"reason\": \"Protection and energetic balance as placeholder.\" },\n    { \"glyph\": \"ward.png\", \"color\": \"SILVER\", \"position\": \"01:00\", \"reason\": \"Protection and energetic balance as placeholder.\" }\n  ],\n  \"ring3\": {\n    \"text\": \"May harmony thrive, all nature flourish here\",\n    \"repetitions\": 1\n  },\n  \"summary\": \"This Nature Resonance Array, using the Sri Yantra template, integrates numerological master energies and Earth-based glyphs to enhance environmental harmony. The numbers and glyphs are chosen for their grounding, healing, and generative resonance with nature, while the affirmation calls forth harmony and flourishing for all natural life in the area. The inclusion of sacred geometry and chakra symbols amplifies energetic flow and environmental integration, making this array ideal for spaces seeking deeper connection and vibrancy with the natural world.\"\n}",
+  "sealData": {
+    "centralDesign": "sri-yantra",
+    "ring1Tokens": [
+      {
+        "position": "12:00",
+        "angle": 0,
+        "color": "BLUE",
+        "content": 7,
+        "type": "number"
+      },
+      {
+        "position": "1:00",
+        "angle": 30,
+        "color": "ORANGE",
+        "content": 22,
+        "type": "number"
+      },
+      {
+        "position": "2:30",
+        "angle": 75,
+        "color": "GREEN",
+        "content": 33,
+        "type": "number"
+      },
+      {
+        "position": "3:30",
+        "angle": 105,
+        "color": "PURPLE",
+        "content": 18,
+        "type": "number"
+      },
+      {
+        "position": "5:00",
+        "angle": 150,
+        "color": "YELLOW",
+        "content": 13,
+        "type": "number"
+      },
+      {
+        "position": "6:00",
+        "angle": 180,
+        "color": "BLUE",
+        "content": 26,
+        "type": "number"
+      },
+      {
+        "position": "7:00",
+        "angle": 210,
+        "color": "ORANGE",
+        "content": 44,
+        "type": "number"
+      },
+      {
+        "position": "8:30",
+        "angle": 255,
+        "color": "GREEN",
+        "content": 77,
+        "type": "number"
+      },
+      {
+        "position": "9:30",
+        "angle": 285,
+        "color": "PURPLE",
+        "content": 8,
+        "type": "number"
+      },
+      {
+        "position": "11:00",
+        "angle": 330,
+        "color": "YELLOW",
+        "content": 555,
+        "type": "number"
+      }
+    ],
+    "ring2Tokens": [
+      {
+        "position": "12:30",
+        "angle": 15,
+        "color": "AQUA",
+        "content": "om.png",
+        "type": "glyph"
+      },
+      {
+        "position": "2:00",
+        "angle": 60,
+        "color": "RED",
+        "content": "ankh.png",
+        "type": "glyph"
+      },
+      {
+        "position": "3:00",
+        "angle": 90,
+        "color": "GOLD",
+        "content": "lotus.png",
+        "type": "glyph"
+      },
+      {
+        "position": "4:00",
+        "angle": 120,
+        "color": "INDIGO",
+        "content": "eye-of-horus.png",
+        "type": "glyph"
+      },
+      {
+        "position": "5:30",
+        "angle": 165,
+        "color": "GREEN",
+        "content": "heart-chakra.png",
+        "type": "glyph"
+      },
+      {
+        "position": "6:30",
+        "angle": 195,
+        "color": "AQUA",
+        "content": "taurus.png",
+        "type": "glyph"
+      },
+      {
+        "position": "8:00",
+        "angle": 240,
+        "color": "RED",
+        "content": "leo.png",
+        "type": "glyph"
+      },
+      {
+        "position": "9:00",
+        "angle": 270,
+        "color": "GOLD",
+        "content": "scorpio.png",
+        "type": "glyph"
+      },
+      {
+        "position": "10:00",
+        "angle": 300,
+        "color": "INDIGO",
+        "content": "root-chakra.png",
+        "type": "glyph"
+      },
+      {
+        "position": "11:30",
+        "angle": 345,
+        "color": "GREEN",
+        "content": "crown-center.png",
+        "type": "glyph"
+      }
+    ],
+    "ring3Affirmation": "Vita Amor Veritas",
+    "userConfig": {
+      "name": "Brad Allen Johnson",
+      "category": "Environmental Enhancement",
+      "subCategory": "Nature Resonance Array"
+    }
+  },
+  "summary": "Welcome, Brad Allen Johnson. Your Nature Resonance Array has been meticulously crafted upon the sacred geometry of the Sri Yantra, honoring your intention for environmental enhancement and deep alignment with nature’s living energies. This seal is uniquely attuned to your essence, weaving together numerical, symbolic, and affirmational powers to foster harmony and vibrancy in your surroundings.\n\n**Ring One – Numbers & Colors:**  \nThe outer ring features the numbers 7 (BLUE), 22 (ORANGE), 33 (GREEN), 18 (PURPLE), 13 (YELLOW), 26 (BLUE), 44 (ORANGE), 77 (GREEN), 8 (PURPLE), and 555 (YELLOW). Each holds a distinct metaphysical resonance:  \n- **7 (BLUE)** invokes spiritual insight and wisdom, encouraging environmental consciousness and clarity.  \n- **22 (ORANGE)**, a master builder number, brings creative expansion and the power to manifest harmonious spaces.  \n- **33 (GREEN)** is the master healer, channeling nurturing energy and growth into your environment.  \n- **18 (PURPLE)** supports transformation and deep spiritual connection, aiding environmental renewal.  \n- **13 (YELLOW)** represents new cycles and illumination, inviting fresh beginnings in your space.  \n- **26 (BLUE)** combines balance and communication, fostering peaceful resonance.  \n- **44 (ORANGE)** provides powerful stabilization, securing foundational support for ongoing vitality.  \n- **77 (GREEN)** amplifies intuition and nature’s wisdom, strengthening your bond with Earth’s rhythms.  \n- **8 (PURPLE)** brings abundance and completion, sealing cycles of growth.  \n- **555 (YELLOW)** signals major transformation and dynamic change, ensuring continual evolution and flourishing.\n\n**Ring Two – Glyphs & Colors:**  \nThe second ring is adorned with potent glyphs, each with specific colors to further amplify their metaphysical charge:  \n- **Om (AQUA):** The primordial vibration, infusing your environment with peace and cosmic alignment.  \n- **Ankh (RED):** Ancient symbol of life force and vitality, energizing natural renewal.  \n- **Lotus (GOLD):** Epitome of purity and spiritual blossoming, encouraging gentle growth.  \n- **Eye of Horus (INDIGO):** Guardian of protection and awakened perception, safeguarding your space.  \n- **Heart Chakra (GREEN):** Center of compassion and harmony, opening channels of loving energy to the land.  \n- **Taurus (AQUA):** Embodying grounded stability, patience, and a strong link to the Earth.  \n- **Leo (RED):** Radiating courage and life-affirming strength, invigorating your environment.  \n- **Scorpio (GOLD):** Catalyst for transformation and renewal, supporting cycles of regeneration.  \n- **Root Chakra (INDIGO):** Deep grounding and energetic stability, anchoring the array’s effects.  \n- **Crown Center (GREEN):** Connection to higher consciousness, inviting wisdom and unity with nature’s greater intelligence.\n\n**Ring Three – Affirmation:**  \nThe affirmation inscribed within is: “Vita Amor Veritas.” Its singular repetition centers and magnifies the array’s intention, uniting the energies of life, love, and truth. This phrase, in Latin, weaves the essence of vitality, unconditional love, and the enduring power of truth directly into your environment, fostering a sanctuary of flourishing and harmony.\n\nMay you feel empowered by this living seal, Brad. It is now charged with Source Center Vibration, serving as an active metaphysical ally for your space. Trust in its geometry and symbols to amplify your intention—use it with openness, knowing that your environment is now richly supported and attuned to natural resonance.\n\n---\nAffirmation: Vita Amor Veritas  \nDefinition of Affirmation: Life, Love, Truth—invoking the energies of vitality, compassion, and authenticity in your space.",
+  "sealImageUrl": "/api/files/generated-seals/seal_Brad_Allen_Johnson_sri-yantra_1757130610269.json",
+  "timestamp": "2025-09-06T03:50:28.723Z"
+}

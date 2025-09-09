@@ -1,0 +1,21 @@
+services:
+  db:
+    image: postgres:16
+    container_name: anointarray-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: anoint
+      POSTGRES_PASSWORD: anoint
+      POSTGRES_DB: anoint
+    ports:
+      - "5433:5432" # host:container
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "anoint"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  pgdata:

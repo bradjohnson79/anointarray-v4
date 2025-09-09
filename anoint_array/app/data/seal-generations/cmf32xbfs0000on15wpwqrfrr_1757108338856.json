@@ -1,0 +1,178 @@
+{
+  "userId": "cmf32xbfs0000on15wpwqrfrr",
+  "userDetails": {
+    "fullName": "Brad Allen Johnson",
+    "birthDate": {
+      "day": 1,
+      "month": 1,
+      "year": 2000
+    },
+    "birthTime": {
+      "hour": 12,
+      "minute": 0
+    },
+    "placeOfBirth": ""
+  },
+  "sealConfig": {
+    "centralDesign": "sri-yantra",
+    "category": "Healing & Detoxification",
+    "subCategory": "Full Body Detoxification"
+  },
+  "chatGptInstructions": "{\n  \"ring1\": [\n    { \"number\": 1, \"color\": \"WHITE\", \"position\": \"12:00\", \"reason\": \"Initiates new vitality and unity for full body cleansing.\" },\n    { \"number\": 11, \"color\": \"AQUA\", \"position\": \"01:00\", \"reason\": \"Amplifies intuitive purification and higher healing intent.\" },\n    { \"number\": 22, \"color\": \"GREEN\", \"position\": \"02:00\", \"reason\": \"Anchors balance and growth in body detox pathways.\" },\n    { \"number\": 33, \"color\": \"YELLOW\", \"position\": \"03:00\", \"reason\": \"Strengthens clarity and willpower to release toxins.\" },\n    { \"number\": 8, \"color\": \"RED\", \"position\": \"04:00\", \"reason\": \"Empowers physical energy to support elimination of impurities.\" },\n    { \"number\": 7, \"color\": \"SILVER\", \"position\": \"05:00\", \"reason\": \"Invokes reflective energies for inner cleansing.\" },\n    { \"number\": 9, \"color\": \"VIOLET\", \"position\": \"06:00\", \"reason\": \"Catalyzes transmutation and completion of detox cycles.\" },\n    { \"number\": 1, \"color\": \"GOLD\", \"position\": \"07:00\", \"reason\": \"Reinforces new beginnings and radiant health.\" }\n  ],\n  \"ring2\": [\n    { \"glyph\": \"sri-yantra.png\", \"color\": \"WHITE\", \"position\": \"12:00\", \"reason\": \"Centralizes harmonizing sacred geometry for comprehensive healing.\" },\n    { \"glyph\": \"liver.png\", \"color\": \"GREEN\", \"position\": \"01:00\", \"reason\": \"Focuses on liver detox, the primary organ of purification.\" },\n    { \"glyph\": \"kidneys.png\", \"color\": \"AQUA\", \"position\": \"02:00\", \"reason\": \"Supports kidney filtration and fluid detoxification.\" },\n    { \"glyph\": \"intestines.png\", \"color\": \"YELLOW\", \"position\": \"03:00\", \"reason\": \"Assists digestive detox and waste elimination.\" },\n    { \"glyph\": \"lungs.png\", \"color\": \"BLUE\", \"position\": \"04:00\", \"reason\": \"Enhances respiratory detox and oxygenation.\" },\n    { \"glyph\": \"heart-chakra.png\", \"color\": \"GREEN\", \"position\": \"05:00\", \"reason\": \"Promotes heart-centered healing and circulation.\" },\n    { \"glyph\": \"earth.png\", \"color\": \"RED\", \"position\": \"06:00\", \"reason\": \"Grounds the detox process into physical reality.\" },\n    { \"glyph\": \"ward.png\", \"color\": \"SILVER\", \"position\": \"07:00\", \"reason\": \"Protects the array and seals the healing intention.\" }\n  ],\n  \"ring3\": {\n    \"text\": \"My body is purified, vibrant, and renewed.\",\n    \"repetitions\": 1\n  },\n  \"summary\": \"This Sri Yantra-based seal array harnesses the harmonizing power of sacred geometry, numerology, and targeted healing symbols to support Brad Allen Johnson's full body detoxification. The carefully chosen master numbers (1, 11, 22, 33, 8, 7, 9) amplify cycles of renewal, intuitive release, and physical energy, while the anatomical glyphs target the liver, kidneys, intestines, lungs, and heart—the key organs of detox. Protective and grounding elements ensure clarity and energetic safety throughout the process. The affirmation completes the array by aligning intention with the body's innate capacity for vibrant renewal.\"\n}",
+  "sealData": {
+    "centralDesign": "sri-yantra",
+    "ring1Tokens": [
+      {
+        "position": "12:00",
+        "angle": 0,
+        "color": "BLUE",
+        "content": 7,
+        "type": "number"
+      },
+      {
+        "position": "1:00",
+        "angle": 30,
+        "color": "ORANGE",
+        "content": 22,
+        "type": "number"
+      },
+      {
+        "position": "2:00",
+        "angle": 60,
+        "color": "GREEN",
+        "content": 33,
+        "type": "number"
+      },
+      {
+        "position": "3:00",
+        "angle": 90,
+        "color": "PURPLE",
+        "content": 18,
+        "type": "number"
+      },
+      {
+        "position": "4:00",
+        "angle": 120,
+        "color": "YELLOW",
+        "content": 13,
+        "type": "number"
+      },
+      {
+        "position": "5:00",
+        "angle": 150,
+        "color": "BLUE",
+        "content": 26,
+        "type": "number"
+      },
+      {
+        "position": "6:00",
+        "angle": 180,
+        "color": "ORANGE",
+        "content": 44,
+        "type": "number"
+      },
+      {
+        "position": "7:00",
+        "angle": 210,
+        "color": "GREEN",
+        "content": 77,
+        "type": "number"
+      },
+      {
+        "position": "8:00",
+        "angle": 240,
+        "color": "PURPLE",
+        "content": 8,
+        "type": "number"
+      },
+      {
+        "position": "9:00",
+        "angle": 270,
+        "color": "YELLOW",
+        "content": 555,
+        "type": "number"
+      }
+    ],
+    "ring2Tokens": [
+      {
+        "position": "12:30",
+        "angle": 15,
+        "color": "AQUA",
+        "content": "om.png",
+        "type": "glyph"
+      },
+      {
+        "position": "1:30",
+        "angle": 45,
+        "color": "RED",
+        "content": "ankh.png",
+        "type": "glyph"
+      },
+      {
+        "position": "2:30",
+        "angle": 75,
+        "color": "GOLD",
+        "content": "lotus.png",
+        "type": "glyph"
+      },
+      {
+        "position": "3:30",
+        "angle": 105,
+        "color": "INDIGO",
+        "content": "eye-of-horus.png",
+        "type": "glyph"
+      },
+      {
+        "position": "4:30",
+        "angle": 135,
+        "color": "GREEN",
+        "content": "heart-chakra.png",
+        "type": "glyph"
+      },
+      {
+        "position": "5:30",
+        "angle": 165,
+        "color": "AQUA",
+        "content": "taurus.png",
+        "type": "glyph"
+      },
+      {
+        "position": "6:30",
+        "angle": 195,
+        "color": "RED",
+        "content": "leo.png",
+        "type": "glyph"
+      },
+      {
+        "position": "7:30",
+        "angle": 225,
+        "color": "GOLD",
+        "content": "scorpio.png",
+        "type": "glyph"
+      },
+      {
+        "position": "8:30",
+        "angle": 255,
+        "color": "INDIGO",
+        "content": "root-chakra.png",
+        "type": "glyph"
+      },
+      {
+        "position": "9:30",
+        "angle": 285,
+        "color": "GREEN",
+        "content": "crown-center.png",
+        "type": "glyph"
+      }
+    ],
+    "ring3Affirmation": "Lokah Samastah Sukhino Bhavantu",
+    "userConfig": {
+      "name": "Brad Allen Johnson",
+      "category": "Healing & Detoxification",
+      "subCategory": "Full Body Detoxification"
+    }
+  },
+  "summary": "Welcome, Brad Allen Johnson. Your intention for full body healing and detoxification has been honored within the sacred geometry of the Sri Yantra, a timeless symbol of harmony and energetic renewal. This seal array is uniquely attuned to your essence and purpose, weaving together the powers of number, color, symbol, and mantra to guide and support your journey of vibrant purification.\n\n**Ring One: Numbers & Colors**  \nThe first ring encircles your seal with potent numbers and hues, each selected for their transformative resonance:\n- **7 (BLUE, 12:00):** Invokes spiritual insight and deep clearing, helping you access inner wisdom for healing.\n- **22 (ORANGE, 1:00):** Master Builder energy, awakening creative flow and dynamic transformation throughout your system.\n- **33 (GREEN, 2:00):** The vibration of compassion and heart-centered renewal, nurturing balanced growth and cellular restoration.\n- **18 (PURPLE, 3:00):** Supports spiritual transmutation, uplifting your energy as you release what no longer serves.\n- **13 (YELLOW, 4:00):** Symbolizes rebirth and clarity, illuminating your path to purification and wholeness.\n- **26 (BLUE, 5:00):** Brings harmony and emotional balance, supporting gentle, sustained detoxification.\n- **44 (ORANGE, 6:00):** Grounds you in creative power and energetic protection, reinforcing your body’s natural cleansing cycles.\n- **77 (GREEN, 7:00):** Amplifies intuitive healing and growth, connecting you to nature’s wisdom for renewal.\n- **8 (PURPLE, 8:00):** Energizes your will and resilience, helping you overcome obstacles to health.\n- **555 (YELLOW, 9:00):** The number of rapid change and breakthrough, accelerating your release of toxins and ushering in positive shifts.\n\nEach pairing of number and color creates a field of protection, expansion, and clarity, working synergistically to support the full spectrum of your healing intention.\n\n**Ring Two: Glyphs & Colors**  \nThe second ring integrates sacred glyphs, each empowered by a healing color:\n- **Om (AQUA, 12:30):** The primordial sound of creation, infusing your array with universal harmony and cleansing vibration.\n- **Ankh (RED, 1:30):** Ancient symbol of life force and vitality, energizing your process of renewal.\n- **Lotus (GOLD, 2:30):** Signifies spiritual blossoming, purity, and the unfolding of your highest potential.\n- **Eye of Horus (INDIGO, 3:30):** Offers protection, intuitive clarity, and energetic safeguarding during deep transformation.\n- **Heart Chakra (GREEN, 4:30):** Anchors love and compassionate healing, supporting your heart and circulatory detox.\n- **Taurus (AQUA, 5:30):** Grounds your healing into the body, fostering stability and sustained progress.\n- **Leo (RED, 6:30):** Ignites courage and life energy, empowering you to embrace vibrant health.\n- **Scorpio (GOLD, 7:30):** Facilitates deep release, transformation, and the renewal of your entire being.\n- **Root Chakra (INDIGO, 8:30):** Ensures grounding and foundational strength as you clear and rebuild.\n- **Crown Center (GREEN, 9:30):** Connects you to higher consciousness, allowing spiritual light to infuse your healing.\n\nThese symbols and their radiant colors are chosen to focus, protect, and amplify your detoxification journey on every level: physical, emotional, and spiritual.\n\n**Ring Three: Affirmation**  \nEncircling all, the affirmation **“Lokah Samastah Sukhino Bhavantu”** is placed with singular intent.  \nRepeated once, this ancient Sanskrit blessing radiates its energy throughout the seal. Its recitation (even silently) harmonizes your intention with the wellbeing of all beings, elevating your personal healing into a field of collective upliftment. This mantra means, in simple terms: \"May all beings everywhere be happy and free.\" Its vibration anchors peace, freedom, and happiness as core frequencies of your detox process.\n\n---\n\nAffirmation: Lokah Samastah Sukhino Bhavantu  \nPronunciation of Affirmation: loh-KAH sah-mah-STAH soo-kee-NO bha-VAHN-too  \nDefinition of Affirmation: May all beings everywhere be happy and free.\n\n---\n\nBrad, this seal array is now charged with Source Center Vibration—a living, sacred tool for your healing. Trust in its geometry and symbols; they amplify your intention and align your entire being with the energies of purification, renewal, and vibrant wellbeing. Use your seal with openness and confidence, knowing it is a direct conduit for",
+  "sealImageUrl": "/api/files/generated-seals/seal_Brad_Allen_Johnson_sri-yantra_1757108317172.json",
+  "timestamp": "2025-09-05T21:38:58.856Z"
+}

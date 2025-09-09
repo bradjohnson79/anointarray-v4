@@ -1,0 +1,193 @@
+{
+  "settings": {
+    "centerX": 0,
+    "centerY": 0,
+    "centralRadius": 80,
+    "innerRadius": 140,
+    "middleRadius": 200,
+    "outerRadius": 260,
+    "showGrid": true,
+    "showWatermark": true,
+    "canvasSize": 600
+  },
+  "coordinates": [
+    {
+      "direction": "12:00",
+      "x": 300,
+      "y": 160,
+      "angle": -90
+    },
+    {
+      "direction": "12:30",
+      "x": 336.2346663143529,
+      "y": 164.77038431953045,
+      "angle": -75
+    },
+    {
+      "direction": "01:00",
+      "x": 370,
+      "y": 178.7564434701786,
+      "angle": -59.99999999999999
+    },
+    {
+      "direction": "01:30",
+      "x": 398.99494936611666,
+      "y": 201.00505063388334,
+      "angle": -45
+    },
+    {
+      "direction": "02:00",
+      "x": 421.24355652982143,
+      "y": 230,
+      "angle": -29.999999999999996
+    },
+    {
+      "direction": "02:30",
+      "x": 435.2296156804696,
+      "y": 263.7653336856471,
+      "angle": -14.999999999999998
+    },
+    {
+      "direction": "03:00",
+      "x": 440,
+      "y": 300,
+      "angle": 0
+    },
+    {
+      "direction": "03:30",
+      "x": 435.2296156804696,
+      "y": 336.2346663143529,
+      "angle": 14.999999999999998
+    },
+    {
+      "direction": "04:00",
+      "x": 421.24355652982143,
+      "y": 370,
+      "angle": 29.999999999999996
+    },
+    {
+      "direction": "04:30",
+      "x": 398.99494936611666,
+      "y": 398.99494936611666,
+      "angle": 45
+    },
+    {
+      "direction": "05:00",
+      "x": 370,
+      "y": 421.2435565298214,
+      "angle": 59.99999999999999
+    },
+    {
+      "direction": "05:30",
+      "x": 336.2346663143529,
+      "y": 435.2296156804696,
+      "angle": 75
+    },
+    {
+      "direction": "06:00",
+      "x": 300,
+      "y": 440,
+      "angle": 90
+    },
+    {
+      "direction": "06:30",
+      "x": 263.7653336856471,
+      "y": 435.2296156804696,
+      "angle": 105.00000000000001
+    },
+    {
+      "direction": "07:00",
+      "x": 230.00000000000003,
+      "y": 421.24355652982143,
+      "angle": 119.99999999999999
+    },
+    {
+      "direction": "07:30",
+      "x": 201.00505063388334,
+      "y": 398.99494936611666,
+      "angle": 135
+    },
+    {
+      "direction": "08:00",
+      "x": 178.75644347017857,
+      "y": 370,
+      "angle": 150
+    },
+    {
+      "direction": "08:30",
+      "x": 164.77038431953045,
+      "y": 336.2346663143529,
+      "angle": 165
+    },
+    {
+      "direction": "09:00",
+      "x": 160,
+      "y": 300,
+      "angle": 180
+    },
+    {
+      "direction": "09:30",
+      "x": 164.77038431953045,
+      "y": 263.7653336856471,
+      "angle": 195
+    },
+    {
+      "direction": "10:00",
+      "x": 178.7564434701786,
+      "y": 230,
+      "angle": 210.00000000000003
+    },
+    {
+      "direction": "10:30",
+      "x": 201.00505063388334,
+      "y": 201.00505063388334,
+      "angle": 225
+    },
+    {
+      "direction": "11:00",
+      "x": 229.99999999999994,
+      "y": 178.75644347017862,
+      "angle": 239.99999999999997
+    },
+    {
+      "direction": "11:30",
+      "x": 263.76533368564714,
+      "y": 164.77038431953045,
+      "angle": 255.00000000000003
+    }
+  ],
+  "textSettings": {
+    "sampleText": "OM NAMAH SHIVAYA",
+    "fontSize": 32,
+    "letterSpacing": 6,
+    "startAngle": 270,
+    "fontFamily": "serif",
+    "textColor": "#ffffff",
+    "showTextPreview": true
+  },
+  "testToken": {
+    "number": 7,
+    "color": "GREEN",
+    "position": "7:00",
+    "angle": 210,
+    "enabled": true
+  },
+  "testGlyph": {
+    "filename": "om.png",
+    "color": "RED",
+    "position": "3:00",
+    "angle": 90,
+    "enabled": true
+  },
+  "templateSettings": {
+    "selectedTemplate": "sri-yantra.png",
+    "enabled": true,
+    "opacity": 100,
+    "size": 200
+  },
+  "backgroundSettings": {
+    "gradientType": "silver",
+    "opacity": 80,
+    "enabled": true
+  }
+}
