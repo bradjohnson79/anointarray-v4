@@ -16,8 +16,9 @@ fi
 REPO_URL="$GIT_HTTPS"
 TOKEN="$GIT_PERSONAL_ACCESS_TOKEN"
 
-# Insert PAT into https URL using x-access-token format
-AUTH_URL="$(echo "$REPO_URL" | sed -E 's#^https://([^/]+)/#https://x-access-token:'"$TOKEN"'@/#')"
+# Insert PAT into https URL using x-access-token format safely
+SUFFIX=${REPO_URL#https://}
+AUTH_URL="https://x-access-token:${TOKEN}@${SUFFIX}"
 
 echo "Preparing git repo..."
  git init
