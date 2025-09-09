@@ -8,6 +8,31 @@ set -euo pipefail
 #   bash anoint_array/scripts/push-to-github.sh
 
 if [[ -z "${GIT_HTTPS:-}" || -z "${GIT_PERSONAL_ACCESS_TOKEN:-}" ]]; then
+  # Try to load from .env.local without sourcing everything
+  if [[ -f "anoint_array/app/.env.local" ]]; then
+    while IFS= read -r line; do
+      case "$line" in
+        GIT_HTTPS=*)
+          val=${line#GIT_HTTPS=}
+          val=${val%\r}
+          val=${val%\n}
+          val=${val%\"}
+          val=${val#\"}
+          export GIT_HTTPS="$val" ;;
+        GIT_PERSONAL_ACCESS_TOKEN=*)
+          val=${line#GIT_PERSONAL_ACCESS_TOKEN=}
+          val=${val%\r}
+          val=${val%\n}
+          val=${val%\"}
+          val=${val#\"}
+          export GIT_PERSONAL_ACCESS_TOKEN="$val" ;;
+      esac
+    done < anoint_array/app/.env.local
+  fi
+fi
+
+
+if [[ -z "${GIT_HTTPS:-}" || -z "${GIT_PERSONAL_ACCESS_TOKEN:-}" ]]; then
   echo "ERROR: Missing GIT_HTTPS or GIT_PERSONAL_ACCESS_TOKEN in environment." >&2
   echo "Set them (e.g., export from anoint_array/app/.env.local) and re-run." >&2
   exit 1
