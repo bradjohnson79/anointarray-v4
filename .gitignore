@@ -43,6 +43,7 @@ coverage
 !.env.example
 anoint_array/app/.env.local
 anoint_array/app/.env*
+!anoint_array/app/.env.example
 
 # Secrets & runtime config stored on disk (do not commit)
 anoint_array/.abacus.donotdelete
