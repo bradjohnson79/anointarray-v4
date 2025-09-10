@@ -52,9 +52,9 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       taxAmount: order.taxAmount ? Number(order.taxAmount) : null,
       shippingAmount: order.shippingAmount ? Number(order.shippingAmount) : null,
       refundAmount: order.refundAmount ? Number(order.refundAmount) : null,
-      items: order.orderItems.map(item => ({
+      items: order.orderItems.map((item: { id: string; quantity: number; price: any; product: { name: string | null } }) => ({
         id: item.id,
-        name: item.product.name,
+        name: item.product?.name ?? '',
         quantity: item.quantity,
         price: Number(item.price),
       })),
