@@ -1,11 +1,14 @@
 const path = require('path');
 
 /** @type {import('next').NextConfig} */
+const isVercel = !!process.env.VERCEL;
+
 const nextConfig = {
   distDir: process.env.NEXT_DIST_DIR || '.next',
   output: process.env.NEXT_OUTPUT_MODE,
   experimental: {
-    outputFileTracingRoot: path.join(__dirname, '../'),
+    // In Vercel, rely on default file tracing to avoid missing internal Next runtime files
+    ...(isVercel ? {} : { outputFileTracingRoot: path.join(__dirname, '../') }),
     // Allow native Node/NAPI package to be required at runtime for server-only routes
     serverComponentsExternalPackages: ['@napi-rs/canvas'],
   },
