@@ -2,10 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import fs from 'fs/promises';
-import path from 'path';
-
-const AI_CONFIG_PATH = path.join(process.cwd(), 'data', 'ai-config.json');
+import { getConfig, setConfig } from '@/lib/app-config';
 
 interface AIConfiguration {
   chatGptDispatcherPrompt: string;
@@ -23,15 +20,7 @@ interface AIConfiguration {
   lastUpdated: string;
 }
 
-// Ensure data directory exists
-async function ensureDataDirectory() {
-  const dataDir = path.join(process.cwd(), 'data');
-  try {
-    await fs.access(dataDir);
-  } catch {
-    await fs.mkdir(dataDir, { recursive: true });
-  }
-}
+// No persistent filesystem usage; configuration is stored in DB
 
 export async function POST(request: NextRequest) {
   try {
@@ -47,9 +36,8 @@ export async function POST(request: NextRequest) {
     // If keys are provided as '***', it means they're masked - load from existing config or environment
     if (aiConfig.openAiApiKey === '***' || !aiConfig.openAiApiKey) {
       try {
-        const existingConfigData = await fs.readFile(AI_CONFIG_PATH, 'utf-8');
-        const existingConfig = JSON.parse(existingConfigData);
-        aiConfig.openAiApiKey = existingConfig.openAiApiKey || process.env.OPENAI_API_KEY || '';
+        const existingConfig = await getConfig<AIConfiguration>('ai-config');
+        aiConfig.openAiApiKey = existingConfig?.openAiApiKey || process.env.OPENAI_API_KEY || '';
       } catch (error) {
         aiConfig.openAiApiKey = process.env.OPENAI_API_KEY || '';
       }
@@ -57,9 +45,8 @@ export async function POST(request: NextRequest) {
     
     if (aiConfig.anthropicApiKey === '***' || !aiConfig.anthropicApiKey) {
       try {
-        const existingConfigData = await fs.readFile(AI_CONFIG_PATH, 'utf-8');
-        const existingConfig = JSON.parse(existingConfigData);
-        aiConfig.anthropicApiKey = existingConfig.anthropicApiKey || process.env.ANTHROPIC_API_KEY || '';
+        const existingConfig = await getConfig<AIConfiguration>('ai-config');
+        aiConfig.anthropicApiKey = existingConfig?.anthropicApiKey || process.env.ANTHROPIC_API_KEY || '';
       } catch (error) {
         aiConfig.anthropicApiKey = process.env.ANTHROPIC_API_KEY || '';
       }
@@ -75,11 +62,8 @@ export async function POST(request: NextRequest) {
       aiConfig.anthropicApiKey
     );
 
-    // Ensure directory exists
-    await ensureDataDirectory();
-
-    // Save to file
-    await fs.writeFile(AI_CONFIG_PATH, JSON.stringify(aiConfig, null, 2));
+    // Save to DB
+    await setConfig('ai-config', aiConfig);
 
     return NextResponse.json({ 
       success: true, 
@@ -105,22 +89,21 @@ export async function GET(request: NextRequest) {
     }
 
     try {
-      const configData = await fs.readFile(AI_CONFIG_PATH, 'utf-8');
-      const aiConfig = JSON.parse(configData);
+      const aiConfig = await getConfig<AIConfiguration>('ai-config');
       
       // Load API keys from environment if not set in config
-      const openAiApiKey = aiConfig.openAiApiKey || process.env.OPENAI_API_KEY || '';
-      const anthropicApiKey = aiConfig.anthropicApiKey || process.env.ANTHROPIC_API_KEY || '';
+      const openAiApiKey = aiConfig?.openAiApiKey || process.env.OPENAI_API_KEY || '';
+      const anthropicApiKey = aiConfig?.anthropicApiKey || process.env.ANTHROPIC_API_KEY || '';
       
       return NextResponse.json({
-        ...aiConfig,
+        ...(aiConfig || {}),
         openAiApiKey: openAiApiKey ? '***' : '',
         anthropicApiKey: anthropicApiKey ? '***' : '',
         hasOpenAiKey: !!openAiApiKey,
         hasAnthropicKey: !!anthropicApiKey
       });
     } catch (error) {
-      // Return default config with environment API keys if file doesn't exist
+      // Return default config with environment API keys if no stored config exists
       const openAiApiKey = process.env.OPENAI_API_KEY || '';
       const anthropicApiKey = process.env.ANTHROPIC_API_KEY || '';
       

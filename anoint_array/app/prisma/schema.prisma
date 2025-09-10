@@ -246,3 +246,15 @@ model Affiliate {
 
   @@map("affiliates")
 }
+
+/// Generic application configuration storage for serverless platforms.
+/// Stores small JSON blobs keyed by name (e.g., 'ai-config', 'storefront-payments').
+model AppConfig {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     Json     @default("{}")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("app_config")
+}

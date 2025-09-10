@@ -2,10 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import fs from 'fs/promises';
-import path from 'path';
-
-const CONFIG_FILE_PATH = path.join(process.cwd(), 'generator-data', 'generator-config.json');
+import { getConfig, setConfig } from '@/lib/app-config';
 
 export async function POST(request: NextRequest) {
   try {
@@ -16,9 +13,8 @@ export async function POST(request: NextRequest) {
     }
 
     const data = await request.json();
-    
-    // Save configuration to file
-    await fs.writeFile(CONFIG_FILE_PATH, JSON.stringify(data, null, 2));
+    // Save configuration to DB
+    await setConfig('generator-config', data);
     
     return NextResponse.json({ success: true, message: 'Configuration saved successfully' });
   } catch (error) {
@@ -36,9 +32,8 @@ export async function GET(request: NextRequest) {
     }
 
     try {
-      const configData = await fs.readFile(CONFIG_FILE_PATH, 'utf-8');
-      const config = JSON.parse(configData);
-      return NextResponse.json(config);
+      const config = await getConfig<any>('generator-config');
+      if (config) return NextResponse.json(config);
     } catch (fileError) {
       // Return default config if file doesn't exist
       const defaultConfig = {
