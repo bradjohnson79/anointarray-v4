@@ -1,21 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import { getConfig, setConfig } from '@/lib/app-config';
 import fs from 'fs/promises';
 import path from 'path';
 
 const SUPPORT_CFG = path.join(process.cwd(), 'data', 'support-config.json');
 
-async function ensure() { const dir = path.join(process.cwd(), 'data'); try{ await fs.access(dir);}catch{ await fs.mkdir(dir,{recursive:true}); } }
+async function ensure() { /* no-op for DB storage; retained for backward compat */ }
 
 export async function GET() {
-  await ensure();
   try {
-    const raw = await fs.readFile(SUPPORT_CFG, 'utf-8');
-    return NextResponse.json(JSON.parse(raw));
-  } catch {
-    return NextResponse.json({ enabled: false, description: '', kbFiles: [] });
-  }
+    const cfg = await getConfig<any>('support-config');
+    if (cfg) return NextResponse.json(cfg);
+  } catch {}
+  return NextResponse.json({ enabled: false, description: '', kbFiles: [] });
 }
 
 export async function POST(request: NextRequest) {
@@ -24,8 +23,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
   const cfg = await request.json();
-  await ensure();
-  await fs.writeFile(SUPPORT_CFG, JSON.stringify(cfg, null, 2));
+  await setConfig('support-config', cfg);
   return NextResponse.json({ success: true });
 }
-

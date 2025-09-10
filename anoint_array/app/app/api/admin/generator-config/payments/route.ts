@@ -2,10 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import fs from 'fs/promises';
-import path from 'path';
-
-const PAYMENTS_CONFIG_PATH = path.join(process.cwd(), 'data', 'payments-config.json');
+import { getConfig, setConfig } from '@/lib/app-config';
 
 interface PaymentGatewayConfiguration {
   stripe: {
@@ -42,16 +39,8 @@ interface PaymentGatewayConfiguration {
   lastUpdated: string;
 }
 
-// Ensure data directory exists
-async function ensureDataDirectory() {
-  const dataDir = path.join(process.cwd(), 'data');
-  try {
-    await fs.mkdir(dataDir, { recursive: true });
-  } catch (error) {
-    // Directory already exists or other error
-    console.log('Data directory creation:', error);
-  }
-}
+// No-op when using DB
+async function ensureDataDirectory() {}
 
 export async function POST(request: NextRequest) {
   try {
@@ -80,11 +69,9 @@ export async function POST(request: NextRequest) {
       ))
     );
 
-    // Ensure directory exists
+    // Save to DB
     await ensureDataDirectory();
-
-    // Save to file
-    await fs.writeFile(PAYMENTS_CONFIG_PATH, JSON.stringify(paymentConfig, null, 2));
+    await setConfig('generator-payments', paymentConfig);
 
     return NextResponse.json({ 
       success: true, 
@@ -110,41 +97,40 @@ export async function GET(request: NextRequest) {
     }
 
     try {
-      const configData = await fs.readFile(PAYMENTS_CONFIG_PATH, 'utf-8');
-      const paymentConfig = JSON.parse(configData);
+      const paymentConfig = await getConfig<any>('generator-payments');
       
       // Load API keys from environment if not set in config and mask for security
       const processedConfig = {
-        ...paymentConfig,
+        ...(paymentConfig || {}),
         stripe: {
-          ...paymentConfig.stripe,
+          ...paymentConfig?.stripe,
           // Use environment keys if config is empty, but mask for display
-          publishableKey: paymentConfig.stripe.publishableKey || process.env.STRIPE_PUBLISHABLE_KEY || '',
-          secretKey: paymentConfig.stripe.secretKey || process.env.STRIPE_SECRET_KEY ? '***' : '',
-          webhookSecret: paymentConfig.stripe.webhookSecret || process.env.STRIPE_WEBHOOK_SECRET ? '***' : '',
-          testPublishableKey: paymentConfig.stripe.testPublishableKey || process.env.STRIPE_PUBLISHABLE_TEST_KEY || '',
-          testSecretKey: paymentConfig.stripe.testSecretKey || process.env.STRIPE_SECRET_TEST_KEY ? '***' : '',
-          testWebhookSecret: paymentConfig.stripe.testWebhookSecret || process.env.STRIPE_WEBHOOK_TEST_SECRET ? '***' : '',
+          publishableKey: paymentConfig?.stripe?.publishableKey || process.env.STRIPE_PUBLISHABLE_KEY || '',
+          secretKey: paymentConfig?.stripe?.secretKey || process.env.STRIPE_SECRET_KEY ? '***' : '',
+          webhookSecret: paymentConfig?.stripe?.webhookSecret || process.env.STRIPE_WEBHOOK_SECRET ? '***' : '',
+          testPublishableKey: paymentConfig?.stripe?.testPublishableKey || process.env.STRIPE_PUBLISHABLE_TEST_KEY || '',
+          testSecretKey: paymentConfig?.stripe?.testSecretKey || process.env.STRIPE_SECRET_TEST_KEY ? '***' : '',
+          testWebhookSecret: paymentConfig?.stripe?.testWebhookSecret || process.env.STRIPE_WEBHOOK_TEST_SECRET ? '***' : '',
           // Auto-enable if we have keys
-          enabled: paymentConfig.stripe.enabled || !!(process.env.STRIPE_SECRET_KEY && process.env.STRIPE_PUBLISHABLE_KEY)
+          enabled: paymentConfig?.stripe?.enabled || !!(process.env.STRIPE_SECRET_KEY && process.env.STRIPE_PUBLISHABLE_KEY)
         },
         paypal: {
-          ...paymentConfig.paypal,
-          clientId: paymentConfig.paypal.clientId || process.env.PAYPAL_CLIENT_ID_LIVE || '',
-          clientSecret: paymentConfig.paypal.clientSecret || process.env.PAYPAL_SECRET_LIVE ? '***' : '',
-          testClientId: paymentConfig.paypal.testClientId || process.env.PAYPAL_CLIENT_ID_SANDBOX || '',
-          testClientSecret: paymentConfig.paypal.testClientSecret || process.env.PAYPAL_CLIENT_SECRET_SANDBOX ? '***' : '',
+          ...paymentConfig?.paypal,
+          clientId: paymentConfig?.paypal?.clientId || process.env.PAYPAL_CLIENT_ID_LIVE || '',
+          clientSecret: paymentConfig?.paypal?.clientSecret || process.env.PAYPAL_SECRET_LIVE ? '***' : '',
+          testClientId: paymentConfig?.paypal?.testClientId || process.env.PAYPAL_CLIENT_ID_SANDBOX || '',
+          testClientSecret: paymentConfig?.paypal?.testClientSecret || process.env.PAYPAL_CLIENT_SECRET_SANDBOX ? '***' : '',
           // Auto-enable if we have keys
-          enabled: paymentConfig.paypal.enabled || !!(process.env.PAYPAL_CLIENT_ID_LIVE && process.env.PAYPAL_SECRET_LIVE)
+          enabled: paymentConfig?.paypal?.enabled || !!(process.env.PAYPAL_CLIENT_ID_LIVE && process.env.PAYPAL_SECRET_LIVE)
         },
         nowPayments: {
-          ...paymentConfig.nowPayments,
-          apiKey: paymentConfig.nowPayments.apiKey || process.env.NOWPAYMENTS_API_KEY ? '***' : '',
-          publicKey: paymentConfig.nowPayments.publicKey || process.env.NOWPAYMENTS_PUBLIC_KEY || '',
-          testApiKey: paymentConfig.nowPayments.testApiKey || process.env.NOWPAYMENTS_API_KEY ? '***' : '',
-          testPublicKey: paymentConfig.nowPayments.testPublicKey || process.env.NOWPAYMENTS_PUBLIC_KEY || '',
+          ...paymentConfig?.nowPayments,
+          apiKey: paymentConfig?.nowPayments?.apiKey || process.env.NOWPAYMENTS_API_KEY ? '***' : '',
+          publicKey: paymentConfig?.nowPayments?.publicKey || process.env.NOWPAYMENTS_PUBLIC_KEY || '',
+          testApiKey: paymentConfig?.nowPayments?.testApiKey || process.env.NOWPAYMENTS_API_KEY ? '***' : '',
+          testPublicKey: paymentConfig?.nowPayments?.testPublicKey || process.env.NOWPAYMENTS_PUBLIC_KEY || '',
           // Auto-enable if we have keys (NowPayments uses live keys for both test and production)
-          enabled: paymentConfig.nowPayments.enabled || !!(process.env.NOWPAYMENTS_API_KEY && process.env.NOWPAYMENTS_PUBLIC_KEY),
+          enabled: paymentConfig?.nowPayments?.enabled || !!(process.env.NOWPAYMENTS_API_KEY && process.env.NOWPAYMENTS_PUBLIC_KEY),
           // Since NowPayments doesn't have test keys, always use live mode disabled
           testMode: false
         }
