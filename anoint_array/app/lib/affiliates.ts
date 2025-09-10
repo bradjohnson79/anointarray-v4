@@ -1,9 +1,9 @@
-import cookie from 'cookie';
+import { parse } from 'cookie';
 
 export function getAffiliateCodeFromHeaders(headers: Headers): string | null {
   try {
     const raw = headers.get('cookie') || '';
-    const parsed = cookie.parse(raw || '');
+    const parsed = parse(raw || '');
     const code = parsed['an_aff'] || parsed['ga_ref'] || parsed['goaff_ref'] || '';
     return code || null;
   } catch {
@@ -51,4 +51,3 @@ export async function notifyGoAffProConversion(params: {
     console.warn('GoAffPro conversion notify failed (non-fatal)', e);
   }
 }
-

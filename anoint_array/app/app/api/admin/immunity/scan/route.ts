@@ -16,8 +16,8 @@ export async function POST() {
   const staticPaths = ['/', '/auth/login', '/auth/signup'];
   let productPaths: string[] = [];
   try {
-    const products = await prisma.product.findMany({ select: { slug: true } });
-    productPaths = products.map((p) => `/products/${p.slug}`);
+    const products: { slug: string }[] = await prisma.product.findMany({ select: { slug: true } });
+    productPaths = products.map((p: { slug: string }) => `/products/${p.slug}`);
   } catch {}
 
   const paths = [...new Set([...staticPaths, ...productPaths])];

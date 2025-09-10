@@ -43,3 +43,12 @@ coverage
 !.env.example
 anoint_array/app/.env.local
 anoint_array/app/.env*
+
+# Secrets & runtime config stored on disk (do not commit)
+anoint_array/.abacus.donotdelete
+anoint_array/app/data/ai-config.json
+anoint_array/app/data/storefront-payments.json
+anoint_array/app/data/payments-config.json
+anoint_array/app/.csrf.json
+anoint_array/app/compose.env
+anoint_array/app/.devpid

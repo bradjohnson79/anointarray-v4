@@ -180,7 +180,7 @@ export async function POST(req: NextRequest) {
     const svg = await buildSealSVG(data, settings, size);
 
     const puppeteer = await import('puppeteer');
-    const browser = await puppeteer.launch({ headless: 'new', args: ['--no-sandbox','--font-render-hinting=none'] });
+    const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox','--font-render-hinting=none'] });
     const page = await browser.newPage();
     await page.setViewport({ width: size, height: size, deviceScaleFactor: 1 });
     await page.setContent(`<html><head><meta charset="utf-8"/></head><body style="margin:0;background:transparent;">${svg}</body></html>`, { waitUntil: 'load' });
