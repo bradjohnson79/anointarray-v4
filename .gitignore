@@ -1,20 +1,45 @@
-# Node / Next.js
+## Universal Node/Next ignore
+# Dependencies and build
 node_modules/
 .next/
 .turbo/
+dist/
+build/
+out/
+
+# Logs
+logs
 *.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# Cache and artifacts
+.cache
+.parcel-cache
+coverage
+*.lcov
+.nyc_output
+*.tsbuildinfo
+.yarn-integrity
+
+# Misc
 .DS_Store
+.lock-wscript
+.vscode/
+.idea/
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions
 
 # Env files (never commit secrets)
 .env
 .env.*
+!.env.example
 anoint_array/app/.env.local
 anoint_array/app/.env*
-
-# Build outputs
-dist/
-build/
-
-# Editor settings
-.vscode/
-.idea/
