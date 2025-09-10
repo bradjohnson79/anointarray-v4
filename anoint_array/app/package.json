@@ -10,7 +10,8 @@
     "prisma:push": "prisma db push",
     "prisma:deploy": "prisma migrate deploy",
     "db:seed": "prisma db seed",
-    "vercel:push-env": "tsx scripts/push-vercel-env.ts"
+    "vercel:push-env": "tsx scripts/push-vercel-env.ts",
+    "vercel:redeploy": "tsx scripts/vercel-redeploy.ts"
   },
   "prisma": {
     "seed": "tsx --require dotenv/config scripts/seed.ts"
