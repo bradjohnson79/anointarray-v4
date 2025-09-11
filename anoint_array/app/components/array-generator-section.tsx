@@ -129,7 +129,7 @@ export default function ArrayGeneratorSection() {
                     const target = e.currentTarget as HTMLImageElement;
                     // Fallback to a known image in uploads if basic-seal-array.png is missing
                     target.onerror = null;
-                    target.src = '/api/files/test-export.png';
+                    target.src = '/example-seal-array.png';
                   }}
                 />
               </div>

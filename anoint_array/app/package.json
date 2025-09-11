@@ -17,7 +17,9 @@
     "guard:routes": "tsx scripts/audit-routes.ts",
     "guard:db": "tsx scripts/audit-db.ts",
     "guard:build": "next build",
-    "guard:all": "run-s guard:env guard:routes guard:db"
+    "guard:all": "run-s guard:env guard:routes guard:db",
+    "qa:sweep": "tsx scripts/qa-engineer.ts",
+    "agent:fullstack": "tsx scripts/fullstack-scan.ts"
   },
   "prisma": {
     "seed": "tsx --require dotenv/config scripts/seed.ts"

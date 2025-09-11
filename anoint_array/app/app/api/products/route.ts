@@ -3,11 +3,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { withApiErrorHandling } from '@/lib/api-handler';
+import { BadRequestError, ForbiddenError, UnauthorizedError } from '@/lib/http-errors';
 
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+export const revalidate = 0;
 
-export async function GET(request: NextRequest) {
-  try {
+async function getHandler(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const category = searchParams.get('category');
     const featured = searchParams.get('featured');
@@ -87,34 +90,15 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(processedProducts);
     }
 
-    return NextResponse.json({ 
-      success: true, 
-      products: processedProducts 
-    });
-
-  } catch (error) {
-    console.error('Error fetching products:', error);
-    return NextResponse.json(
-      { success: false, error: 'Failed to fetch products' },
-      { status: 500 }
-    );
-  }
+    return NextResponse.json({ success: true, products: processedProducts });
 }
 
-export async function POST(request: NextRequest) {
-  try {
-    const session = await getServerSession(authOptions);
-    
-    // Check authentication
-    if (!session) {
-      return NextResponse.json({ error: 'Authentication required. Please log in.' }, { status: 401 });
-    }
-    
-    if (session.user?.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'Admin privileges required' }, { status: 403 });
-    }
+async function postHandler(request: NextRequest) {
+  const session = await getServerSession(authOptions);
+  if (!session) throw new UnauthorizedError('Authentication required. Please log in.');
+  if (session.user?.role !== 'ADMIN') throw new ForbiddenError('Admin privileges required');
 
-    const body = await request.json();
+  const body = await request.json();
     
     const {
       name,
@@ -139,12 +123,9 @@ export async function POST(request: NextRequest) {
       variants = [],
     } = body;
 
-    if (!name || !teaserDescription || !price || !category) {
-      return NextResponse.json(
-        { error: 'Name, teaser description, price, and category are required' },
-        { status: 400 }
-      );
-    }
+  if (!name || !teaserDescription || !price || !category) {
+    throw new BadRequestError('Name, teaser description, price, and category are required');
+  }
 
     // Auto-generate slug from name
     let slug = name
@@ -292,18 +273,10 @@ export async function POST(request: NextRequest) {
       variants: (product as any).variants?.map((v: any) => ({ ...v, price: Number(v.price) })) || [],
     };
 
-    return NextResponse.json(serializedProduct, { status: 201 });
-  } catch (error) {
-    console.error('Error creating product:', error);
-    return NextResponse.json(
-      { error: 'Failed to create product' },
-      { status: 500 }
-    );
-  }
+  return NextResponse.json(serializedProduct, { status: 201 });
 }
 
-export async function DELETE(request: NextRequest) {
-  try {
+async function deleteHandler(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const clearAll = searchParams.get('clear_all');
     
@@ -314,11 +287,8 @@ export async function DELETE(request: NextRequest) {
     }
     
     return NextResponse.json({ error: 'Invalid request' }, { status: 400 });
-  } catch (error) {
-    console.error('Error clearing products:', error);
-    return NextResponse.json(
-      { error: 'Failed to clear products' },
-      { status: 500 }
-    );
-  }
 }
+
+export const GET = withApiErrorHandling(getHandler, '/api/products');
+export const POST = withApiErrorHandling(postHandler, '/api/products');
+export const DELETE = withApiErrorHandling(deleteHandler, '/api/products');

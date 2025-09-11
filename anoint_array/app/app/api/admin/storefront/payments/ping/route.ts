@@ -1,14 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
-import fs from 'fs/promises';
-import path from 'path';
+import { getConfig } from '@/lib/app-config';
 import Stripe from 'stripe';
 
-const STORE_PAYMENTS_PATH = path.join(process.cwd(), 'data', 'storefront-payments.json');
-
 async function loadConfig() {
-  try { const raw = await fs.readFile(STORE_PAYMENTS_PATH, 'utf-8'); return JSON.parse(raw); } catch { return {}; }
+  try { return (await getConfig<any>('storefront-payments')) || {}; } catch { return {}; }
 }
 
 export async function GET(request: NextRequest) {
