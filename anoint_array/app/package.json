@@ -12,7 +12,12 @@
     "prisma:deploy": "prisma migrate deploy",
     "db:seed": "prisma db seed",
     "vercel:push-env": "tsx scripts/push-vercel-env.ts",
-    "vercel:redeploy": "tsx scripts/vercel-redeploy.ts"
+    "vercel:redeploy": "tsx scripts/vercel-redeploy.ts",
+    "guard:env": "tsx scripts/audit-env.ts",
+    "guard:routes": "tsx scripts/audit-routes.ts",
+    "guard:db": "tsx scripts/audit-db.ts",
+    "guard:build": "next build",
+    "guard:all": "run-s guard:env guard:routes guard:db"
   },
   "prisma": {
     "seed": "tsx --require dotenv/config scripts/seed.ts"
@@ -41,6 +46,7 @@
     "typescript": "5.2.2"
   },
   "dependencies": {
+    "npm-run-all": "^4.1.5",
     "puppeteer": "^23.4.1",
     "@napi-rs/canvas": "^0.1.58",
     "resend": "^3.2.0",
