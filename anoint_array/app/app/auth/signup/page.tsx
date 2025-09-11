@@ -74,8 +74,12 @@ export default function SignupPage() {
           router.push('/dashboard');
         }
       } else {
-        const error = await response.json();
-        toast.error(error.error || 'Failed to create account');
+        let payload: any = null;
+        try { payload = await response.json(); } catch {}
+        const cid = payload?.cid ? ` (CID: ${payload.cid})` : '';
+        const hint = payload?.hint ? ` — ${payload.hint}` : '';
+        const message = payload?.error || 'Failed to create account';
+        toast.error(`${message}${hint}${cid}`);
       }
     } catch (error) {
       toast.error('Network error. Please try again.');
