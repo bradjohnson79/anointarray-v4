@@ -58,6 +58,16 @@ function mapError(e: any, route: string, cid: string, method: string, ms: number
   if (/invalid json|unexpected token in json/i.test(msg)) {
     status = 400; body = { error: 'Invalid JSON body', code: 'BAD_JSON', cid };
   }
+  // Add short non-sensitive hint based on message
+  const m = msg.toLowerCase();
+  let hint = undefined as string | undefined;
+  if (m.includes('connect') && m.includes('timeout')) hint = 'DB_TIMEOUT';
+  else if (m.includes('getaddrinfo') || m.includes('dns') || m.includes('econnrefused') || m.includes('connect econn')) hint = 'DB_CONNECT_FAILED';
+  else if (m.includes('password authentication failed')) hint = 'DB_AUTH_FAILED';
+  else if (m.includes('relation') && m.includes('does not exist')) hint = 'DB_TABLE_MISSING';
+  else if (m.includes('invalid input syntax')) hint = 'DB_INPUT_SYNTAX';
+  else if (m.includes('jwt') && m.includes('secret')) hint = 'AUTH_SECRET_INVALID';
+  if (hint) body.hint = hint;
   log('error', 'api:error', { route, cid, ms, status, method, msg });
   return NextResponse.json(body, { status, headers: { 'x-correlation-id': cid } });
 }
