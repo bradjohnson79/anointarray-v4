@@ -1,6 +1,6 @@
 
 import { NextRequest, NextResponse } from 'next/server';
-import { withApiErrorHandling } from '@/lib/api-handler';
+import { withApiErrorHandlingCtx } from '@/lib/api-handler';
 import { BadRequestError, NotFoundError } from '@/lib/http-errors';
 import { readFile } from 'fs/promises';
 import path from 'path';
@@ -70,4 +70,4 @@ async function handler(request: NextRequest, { params }: RouteParams) {
   });
 }
 
-export const GET = withApiErrorHandling((req: NextRequest, ctx: RouteParams) => handler(req, ctx), '/api/files/[...filename]');
+export const GET = withApiErrorHandlingCtx<RouteParams>(handler, '/api/files/[...filename]');
