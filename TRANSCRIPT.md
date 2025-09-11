@@ -160,3 +160,53 @@ A running log of actions taken while analyzing and working on `anointarray-v4`. 
 
 - Improved PNG renderer fidelity: added structural ring boundaries, gold outer border, proper use of central/middle/outer radii, and placed affirmation on the ring‑3 path so the PNG matches the preview styling.
 - Files: `anoint_array/app/lib/seal-renderer.ts`.
+### [2025-09-11 00:00 UTC]
+Action: Env protection and untracking
+MCP: github, vercel
+Files Changed: `.gitignore`
+Inputs: add ignores for data configs and local secrets (masked)
+Outputs: ✅ files untracked; env files ignored
+Next Step: rotate leaked keys and scrub history if needed
+
+### [2025-09-11 00:10 UTC]
+Action: Vercel root fix + Prisma import correction
+MCP: vercel
+Files Changed: `anoint_array/app/app/api/admin/orders/create/route.ts`, `anoint_array/app/package.json`
+Inputs: import { Prisma } namespace; add prebuild prisma generate
+Outputs: ✅ local build OK; pushed to Vercel
+
+### [2025-09-11 00:25 UTC]
+Action: Configs moved to DB (serverless-safe)
+MCP: vercel, github
+Files Changed: multiple admin config routes; `lib/app-config.ts`; Prisma schema `AppConfig`
+Inputs: replace fs writes with Prisma upserts
+Outputs: ✅ compiled; reduced FS dependence
+
+### [2025-09-11 00:40 UTC]
+Action: Env sync utility + redeploy helpers
+MCP: vercel
+Files Changed: `scripts/push-vercel-env.ts`, `scripts/vercel-redeploy.ts`, package scripts
+Inputs: push .env.local to Vercel (encrypted), pull snapshot; masked logs
+Outputs: ✅ 46 env keys confirmed on Vercel
+Next Step: clear build cache and redeploy
+
+### [2025-09-11 01:10 UTC]
+Action: Supabase schema push and DB check
+MCP: supabase
+Files Changed: prisma schema (directUrl); none runtime
+Inputs: DIRECT_URL (sslmode=require) (masked)
+Outputs: ✅ Prisma `db push` success; DB query OK
+
+### [2025-09-11 01:40 UTC]
+Action: Signup API hardening + favicon
+MCP: github
+Files Changed: `app/api/signup/route.ts`, `app/app/icon.svg`
+Inputs: add runtime nodejs, dynamic flags, improved errors; add app/icon.svg
+Outputs: ✅ build OK; safer 4xx on validation
+
+### [2025-09-11 01:55 UTC]
+Action: Guardrail audit scripts
+MCP: github
+Files Changed: `scripts/audit-env.ts`, `scripts/audit-routes.ts`, `scripts/audit-db.ts`, package scripts
+Inputs: add guard:env/routes/db/build/all npm tasks
+Outputs: ✅ scripts added; ready for pre-push checks
