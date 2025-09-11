@@ -1,5 +1,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
+import { withApiErrorHandling } from '@/lib/api-handler';
+import { BadRequestError, NotFoundError } from '@/lib/http-errors';
 import { readFile } from 'fs/promises';
 import path from 'path';
 import { existsSync } from 'fs';
@@ -12,14 +14,13 @@ interface RouteParams {
   };
 }
 
-export async function GET(request: NextRequest, { params }: RouteParams) {
-  try {
-    const filename = params.filename.join('/');
+async function handler(request: NextRequest, { params }: RouteParams) {
+  const filename = params.filename.join('/');
     
     // Security: Prevent directory traversal
-    if (filename.includes('..')) {
-      return NextResponse.json({ error: 'Invalid filename' }, { status: 400 });
-    }
+  if (filename.includes('..')) {
+    throw new BadRequestError('Invalid filename');
+  }
 
     // Resolve against several known locations
     const candidates = [
@@ -28,8 +29,8 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       path.join(process.cwd(), '..', 'Uploads', filename), // fallback in case cwd differs
       path.join(process.cwd(), 'public', filename), // allow serving baked-in public assets
     ];
-    const filePath = candidates.find(p => existsSync(p));
-    if (!filePath) return NextResponse.json({ error: 'File not found' }, { status: 404 });
+  const filePath = candidates.find(p => existsSync(p));
+  if (!filePath) throw new NotFoundError('File not found');
 
     // Read file
     const fileBuffer = await readFile(filePath);
@@ -61,18 +62,12 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     }
 
     // Return file with proper headers
-    return new NextResponse(fileBuffer, {
-      headers: {
-        'Content-Type': contentType,
-        'Cache-Control': 'public, max-age=31536000', // Cache for 1 year
-      },
-    });
-
-  } catch (error) {
-    console.error('Error serving file:', error);
-    return NextResponse.json(
-      { error: 'Failed to serve file' },
-      { status: 500 }
-    );
-  }
+  return new NextResponse(fileBuffer, {
+    headers: {
+      'Content-Type': contentType,
+      'Cache-Control': 'public, max-age=31536000',
+    },
+  });
 }
+
+export const GET = withApiErrorHandling((req: NextRequest, ctx: RouteParams) => handler(req, ctx), '/api/files/[...filename]');

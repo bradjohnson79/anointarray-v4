@@ -1,44 +1,36 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
+import { withApiErrorHandling } from '@/lib/api-handler';
+import { BadRequestError, ConflictError } from '@/lib/http-errors';
 
 const prisma = new PrismaClient();
 
 export const dynamic = 'force-dynamic';
 
-export async function POST(request: NextRequest) {
-  try {
-    const body = await request.json();
-    const { name, email, phone, interests } = body;
+async function handler(request: NextRequest) {
+  const body = await request.json();
+  const { name, email, phone, interests } = body;
 
     // Validate required fields
-    if (!name?.trim() || !email?.trim()) {
-      return NextResponse.json(
-        'Missing required fields: name and email are required.',
-        { status: 400 }
-      );
-    }
+  if (!name?.trim() || !email?.trim()) {
+    throw new BadRequestError('Missing required fields: name and email are required.');
+  }
 
     // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      return NextResponse.json(
-        'Invalid email format.',
-        { status: 400 }
-      );
-    }
+  if (!emailRegex.test(email)) {
+    throw new BadRequestError('Invalid email format.');
+  }
 
     // Check if email already exists in waitlist
     const existingEntry = await prisma.vipWaitlist.findUnique({
       where: { email: email.trim().toLowerCase() }
     });
 
-    if (existingEntry) {
-      return NextResponse.json(
-        'This email is already registered for the VIP waitlist.',
-        { status: 400 }
-      );
-    }
+  if (existingEntry) {
+    throw new ConflictError('This email is already registered for the VIP waitlist.');
+  }
 
     // Save to database
     const waitlistEntry = await prisma.vipWaitlist.create({
@@ -60,28 +52,11 @@ export async function POST(request: NextRequest) {
       
       This notification should be sent to: info@anoint.me`);
 
-    return NextResponse.json({ 
-      success: true, 
-      message: 'Successfully joined VIP waitlist',
-      id: waitlistEntry.id 
-    });
-
-  } catch (error) {
-    console.error('Error processing VIP waitlist signup:', error);
-    
-    // Handle unique constraint violation specifically
-    if (error instanceof Error && error.message.includes('Unique constraint')) {
-      return NextResponse.json(
-        'This email is already registered for the VIP waitlist.',
-        { status: 400 }
-      );
-    }
-
-    return NextResponse.json(
-      'Failed to join VIP waitlist. Please try again.',
-      { status: 500 }
-    );
-  } finally {
-    await prisma.$disconnect();
-  }
+  return NextResponse.json({ 
+    success: true, 
+    message: 'Successfully joined VIP waitlist',
+    id: waitlistEntry.id 
+  });
 }
+
+export const POST = withApiErrorHandling(handler, '/api/vip-waitlist');

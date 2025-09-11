@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { withApiErrorHandling } from '@/lib/api-handler';
+import { BadRequestError } from '@/lib/http-errors';
 import fs from 'fs/promises';
 import path from 'path';
 
@@ -27,12 +29,15 @@ async function loadSupportConfig(): Promise<{ enabled: boolean; description: str
   }
 }
 
-export async function POST(request: NextRequest) {
-  try {
-    const { message } = await request.json();
-    if (!message || typeof message !== 'string') {
-      return NextResponse.json({ error: 'Invalid input' }, { status: 400 });
-    }
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
+async function handler(request: NextRequest) {
+  const { message } = await request.json();
+  if (!message || typeof message !== 'string') {
+    throw new BadRequestError('Invalid input');
+  }
 
     const kb = await loadKBMarkdown();
     const sup = await loadSupportConfig();
@@ -75,9 +80,7 @@ If unsure, ask a clarifying question.`;
     }
     const data = await resp.json();
     const reply = data?.choices?.[0]?.message?.content || 'I had trouble formulating a response.';
-    return NextResponse.json({ reply });
-  } catch (e) {
-    console.error('Support chat error:', e);
-    return NextResponse.json({ reply: 'An error occurred. Please try again later.' });
-  }
+  return NextResponse.json({ reply });
 }
+
+export const POST = withApiErrorHandling(handler, '/api/support/chat');
