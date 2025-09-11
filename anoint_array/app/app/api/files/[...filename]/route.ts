@@ -26,6 +26,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       path.join(process.cwd(), 'uploads', filename), // app-local uploads
       path.join(process.cwd(), '..', '..', 'Uploads', filename), // repo root 'Uploads' (capital U)
       path.join(process.cwd(), '..', 'Uploads', filename), // fallback in case cwd differs
+      path.join(process.cwd(), 'public', filename), // allow serving baked-in public assets
     ];
     const filePath = candidates.find(p => existsSync(p));
     if (!filePath) return NextResponse.json({ error: 'File not found' }, { status: 404 });

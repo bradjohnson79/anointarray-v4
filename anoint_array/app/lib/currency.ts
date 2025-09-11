@@ -1,6 +1,6 @@
 import fs from 'fs/promises';
 
-const CACHE_PATH = 'data/currency-cache.json';
+const CACHE_PATH = process.env.VERCEL ? '/tmp/currency-cache.json' : 'data/currency-cache.json';
 
 type Cache = { base: string; timestamp: number; rates: Record<string, number> };
 
@@ -9,7 +9,12 @@ async function readCache(): Promise<Cache | null> {
 }
 
 async function writeCache(cache: Cache) {
-  try { await fs.mkdir('data', { recursive: true }); await fs.writeFile(CACHE_PATH, JSON.stringify(cache, null, 2)); } catch {}
+  try {
+    if (!process.env.VERCEL) {
+      await fs.mkdir('data', { recursive: true });
+    }
+    await fs.writeFile(CACHE_PATH, JSON.stringify(cache, null, 2));
+  } catch {}
 }
 
 export async function getFxRate(base: string, target: string): Promise<number> {
@@ -55,4 +60,3 @@ export function currencySymbol(code: string): string {
     default: return (code || '').toUpperCase() + ' ';
   }
 }
-

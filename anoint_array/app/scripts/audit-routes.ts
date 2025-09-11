@@ -1,10 +1,18 @@
-import { globSync } from 'glob';
 import fs from 'fs';
+import path from 'path';
 
 const critical = [/\/app\/app\/auth\//, /\/app\/app\/admin\//, /\/app\/app\/dashboard\//];
 let fail = false;
 
-const files = globSync('app/**/route.ts', { cwd: 'anoint_array/app', absolute: true });
+function walk(dir: string, out: string[] = []){
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })){
+    const p = path.join(dir, entry.name);
+    if (entry.isDirectory()) walk(p, out);
+    else if (entry.isFile() && entry.name === 'route.ts') out.push(p);
+  }
+  return out;
+}
+const files = walk(path.join('anoint_array','app','app'));
 for (const f of files) {
   const s = fs.readFileSync(f, 'utf8');
   const isCritical = critical.some(r => r.test(f));
@@ -20,4 +28,3 @@ for (const f of files) {
 
 if (fail) process.exit(3);
 console.log('[guard:routes] ok');
-
