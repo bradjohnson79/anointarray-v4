@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { withApiErrorHandling } from '@/lib/api-handler';
 import fs from 'fs/promises';
 import path from 'path';
 import Stripe from 'stripe';
@@ -7,7 +8,7 @@ const STORE_PAYMENTS_PATH = path.join(process.cwd(), 'data', 'storefront-payment
 
 export const dynamic = 'force-dynamic';
 
-export async function GET(_req: NextRequest) {
+async function handler(_req: NextRequest) {
   const checks: any[] = [];
   try {
     let cfg: any = {};
@@ -58,3 +59,5 @@ export async function GET(_req: NextRequest) {
     return NextResponse.json({ ok: false, checks }, { status: 500 });
   }
 }
+
+export const GET = withApiErrorHandling(handler, '/api/payment/status');
