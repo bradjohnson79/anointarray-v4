@@ -9,7 +9,8 @@ export const runtime = 'nodejs';
 
 async function handler(_req: NextRequest) {
   // Use DIRECT_URL explicitly for probe to bypass pooler issues
-  const url = process.env.DIRECT_URL || process.env.DATABASE_URL;
+  // Prefer DATABASE_URL (pooler/session) in production; fall back to DIRECT_URL when set explicitly.
+  const url = process.env.DATABASE_URL || process.env.DIRECT_URL;
   const client = new PrismaClient(url ? { datasources: { db: { url } } } : undefined);
   try {
     const r = await client.$queryRawUnsafe('SELECT 1 as one');
