@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body: LabelRequest & { carrierAccountId?: string } = await request.json();
-    const carrierAccountId = body.carrierAccountId || process.env.SHIPPO_CP_ACCOUNT_ID || '';
+    const carrierAccountId = body.carrierAccountId || process.env.SHIPPO_CP_ACCOUNT_ID || process.env.SHIPPO_UPS_CA_ACCOUNT_ID || '';
 
     const address_from = {
       name: body.sender.name,
@@ -117,55 +117,22 @@ export async function POST(request: NextRequest) {
       };
     }
 
-    // Create shipment (synchronous to get rates)
-    const shipmentResp = await fetch('https://api.goshippo.com/shipments/', {
-      method: 'POST',
-      headers: {
-        'Authorization': `ShippoToken ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        address_from,
-        address_to,
-        parcels: [parcel],
-        customs_declaration,
-        // restrict rating to your own Canada Post carrier account if provided
-        ...(carrierAccountId ? { carrier_accounts: [carrierAccountId] } : {}),
-        async: false,
-      }),
-    });
-    if (!shipmentResp.ok) {
-      const t = await shipmentResp.text();
-      return NextResponse.json({ error: 'Shippo shipment failed', detail: t }, { status: 500 });
-    }
-    const shipment = await shipmentResp.json();
-    const rates: any[] = shipment?.rates || [];
+    const shippo = require('shippo')(apiKey);
+    const carrier_accounts = carrierAccountId ? [carrierAccountId] : undefined;
+    const shipment = await shippo.shipment.create({ address_from, address_to, parcels: [parcel], customs_declaration, async: false, ...(carrier_accounts?{carrier_accounts}:{}), });
+    const rates: any[] = Array.isArray(shipment?.rates)? shipment.rates : [];
     if (!rates.length) {
       return NextResponse.json({ error: 'No rates returned from Shippo', shipment }, { status: 400 });
     }
 
-    // Prefer Canada Post via your carrier account when available
-    let preferred = rates.find(r => carrierAccountId && String(r?.carrier_account) === carrierAccountId && /canada post/i.test(r?.provider || r?.carrier || ''))
-      || rates.find(r => /canada post/i.test(r?.provider || r?.carrier || ''))
+    // Prefer CP first, then UPS, else first
+    let preferred = rates.find(r => /canada post/i.test(r?.provider || r?.carrier || ''))
+      || rates.find(r => /ups/i.test(r?.provider || r?.carrier || ''))
       || rates[0];
 
     // Purchase label
-    const transactionResp = await fetch('https://api.goshippo.com/transactions/', {
-      method: 'POST',
-      headers: {
-        'Authorization': `ShippoToken ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        rate: preferred?.object_id || preferred?.object_id,
-        label_file_type: 'PDF',
-        async: false,
-      }),
-    });
-    const transaction = await transactionResp.json();
-    if (!transactionResp.ok || transaction?.status !== 'SUCCESS') {
-      return NextResponse.json({ error: 'Shippo purchase failed', transaction }, { status: 500 });
-    }
+    const transaction = await shippo.transaction.create({ rate: preferred?.object_id, label_file_type: 'PDF', async: false });
+    if (transaction?.status !== 'SUCCESS') return NextResponse.json({ error: 'Shippo purchase failed', transaction }, { status: 500 });
 
     // Persist shipment in DB when connected to an order
     if (body.orderId) {
