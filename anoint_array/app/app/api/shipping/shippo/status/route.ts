@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
+import { getConfig } from '@/lib/app-config';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,7 +13,6 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     const url = new URL(request.url);
-    const carrierAccountId = url.searchParams.get('carrierAccountId') || process.env.SHIPPO_CP_ACCOUNT_ID || '';
     const parcelTemplateId = url.searchParams.get('parcelTemplateId') || '';
 
     const liveKey = process.env.SHIPPO_API_KEY;
@@ -31,10 +31,11 @@ export async function GET(request: NextRequest) {
       const accounts = Array.isArray(data?.results) ? data.results : [];
       const hasList = resp.ok && accounts.length >= 0;
       checks.push({ key: 'carrierList', label: 'Carrier accounts reachable', ok: hasList, detail: hasList ? `${accounts.length} account(s)` : JSON.stringify(data) });
-      if (carrierAccountId) {
-        const found = accounts.find((a: any) => String(a.object_id) === carrierAccountId);
-        checks.push({ key: 'cpAccount', label: 'Canada Post account configured', ok: !!found, detail: found ? 'Matched' : 'Not found' });
-      }
+      const cfg = await getConfig<any>('shipping-config');
+      const cpId = cfg?.carrierAccountIds?.canadaPost || process.env.SHIPPO_CP_ACCOUNT_ID;
+      const upsId = cfg?.carrierAccountIds?.upsCanada || process.env.SHIPPO_UPS_CA_ACCOUNT_ID;
+      if (cpId) checks.push({ key: 'cpAccount', label: 'Canada Post account configured', ok: !!accounts.find((a:any)=>String(a.object_id)===cpId) });
+      if (upsId) checks.push({ key: 'upsAccount', label: 'UPS Canada account configured', ok: !!accounts.find((a:any)=>String(a.object_id)===upsId) });
     } catch (e: any) {
       checks.push({ key: 'carrierList', label: 'Carrier accounts reachable', ok: false, detail: String(e?.message || e) });
     }
@@ -49,15 +50,20 @@ export async function GET(request: NextRequest) {
     const toGB = mkAddr('GB','London','LND','EC1A 1BB');
     const parcel = { length: 30, width: 23, height: 15, distance_unit: 'cm', weight: 0.5, mass_unit: 'kg' };
 
+    const shippo = require('shippo')(apiKey);
+    const cfg = await getConfig<any>('shipping-config');
+    const cpId = cfg?.carrierAccountIds?.canadaPost || process.env.SHIPPO_CP_ACCOUNT_ID;
+    const upsId = cfg?.carrierAccountIds?.upsCanada || process.env.SHIPPO_UPS_CA_ACCOUNT_ID;
+    const carrier_accounts = [cpId, upsId].filter(Boolean);
+
     const checkRates = async (to: any) => {
-      const body: any = { address_from: from, address_to: to, parcels: [parcel], async: false };
-      if (parcelTemplateId) { body.parcels = undefined; body.parcel_template = parcelTemplateId; }
-      if (carrierAccountId) body.carrier_accounts = [carrierAccountId];
-      const resp = await fetch('https://api.goshippo.com/shipments/', { method: 'POST', headers: { 'Authorization': `ShippoToken ${apiKey}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-      const data = await resp.json();
-      if (!resp.ok) return { ok: false, detail: JSON.stringify(data) };
-      const rates = (data?.rates || []).filter((r: any) => /canada post/i.test(r?.provider || r?.carrier || ''));
-      return { ok: rates.length > 0, detail: rates.length > 0 ? `${rates.length} rate(s)` : 'No CP rates' };
+      const shipment = await shippo.shipment.create({ address_from: from, address_to: to, parcels: [parcel], parcel_template: parcelTemplateId || undefined, async: false, ...(carrier_accounts.length?{carrier_accounts}:{}), });
+      const rates = Array.isArray(shipment?.rates) ? shipment.rates : [];
+      const messages = shipment?.messages || [];
+      const cp = rates.filter((r:any)=>/canada post/i.test(r?.provider||r?.carrier||''));
+      const ups = rates.filter((r:any)=>/ups/i.test(r?.provider||r?.carrier||''));
+      const any = rates.length>0;
+      return { ok: any, detail: any? `${cp.length} CP / ${ups.length} UPS rate(s)` : (messages.length? messages.map((m:any)=>m.text||m.code).join('; '):'No rates') };
     };
 
     const ca = await checkRates(toCA);
@@ -67,7 +73,7 @@ export async function GET(request: NextRequest) {
     const gb = await checkRates(toGB);
     checks.push({ key: 'ratesINT', label: 'Get rates (Canada→International)', ok: gb.ok, detail: gb.detail });
 
-    const ok = checks.every(c => c.ok);
+    const ok = checks.every(c => c.ok !== false);
     return NextResponse.json({ ok, checks });
 
   } catch (e) {
