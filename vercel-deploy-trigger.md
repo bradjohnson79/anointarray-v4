@@ -5,3 +5,4 @@ This file exists solely to trigger a GitHub commit that will kick off a fresh Ve
 Redeploy trigger at: $(date -u) — pooled DATABASE_URL per DB_SETUP.md
 
 Timestamp: $(date)
+Redeploy trigger: Fri Sep 12 02:15:05 UTC 2025
