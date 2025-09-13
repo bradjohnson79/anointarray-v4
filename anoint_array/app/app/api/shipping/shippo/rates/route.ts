@@ -6,7 +6,7 @@ import { getConfig } from '@/lib/app-config';
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
-async function shippoFetch(path: string, apiKey: string, init?: RequestInit) {
+async function shippoFetch(path: string, apiKey: string, init?: any) {
   const url = `https://api.goshippo.com${path}`;
   const headers: Record<string, string> = {
     Authorization: `ShippoToken ${apiKey}`,
