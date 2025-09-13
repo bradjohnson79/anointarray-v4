@@ -21,45 +21,11 @@ interface Order {
 
 export default function OrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    // TODO: Fetch real orders from API
-    setTimeout(() => {
-      setOrders([
-        {
-          id: '1',
-          orderNumber: 'ANA-2024-001',
-          date: '2024-01-15',
-          total: 144.44,
-          status: 'delivered',
-          items: [
-            { name: 'Chakra Balancing Crystal Array', quantity: 1, price: 144.44 }
-          ]
-        },
-        {
-          id: '2',
-          orderNumber: 'ANA-2024-002',
-          date: '2024-01-20',
-          total: 77.77,
-          status: 'delivered',
-          items: [
-            { name: 'Sacred Frequency Healing Cards', quantity: 1, price: 77.77 }
-          ]
-        },
-        {
-          id: '3',
-          orderNumber: 'ANA-2024-003',
-          date: '2024-01-25',
-          total: 222.22,
-          status: 'processing',
-          items: [
-            { name: 'Scalar Energy Pendant', quantity: 1, price: 222.22 }
-          ]
-        },
-      ]);
-      setIsLoading(false);
-    }, 1000);
+    // TODO: Wire to real orders API when available
+    setIsLoading(false);
   }, []);
 
   const getStatusColor = (status: string) => {

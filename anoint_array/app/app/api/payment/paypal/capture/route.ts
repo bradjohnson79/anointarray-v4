@@ -2,16 +2,46 @@
 import { NextResponse } from 'next/server';
 import { redirect } from 'next/navigation';
 import { PrismaClient } from '@prisma/client';
+import fs from 'fs/promises';
+import path from 'path';
 import { sendReceiptEmail } from '@/lib/email';
 import { notifyGoAffProConversion } from '@/lib/affiliates';
 
 const prisma = new PrismaClient();
 
-async function getPayPalAccessToken() {
-  const clientId = process.env.PAYPAL_CLIENT_ID_SANDBOX;
-  const clientSecret = process.env.PAYPAL_CLIENT_SECRET_SANDBOX;
-  
-  const response = await fetch('https://api.sandbox.paypal.com/v1/oauth2/token', {
+const STORE_PAYMENTS_PATH = path.join(process.cwd(), 'data', 'storefront-payments.json');
+const PAYMENTS_CONFIG_PATH = path.join(process.cwd(), 'data', 'payments-config.json');
+
+async function loadPaypalCreds() {
+  // Try storefront config first, then payments-config, then env (sandbox)
+  try {
+    const raw = await fs.readFile(STORE_PAYMENTS_PATH, 'utf-8');
+    const cfg = JSON.parse(raw);
+    const useSandbox = !!cfg?.paypal?.testMode;
+    const clientId = (useSandbox ? cfg?.paypal?.testClientId : cfg?.paypal?.clientId) || '';
+    const clientSecret = (useSandbox ? cfg?.paypal?.testClientSecret : cfg?.paypal?.clientSecret) || '';
+    const base = useSandbox ? 'https://api.sandbox.paypal.com' : 'https://api.paypal.com';
+    return { clientId, clientSecret, base };
+  } catch {}
+  try {
+    const raw = await fs.readFile(PAYMENTS_CONFIG_PATH, 'utf-8');
+    const cfg = JSON.parse(raw);
+    const useSandbox = !!cfg?.paypal?.testMode;
+    const clientId = (useSandbox ? cfg?.paypal?.testClientId : cfg?.paypal?.clientId) || '';
+    const clientSecret = (useSandbox ? cfg?.paypal?.testClientSecret : cfg?.paypal?.clientSecret) || '';
+    const base = useSandbox ? 'https://api.sandbox.paypal.com' : 'https://api.paypal.com';
+    return { clientId, clientSecret, base };
+  } catch {}
+  // Fallback to sandbox env
+  return {
+    clientId: process.env.PAYPAL_CLIENT_ID_SANDBOX || '',
+    clientSecret: process.env.PAYPAL_CLIENT_SECRET_SANDBOX || '',
+    base: 'https://api.sandbox.paypal.com'
+  };
+}
+
+async function getPayPalAccessToken(base: string, clientId: string, clientSecret: string) {
+  const response = await fetch(`${base}/v1/oauth2/token`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
@@ -35,10 +65,11 @@ export async function GET(request: Request) {
       return redirect('/dashboard?payment=error&message=Missing payment parameters');
     }
 
-    const accessToken = await getPayPalAccessToken();
+    const { clientId, clientSecret, base } = await loadPaypalCreds();
+    const accessToken = await getPayPalAccessToken(base, clientId, clientSecret);
 
     // Capture the payment
-    const captureResponse = await fetch(`https://api.sandbox.paypal.com/v2/checkout/orders/${token}/capture`, {
+    const captureResponse = await fetch(`${base}/v2/checkout/orders/${token}/capture`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

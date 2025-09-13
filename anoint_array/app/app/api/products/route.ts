@@ -43,6 +43,7 @@ async function getHandler(request: NextRequest) {
       imageGallery: true,
       featured: true,
       comingSoon: true,
+      sortOrder: true,
       inventory: true,
       weight: true,
       dimensions: true,
@@ -66,16 +67,31 @@ async function getHandler(request: NextRequest) {
       select,
       orderBy: [
         { featured: 'desc' },
+        { sortOrder: 'asc' },
         { createdAt: 'desc' }
       ]
     });
+
+    // For admin view, compute order item counts per product in one query
+    let countsMap: Record<string, number> = {};
+    if (admin === 'true' && products.length > 0) {
+      const ids = products.map((p: any) => p.id);
+      const grouped = await prisma.orderItem.groupBy({
+        by: ['productId'],
+        where: { productId: { in: ids } },
+        _count: { _all: true }
+      });
+      countsMap = Object.fromEntries(grouped.map((g: any) => [g.productId, Number(g._count?._all || 0)]));
+    }
 
     // Convert Decimal fields to numbers for JSON serialization and add missing fields
     const processedProducts = products.map((product: any) => ({
       ...product,
       price: Number(product?.price || 0),
       weight: product?.weight ? Number(product.weight) : null,
+      sortOrder: Number(product?.sortOrder ?? 9999),
       youtubeUrl: null, // Add this field for frontend compatibility
+      ...(admin === 'true' ? { orderItemCount: countsMap[product.id] || 0 } : {}),
       ...(admin === 'true' ? { defaultCustomsValueCad: (product as any).defaultCustomsValueCad != null ? Number((product as any).defaultCustomsValueCad) : null } : {}),
       ...(admin === 'true' && (product as any).variants ? {
         variants: (product as any).variants.map((v: any) => ({
@@ -112,6 +128,7 @@ async function postHandler(request: NextRequest) {
       isDigital = false,
       featured = false,
       comingSoon = false,
+      sortOrder,
       imageUrl,
       imageGallery = [],
       videoEmbedCode,
@@ -175,6 +192,7 @@ async function postHandler(request: NextRequest) {
       inStock: inStock !== undefined ? inStock : true,
       featured: featured || false,
       comingSoon: comingSoon || false,
+      ...(toNumber(sortOrder) !== undefined ? { sortOrder: toNumber(sortOrder) } : {}),
     };
 
     // Add optional fields only if they have values

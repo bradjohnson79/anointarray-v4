@@ -111,6 +111,7 @@ model Product {
   videoEmbedCode  String?     @db.Text // Video embed code for product showcase
   featured        Boolean     @default(false)
   comingSoon      Boolean     @default(false)
+  sortOrder       Int         @default(9999)
   inventory       Int?        // Stock count
   weight          Decimal?    @db.Decimal(8, 3) // For shipping calculations
   dimensions      Json?       // Length, width, height for shipping

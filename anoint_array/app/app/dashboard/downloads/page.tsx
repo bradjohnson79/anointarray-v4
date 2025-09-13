@@ -18,41 +18,11 @@ interface DownloadableItem {
 
 export default function DownloadsPage() {
   const [downloads, setDownloads] = useState<DownloadableItem[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    // TODO: Fetch real downloads from API
-    setTimeout(() => {
-      setDownloads([
-        {
-          id: '1',
-          name: 'Personal Healing Array #001',
-          type: 'array',
-          date: '2024-01-20',
-          size: '2.4 MB',
-          downloadUrl: '/downloads/array-001.png',
-          thumbnail: 'https://i.ytimg.com/vi/EAYtk9hYN_4/hq720.jpg?sqp=-oaymwE7CK4FEIIDSFryq4qpAy0IARUAAAAAGAElAADIQj0AgKJD8AEB-AH-CYAC0AWKAgwIABABGBMgZSg3MA8=&rs=AOn4CLDkKOIQO9uNOVl71UzebAOUVM2l8g'
-        },
-        {
-          id: '2',
-          name: 'Sacred Geometry Meditation Guide',
-          type: 'guide',
-          date: '2024-01-18',
-          size: '1.8 MB',
-          downloadUrl: '/downloads/meditation-guide.pdf'
-        },
-        {
-          id: '3',
-          name: 'Chakra Balancing Array #002',
-          type: 'array',
-          date: '2024-01-15',
-          size: '2.1 MB',
-          downloadUrl: '/downloads/array-002.png',
-          thumbnail: 'https://i.ytimg.com/vi/pC6wJmfMNxc/maxresdefault.jpg'
-        },
-      ]);
-      setIsLoading(false);
-    }, 1000);
+    // TODO: Wire to real downloads API when available
+    setIsLoading(false);
   }, []);
 
   const getTypeIcon = (type: string) => {

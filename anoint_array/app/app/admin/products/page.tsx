@@ -26,7 +26,8 @@ import {
   Youtube,
   ExternalLink,
   Camera,
-  Loader2
+  Loader2,
+  Archive
 } from 'lucide-react';
 import AdminLayout from '@/components/admin/admin-layout';
 import { toast } from 'sonner';
@@ -58,6 +59,8 @@ interface Product {
   createdAt: string;
   updatedAt: string;
   variants?: Array<{ id?: string; style: string; price: number; quantity: number; sku?: string }>;
+  orderItemCount?: number;
+  sortOrder?: number;
 }
 
 export default function ProductManagementPage() {
@@ -197,6 +200,59 @@ export default function ProductManagementPage() {
     }
   };
 
+  const handleArchiveProduct = async (productId: string) => {
+    try {
+      const response = await fetch(`/api/products/${productId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ inStock: false, featured: false, comingSoon: false })
+      });
+      if (response.ok) {
+        setProducts(prev => prev.map(p => p.id === productId ? { ...p, inStock: false, featured: false, comingSoon: false } : p));
+        toast.success('Product archived');
+      } else {
+        const err = await response.json();
+        toast.error(err?.error || 'Failed to archive product');
+      }
+    } catch (e) {
+      toast.error('Error archiving product');
+    }
+  };
+
+  const removeSampleProducts = async () => {
+    if (!window.confirm('Remove sample products (demo items) and their references?')) return;
+    try {
+      const resp = await fetch('/api/admin/products/cleanup-samples', { method: 'POST' });
+      const j = await resp.json().catch(() => ({} as any));
+      if (!resp.ok) throw new Error(j?.error || 'Cleanup failed');
+      toast.success(j?.message || 'Sample products removed');
+      fetchProducts();
+    } catch (e: any) {
+      toast.error(e?.message || 'Failed to remove samples');
+    }
+  };
+
+  const handleUpdateSortOrder = async (productId: string, sortOrder: number) => {
+    try {
+      const resp = await fetch(`/api/products/${productId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sortOrder })
+      });
+      if (!resp.ok) {
+        const j = await resp.json().catch(() => ({} as any));
+        throw new Error(j?.error || 'Failed to update order');
+      }
+      setProducts(prev => prev
+        .map(p => p.id === productId ? { ...p, sortOrder } : p)
+        .sort((a,b)=> (Number(a.featured)===Number(b.featured) ? (Number(a.sortOrder??9999) - Number(b.sortOrder??9999)) : Number(b.featured) - Number(a.featured)) || (new Date(b.createdAt).getTime()-new Date(a.createdAt).getTime()))
+      );
+      toast.success('Display order updated');
+    } catch (e: any) {
+      toast.error(e?.message || 'Failed to update order');
+    }
+  };
+
   const handleAddProduct = async (productData: Partial<Product>) => {
     console.log('🚀 Starting enhanced product creation with image verification');
     console.log('📋 Product data to save:', {
@@ -282,17 +338,53 @@ export default function ProductManagementPage() {
     if (!window.confirm('Are you sure you want to delete this product? This action cannot be undone.')) return;
 
     try {
-      const response = await fetch(`/api/products/${productId}`, {
-        method: 'DELETE',
-      });
+      let response = await fetch(`/api/products/${productId}`, { method: 'DELETE' });
 
       if (response.ok) {
         setProducts(prev => prev.filter(product => product.id !== productId));
         toast.success('Product deleted successfully');
-      } else {
-        const error = await response.json();
-        toast.error(error.error || 'Failed to delete product');
+        return;
       }
+
+      // Attempt to parse error
+      const error = await response.json().catch(() => ({} as any));
+
+      if (response.status === 409) {
+        // Product referenced by orders
+        const proceed = window.confirm(
+          (error?.error || 'Product is referenced by one or more orders.') +
+          '\n\nOptions:\n- OK: Force delete (removes order items; order history will lose line items)\n- Cancel: Archive instead (hide from storefront)'
+        );
+        if (proceed) {
+          // Force delete
+          const forceResp = await fetch(`/api/products/${productId}?force=true`, { method: 'DELETE' });
+          if (forceResp.ok) {
+            setProducts(prev => prev.filter(product => product.id !== productId));
+            toast.success('Product force-deleted');
+            return;
+          }
+          const e2 = await forceResp.json().catch(() => ({} as any));
+          toast.error(e2?.error || 'Failed to force delete product');
+          return;
+        }
+
+        // Archive: make it non-featured, out of stock, and comingSoon=false
+        const archiveResp = await fetch(`/api/products/${productId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ inStock: false, featured: false, comingSoon: false })
+        });
+        if (archiveResp.ok) {
+          setProducts(prev => prev.map(p => p.id === productId ? { ...p, inStock: false, featured: false, comingSoon: false } : p));
+          toast.success('Product archived (hidden from storefront)');
+          return;
+        }
+        const e3 = await archiveResp.json().catch(() => ({} as any));
+        toast.error(e3?.error || 'Failed to archive product');
+        return;
+      }
+
+      toast.error(error?.error || 'Failed to delete product');
     } catch (error) {
       toast.error('Error deleting product');
     }
@@ -340,6 +432,12 @@ export default function ProductManagementPage() {
     return colors[category as keyof typeof colors] || 'bg-gray-500/20 text-gray-400';
   };
 
+  const isSampleName = (name: string) => (
+    name === 'Harmonic Seal – Vitality' ||
+    name === 'Clarity Seal – Insight' ||
+    name === 'Guardian Array – Protection'
+  );
+
   if (isLoading) {
     return (
       <AdminLayout>
@@ -370,6 +468,17 @@ export default function ProductManagementPage() {
               <div className="text-sm text-gray-400">
                 Total Products: <span className="text-white font-semibold">{products.length}</span>
               </div>
+              {products.some(p => ['Harmonic Seal – Vitality', 'Clarity Seal – Insight', 'Guardian Array – Protection'].includes(p.name)) && (
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={removeSampleProducts}
+                  className="flex items-center space-x-2 bg-red-700/30 text-red-300 border border-red-600/30 px-3 py-2 rounded-lg hover:bg-red-700/40"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  <span>Remove Sample Products</span>
+                </motion.button>
+              )}
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
@@ -488,6 +597,30 @@ export default function ProductManagementPage() {
                   <span className={`px-2 py-1 rounded text-xs font-medium ${getCategoryColor(product.category)}`}>
                     {product.category.replace('-', ' ')}
                   </span>
+                  <div className="text-xs text-gray-400">
+                    {product.orderItemCount ? (
+                      <span className="px-2 py-1 rounded bg-gray-700 text-gray-300">In Orders: {product.orderItemCount}</span>
+                    ) : null}
+                  </div>
+                </div>
+
+                {/* Display Order */}
+                <div className="flex items-center gap-2 mb-3">
+                  <label className="text-xs text-gray-400">Order</label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={typeof product.sortOrder === 'number' ? product.sortOrder : 9999}
+                    onChange={(e)=>{
+                      const v = parseInt(e.target.value || '0', 10);
+                      setProducts(prev => prev.map(p => p.id === product.id ? { ...p, sortOrder: v } : p));
+                    }}
+                    onBlur={(e)=>{
+                      const v = Math.max(1, parseInt(e.target.value || '0', 10));
+                      handleUpdateSortOrder(product.id, v);
+                    }}
+                    className="w-20 bg-gray-800 border border-gray-700 rounded px-2 py-1 text-sm text-white"
+                  />
                 </div>
 
                 {/* Actions */}
@@ -519,14 +652,22 @@ export default function ProductManagementPage() {
                   >
                     <Edit3 className="h-3 w-3 text-purple-400" />
                   </button>
-                  
                   <button
-                    onClick={() => handleDeleteProduct(product.id)}
-                    className="p-2 bg-red-600/20 hover:bg-red-600/30 border border-red-500/30 rounded-lg transition-colors duration-200"
-                    title="Delete Product"
+                    onClick={() => handleArchiveProduct(product.id)}
+                    className="p-2 bg-gray-700/60 hover:bg-gray-700 border border-gray-600 rounded-lg transition-colors duration-200"
+                    title="Archive (hide)"
                   >
-                    <Trash2 className="h-3 w-3 text-red-400" />
+                    <Archive className="h-3 w-3 text-gray-300" />
                   </button>
+                  {isSampleName(product.name) && (
+                    <button
+                      onClick={() => handleDeleteProduct(product.id)}
+                      className="p-2 bg-red-600/20 hover:bg-red-600/30 border border-red-500/30 rounded-lg transition-colors duration-200"
+                      title="Delete Sample Product"
+                    >
+                      <Trash2 className="h-3 w-3 text-red-400" />
+                    </button>
+                  )}
                 </div>
               </div>
             </motion.div>

@@ -79,10 +79,7 @@ export default function ProfilePage() {
                 {session?.user?.name || 'User'}
               </h2>
               <p className="text-gray-400">Member</p>
-              <p className="text-sm text-gray-500 flex items-center mt-1">
-                <Calendar className="h-4 w-4 mr-1" />
-                Member since January 2024
-              </p>
+              {/* Optional member since date can be added when available */}
             </div>
           </div>
 
@@ -154,11 +151,11 @@ export default function ProfilePage() {
           <h3 className="text-lg font-semibold text-white mb-4">Account Statistics</h3>
           <div className="grid grid-cols-2 gap-4">
             <div className="text-center p-4 bg-gray-800/50 rounded-lg">
-              <p className="text-2xl font-bold text-purple-400">12</p>
+              <p className="text-2xl font-bold text-purple-400">0</p>
               <p className="text-sm text-gray-400">Arrays Generated</p>
             </div>
             <div className="text-center p-4 bg-gray-800/50 rounded-lg">
-              <p className="text-2xl font-bold text-teal-400">3</p>
+              <p className="text-2xl font-bold text-teal-400">0</p>
               <p className="text-sm text-gray-400">Orders Completed</p>
             </div>
           </div>

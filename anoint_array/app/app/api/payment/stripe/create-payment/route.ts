@@ -1,188 +1,84 @@
-
-import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
-import Stripe from 'stripe';
+import { NextRequest, NextResponse } from 'next/server';
+import { resolveStripeConfig, createStripeCheckoutSession } from '@/lib/stripe';
 import { calculateCanadianTaxes } from '@/lib/canadian-taxes';
-import fs from 'fs/promises';
-import path from 'path';
 import { getFxRate } from '@/lib/currency';
 
-const STORE_PAYMENTS_PATH = path.join(process.cwd(), 'data', 'storefront-payments.json');
+export const runtime = 'nodejs';
 
-async function getStripeSecret(): Promise<string> {
+export async function POST(req: NextRequest) {
   try {
-    const raw = await fs.readFile(STORE_PAYMENTS_PATH, 'utf-8');
-    const cfg = JSON.parse(raw);
-    const useTest = !!cfg?.stripe?.testMode;
-    const key = useTest ? cfg?.stripe?.testSecretKey : cfg?.stripe?.secretKey;
-    if (key && key !== '***') return key as string;
-    if (useTest && process.env.STRIPE_SECRET_TEST_KEY) return process.env.STRIPE_SECRET_TEST_KEY;
-  } catch {}
-  // fallback to environment
-  return process.env.STRIPE_SECRET_KEY || '';
-}
+    const { items, userId, userEmail, shippingAddress, billingAddress, billingSameAsShipping, allowGuest, shippingAmount = 0, currency = 'USD' } = await req.json();
+    if (!Array.isArray(items) || items.length === 0) return NextResponse.json({ error: 'No items' }, { status: 400 });
 
-export async function POST(request: Request) {
-  try {
-    const session = await getServerSession(authOptions);
-    const { items, userId, userEmail, shippingAddress, billingAddress, billingSameAsShipping, allowGuest, shippingAmount = 0, currency = 'USD' } = await request.json();
+    const allPhysical = items.every((it: any) => it?.type === 'product' && !(it?.customData?.isDigital));
+    if (!allowGuest && !allPhysical) return NextResponse.json({ error: 'Guest checkout not allowed for digital items' }, { status: 400 });
 
-    const allPhysical = Array.isArray(items) && items.every((item: any) => item?.type === 'product' && !(item?.customData?.isDigital));
-    const guestAllowed = !session?.user && allowGuest && allPhysical;
-    
-    if (!session?.user && !guestAllowed) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    if (!items || !Array.isArray(items) || items.length === 0) {
-      return NextResponse.json({ error: 'Invalid items' }, { status: 400 });
-    }
-
-    // For physical orders, require shipping address fields
-    if (allPhysical) {
-      const s = shippingAddress || {} as any;
-      const required = ['fullName','street','city','state','zip','country'];
-      const missing = required.some((k) => !s[k] || String(s[k]).trim() === '');
-      if (missing) {
-        return NextResponse.json({ error: 'Shipping address is required for physical products' }, { status: 400 });
-      }
-    }
-
-    // Calculate subtotal and any taxes/tariffs
-    const subtotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    let subtotalUSD = items.reduce((s: number, it: any) => s + Number(it.price || 0) * Number(it.quantity || 1), 0);
+    let taxUSD = 0;
     const buyerCountry = (shippingAddress?.country || '').toUpperCase();
-    let extraLabel: string | null = null;
-    let extraAmount = 0; // same currency as items
-    let taxBreakdown: any = {};
     if (buyerCountry === 'CA' && shippingAddress?.state) {
       const result = calculateCanadianTaxes({
         destinationProvince: String(shippingAddress.state),
         buyerCountry: 'CA',
-        items: items.map((it: any) => ({
-          isDigital: !!(it?.type === 'seal' || it?.customData?.isDigital),
-          priceCents: Math.round(it.price * 100),
-          quantity: it.quantity,
-        }))
+        items: items.map((it: any) => ({ isDigital: !!(it?.type==='seal' || it?.customData?.isDigital), priceCents: Math.round(Number(it.price||0)*100), quantity: Number(it.quantity||1) }))
       });
-      extraAmount = result.totalTaxCents / 100;
-      extraLabel = 'Taxes (GST/HST/PST)';
-      taxBreakdown = { gst: result.gstCents / 100, hst: result.hstCents / 100, pst: result.pstCents / 100 };
+      taxUSD = result.totalTaxCents / 100;
     } else if (buyerCountry === 'US') {
-      extraAmount = Math.round(subtotal * 0.35 * 100) / 100; // 35% tariff
-      if (extraAmount > 0.01) extraLabel = 'Prepaid Tariff (DDP 35%)';
+      taxUSD = +(subtotalUSD * 0.35).toFixed(2);
     }
-    const totalAmount = subtotal + (extraAmount || 0) + (Number(shippingAmount) || 0);
+    const shipUSD = Number(shippingAmount) || 0;
+    let totalUSD = subtotalUSD + taxUSD + shipUSD;
 
-    // Create Stripe checkout session with selected secret key
-    const secret = await getStripeSecret();
-    if (!secret) {
-      console.error('Stripe secret key missing');
-      return NextResponse.json({ error: 'Stripe is not configured' }, { status: 500 });
-    }
-    const stripe = new Stripe(secret, {} as any);
-    const cur = String(currency || 'USD').toLowerCase();
-    const base = 'usd';
-    const rate = cur !== base ? await getFxRate('USD', cur.toUpperCase()) : 1;
-    const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3002';
-    const toAbs = (u?: string) => {
-      if (!u) return undefined;
-      try {
-        const abs = new URL(u, baseUrl).toString();
-        // Only allow http/https
-        if (!/^https?:\/\//i.test(abs)) return undefined;
-        return abs;
-      } catch { return undefined; }
-    };
-    // Build compact metadata <= 500 chars for Stripe
-    const compactItems = items.map((it: any) => ({ n: String(it.name).slice(0, 50), q: it.quantity, p: it.price }));
-    let metaObj: any = {
-      items: compactItems,
-      subtotal,
-      totalAmount,
-      shippingAmount,
-      extraLabel: extraLabel || undefined,
-      extraAmount: extraAmount || 0,
-      buyerCountry,
-      province: shippingAddress?.state,
-      taxBreakdown,
-      paymentMethod: 'stripe',
-      currency: String(currency || 'USD').toUpperCase(),
-      billingSameAsShipping: !!billingSameAsShipping,
-    };
-    let metaStr = JSON.stringify(metaObj);
-    if (metaStr.length > 480) {
-      metaObj.items = compactItems.map((i: any) => ({ n: i.n, q: i.q }));
-      metaStr = JSON.stringify(metaObj);
-    }
-    if (metaStr.length > 480) {
-      metaObj.items = { count: items.length };
-      metaStr = JSON.stringify(metaObj);
-    }
+    const cur = String(currency || 'USD').toUpperCase();
+    let rate = 1;
+    if (cur !== 'USD') { rate = await getFxRate('USD', cur); }
+    const subtotal = +(subtotalUSD * rate).toFixed(2);
+    const tax = +(taxUSD * rate).toFixed(2);
+    const ship = +(shipUSD * rate).toFixed(2);
+    const total = +(subtotal + tax + ship).toFixed(2);
 
-    let checkoutSession;
-    try {
-    checkoutSession = await stripe.checkout.sessions.create({
-      payment_method_types: ['card'],
-      line_items: [
-        ...items.map(item => ({
-        price_data: {
-          currency: cur,
-          product_data: {
-            name: item.name,
-            description: item.type === 'seal' ? 'Custom Sacred Seal Array' : undefined,
-            images: item.imageUrl ? [toAbs(item.imageUrl)!].filter(Boolean) as string[] : undefined,
-          },
-          unit_amount: Math.round(item.price * rate * 100), // Convert to cents in target currency
-        },
-        quantity: item.quantity,
-      })),
-      ...(extraLabel && extraAmount > 0 ? [{
-        price_data: {
-          currency: cur,
-          product_data: { name: extraLabel },
-          unit_amount: Math.round(extraAmount * rate * 100),
-        },
-        quantity: 1
-      }] : []),
-      ...(shippingAmount && shippingAmount > 0 ? [{
-        price_data: {
-          currency: cur,
-          product_data: { name: 'Shipping' },
-          unit_amount: Math.round(Number(shippingAmount) * rate * 100),
-        },
-        quantity: 1,
-      }] : [])
-      ],
-      mode: 'payment',
-      success_url: new URL(`/success?provider=stripe&session_id={CHECKOUT_SESSION_ID}` , baseUrl).toString(),
-      cancel_url: new URL('/dashboard?payment=cancelled', baseUrl).toString(),
-      customer_email: userEmail,
-      client_reference_id: userId,
-      metadata: {
-        userId,
-        orderData: metaStr,
-      },
-      billing_address_collection: 'required',
-      shipping_address_collection: {
-        allowed_countries: ['US', 'CA', 'GB', 'AU', 'DE', 'FR', 'IT', 'ES', 'NL', 'BE'],
-      },
+    const successUrl = `${process.env.NEXTAUTH_URL}/success?provider=stripe`;
+    const cancelUrl = `${process.env.NEXTAUTH_URL}/cart?payment=cancelled`;
+
+    const params = new URLSearchParams({
+      'payment_method_types[0]': 'card',
+      'mode': 'payment',
+      'success_url': successUrl,
+      'cancel_url': cancelUrl,
+      'metadata[user_id]': userId || '',
+      'metadata[user_email]': userEmail || '',
     });
-    } catch (err: any) {
-      console.error('Stripe create session failed:', err?.message || err);
-      return NextResponse.json({ error: 'Stripe session error: ' + (err?.message || 'unknown') }, { status: 500 });
+    // line items
+    items.forEach((it: any, idx: number) => {
+      const unit = cur === 'USD' ? Number(it.price) : Math.round(Number(it.price) * rate * 100) / 100;
+      params.set(`line_items[${idx}][price_data][currency]`, cur.toLowerCase());
+      params.set(`line_items[${idx}][price_data][product_data][name]`, String(it.name || 'Item'));
+      params.set(`line_items[${idx}][price_data][unit_amount]`, Math.round(unit * 100).toString());
+      params.set(`line_items[${idx}][quantity]`, String(it.quantity || 1));
+    });
+    // ship and tax shown as a separate line if needed (optional)
+    if (ship > 0) {
+      const idx = items.length;
+      params.set(`line_items[${idx}][price_data][currency]`, cur.toLowerCase());
+      params.set(`line_items[${idx}][price_data][product_data][name]`, 'Shipping');
+      params.set(`line_items[${idx}][price_data][unit_amount]`, Math.round(ship * 100).toString());
+      params.set(`line_items[${idx}][quantity]`, '1');
+    }
+    if (tax > 0) {
+      const idx = items.length + (ship>0?1:0);
+      params.set(`line_items[${idx}][price_data][currency]`, cur.toLowerCase());
+      params.set(`line_items[${idx}][price_data][product_data][name]`, buyerCountry==='CA'?'Taxes (GST/HST/PST)':'Prepaid Tariff');
+      params.set(`line_items[${idx}][price_data][unit_amount]`, Math.round(tax * 100).toString());
+      params.set(`line_items[${idx}][quantity]`, '1');
     }
 
-    return NextResponse.json({ 
-      clientSecret: checkoutSession.id,
-      url: checkoutSession.url,
-      livemode: (checkoutSession as any).livemode ?? undefined,
-    });
-  } catch (error) {
-    console.error('Stripe payment creation error:', error);
-    return NextResponse.json(
-      { error: 'Failed to create payment session' },
-      { status: 500 }
-    );
+    const conf = await resolveStripeConfig();
+    if (!conf.secretKey) return NextResponse.json({ error: 'Stripe not configured' }, { status: 500 });
+    const session = await createStripeCheckoutSession(conf, params);
+    return NextResponse.json({ clientSecret: session.id, url: session.url, total, currency: cur });
+  } catch (e: any) {
+    console.error('Stripe create-payment error:', e);
+    return NextResponse.json({ error: e?.message || 'Failed' }, { status: 500 });
   }
 }
+

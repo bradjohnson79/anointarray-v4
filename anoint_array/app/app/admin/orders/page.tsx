@@ -105,7 +105,7 @@ interface ShippingLabel {
 }
 
 export default function OrderManagementPage() {
-  const [activeTab, setActiveTab] = useState<'orders' | 'shipping-labels' | 'taxes-duties'>('orders');
+  const [activeTab, setActiveTab] = useState<'orders' | 'taxes-duties'>('orders');
   const [orders, setOrders] = useState<Order[]>([]);
   const [shippingLabels, setShippingLabels] = useState<ShippingLabel[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -1144,20 +1144,6 @@ export default function OrderManagementPage() {
               </span>
             </button>
             <button
-              onClick={() => setActiveTab('shipping-labels')}
-              className={`flex items-center space-x-2 px-6 py-3 rounded-lg font-medium transition-all duration-300 ${
-                activeTab === 'shipping-labels'
-                  ? 'aurora-gradient text-white shadow-lg'
-                  : 'text-gray-400 hover:text-white hover:bg-gray-800'
-              }`}
-            >
-              <Package className="h-5 w-5" />
-              <span>Shipping Labels</span>
-              <span className="bg-white/20 text-xs px-2 py-1 rounded-full">
-                {shippingLabels.length}
-              </span>
-            </button>
-            <button
               onClick={() => setActiveTab('taxes-duties')}
               className={`flex items-center space-x-2 px-6 py-3 rounded-lg font-medium transition-all duration-300 ${
                 activeTab === 'taxes-duties'
@@ -1667,57 +1653,6 @@ export default function OrderManagementPage() {
                   </div>
                 </div>
 
-                <div className="bg-gray-800 rounded-lg p-4">
-                  <h3 className="font-semibold text-white mb-3">Choose Shipping Carrier</h3>
-                  <div className="space-y-3">
-                    <motion.button
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                      onClick={() => { setShowCreateLabelModal(true); setLabelOrderId(selectedOrder.id); }}
-                      disabled={isCreatingLabel}
-                      className="w-full flex items-center justify-between p-3 bg-red-600/20 hover:bg-red-600/30 border border-red-500/30 rounded-lg transition-colors duration-200 disabled:opacity-50"
-                    >
-                      <div className="flex items-center space-x-3">
-                        <div className="w-8 h-8 bg-red-600 rounded flex items-center justify-center">
-                          <Package className="h-4 w-4 text-white" />
-                        </div>
-                        <div className="text-left">
-                          <p className="text-white font-medium">Canada Post</p>
-                          <p className="text-red-300 text-xs">Regular Parcel</p>
-                        </div>
-                      </div>
-                      {isCreatingLabel ? (
-                        <Loader2 className="h-4 w-4 animate-spin text-red-400" />
-                      ) : (
-                        <span className="text-red-300 text-sm">~$12.50</span>
-                      )}
-                    </motion.button>
-
-                    <motion.button
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                      onClick={() => { setShowCreateLabelModal(true); setLabelOrderId(selectedOrder.id); }}
-                      disabled={isCreatingLabel}
-                      className="w-full flex items-center justify-between p-3 bg-amber-600/20 hover:bg-amber-600/30 border border-amber-500/30 rounded-lg transition-colors duration-200 disabled:opacity-50"
-                    >
-                      <div className="flex items-center space-x-3">
-                        <div className="w-8 h-8 bg-amber-600 rounded flex items-center justify-center">
-                          <Truck className="h-4 w-4 text-white" />
-                        </div>
-                        <div className="text-left">
-                          <p className="text-white font-medium">UPS</p>
-                          <p className="text-amber-300 text-xs">UPS Ground</p>
-                        </div>
-                      </div>
-                      {isCreatingLabel ? (
-                        <Loader2 className="h-4 w-4 animate-spin text-amber-400" />
-                      ) : (
-                        <span className="text-amber-300 text-sm">~$15.50</span>
-                      )}
-                    </motion.button>
-                  </div>
-                </div>
-
                 {selectedOrder.shippingAddress && (
                   <div className="bg-gray-800 rounded-lg p-4">
                     <h3 className="font-semibold text-white mb-2">Shipping To</h3>
@@ -1726,15 +1661,6 @@ export default function OrderManagementPage() {
                       <p>{selectedOrder.shippingAddress.street}</p>
                       <p>{selectedOrder.shippingAddress.city}, {selectedOrder.shippingAddress.state}</p>
                       <p>{selectedOrder.shippingAddress.country} {selectedOrder.shippingAddress.zip}</p>
-                    </div>
-                  </div>
-                )}
-
-                {isCreatingLabel && (
-                  <div className="bg-blue-600/20 border border-blue-500/30 rounded-lg p-4">
-                    <div className="flex items-center space-x-2">
-                      <Loader2 className="h-4 w-4 animate-spin text-blue-400" />
-                      <span className="text-blue-300 text-sm">Creating shipping label...</span>
                     </div>
                   </div>
                 )}
@@ -1747,96 +1673,13 @@ export default function OrderManagementPage() {
         )}
 
         {/* Shipping Labels Tab Content */}
-        {activeTab === 'shipping-labels' && (
+        {false && (
           <>
-            {/* System Pre-check (Shippo) */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.05 }}
-              className="mystical-card p-4 rounded-lg mb-4"
-            >
-              <div className="flex items-center justify-between mb-2">
-                <h3 className="text-lg font-semibold text-white">Shipping System Status</h3>
-                <button onClick={runStatusCheck} disabled={statusLoading} className="px-3 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg disabled:opacity-50 flex items-center gap-2">
-                  <RefreshCw className={`h-4 w-4 ${statusLoading ? 'animate-spin' : ''}`} />
-                  {statusLoading ? 'Checking…' : 'Run Pre-check'}
-                </button>
-              </div>
-              {statusError && (<div className="text-red-400 text-sm mb-2">{statusError}</div>)}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {(statusChecks || []).map((c: any) => (
-                  <div key={c.key} className={`flex items-center gap-3 p-3 rounded border ${c.ok ? 'border-green-500/30 bg-green-600/10' : 'border-red-500/30 bg-red-600/10'}`}>
-                    {c.ok ? <Check className="h-5 w-5 text-green-400" /> : <AlertTriangle className="h-5 w-5 text-red-400" />}
-                    <div>
-                      <div className="text-white text-sm font-medium">{c.label}</div>
-                      {c.detail && (<div className="text-gray-400 text-xs">{c.detail}</div>)}
-                    </div>
-                  </div>
-                ))}
-                {!statusChecks && !statusLoading && (
-                  <div className="text-gray-400 text-sm">Click “Run Pre-check” to validate Shippo API key, Canada Post account, and rate availability.</div>
-                )}
-              </div>
-            </motion.div>
+            {/* System Pre-check (Shippo) removed */}
             {/* Old in-house demo removed; using Shippo demo below */}
-            {/* Shipping Labels Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              {[
-                { title: 'Active Labels', value: shippingLabels.filter(l => l.status === 'active').length, icon: Package, color: 'text-green-400' },
-                { title: 'Used Labels', value: shippingLabels.filter(l => l.status === 'used').length, icon: Check, color: 'text-blue-400' },
-                { title: 'Canada Post', value: shippingLabels.filter(l => l.carrier === 'canada-post').length, icon: Truck, color: 'text-red-400' },
-                { title: 'UPS Labels', value: shippingLabels.filter(l => l.carrier === 'ups').length, icon: Truck, color: 'text-yellow-400' },
-              ].map((stat, index) => (
-                <motion.div
-                  key={stat.title}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.1 }}
-                  className="mystical-card p-4 rounded-lg"
-                >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-gray-400 text-sm">{stat.title}</p>
-                      <p className="text-2xl font-bold text-white">{stat.value}</p>
-                    </div>
-                    <stat.icon className={`h-8 w-8 ${stat.color}`} />
-                  </div>
-                </motion.div>
-              ))}
-            </div>
+            {/* Shipping Labels Stats removed */}
 
-            {/* Actions Bar */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-              className="mystical-card p-4 rounded-lg"
-            >
-              <div className="flex flex-col md:flex-row gap-4 md:items-center justify-between">
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
-                  <input
-                    type="text"
-                    placeholder="Search labels by tracking number, order, or customer..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full bg-gray-800 border border-gray-700 rounded-lg px-12 py-3 text-white placeholder-gray-400 focus:outline-none focus:border-purple-500"
-                  />
-                </div>
-                <div className="flex gap-3">
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => setShowCreateLabelModal(true)}
-                    className="flex items-center space-x-2 aurora-gradient text-white px-4 py-3 rounded-lg hover:shadow-lg transition-all duration-300"
-                  >
-                    <Plus className="h-4 w-4" />
-                    <span>Create Label</span>
-                  </motion.button>
-                </div>
-              </div>
-            </motion.div>
+            {/* Actions Bar removed */}
 
             {/* Shipping Labels Table */}
             <motion.div
@@ -2482,7 +2325,7 @@ export default function OrderManagementPage() {
         )}
 
         {/* Create Label Modal */}
-        {showCreateLabelModal && (
+        {false && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
             <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
@@ -2635,7 +2478,7 @@ export default function OrderManagementPage() {
         )}
 
         {/* Label Preview Modal */}
-        {selectedLabel && (
+        {false && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
             <motion.div
               initial={{ opacity: 0, scale: 0.9 }}

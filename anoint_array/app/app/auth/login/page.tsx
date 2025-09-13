@@ -130,15 +130,13 @@ export default function LoginPage() {
             </form>
 
             {/* Footer */}
-            <div className="mt-6 text-center">
+            <div className="mt-6 text-center space-y-2">
+              <p>
+                <Link href="/auth/forgot-password" className="text-gray-400 hover:underline">Forgot your password?</Link>
+              </p>
               <p className="text-gray-400">
                 Don't have an account?{' '}
-                <Link
-                  href="/auth/signup"
-                  className="aurora-text hover:underline font-medium"
-                >
-                  Sign up here
-                </Link>
+                <Link href="/auth/signup" className="aurora-text hover:underline font-medium">Sign up here</Link>
               </p>
             </div>
           </motion.div>

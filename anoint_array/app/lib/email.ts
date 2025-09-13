@@ -140,3 +140,24 @@ export async function sendAdminServiceOrderEmail(to: string, data: {
     console.error('Failed to send admin service email:', e);
   }
 }
+
+export async function sendPasswordResetEmail(to: string, args: { resetUrl: string }) {
+  const apiKey = process.env.RESEND_API_KEY;
+  const from = process.env.EMAIL_FROM || 'noreply@anointarray.com';
+  if (!apiKey) { console.warn('RESEND_API_KEY not set; skipping password reset email'); return; }
+  const resend = new Resend(apiKey);
+  const html = `
+    <div style="font-family: Arial, sans-serif; color:#111">
+      <h2>Password Reset Request</h2>
+      <p>We received a request to reset your ANOINT Array password.</p>
+      <p>If this was you, click the button below to set a new password. This link will expire in 60 minutes.</p>
+      <p style="margin:20px 0"><a href="${args.resetUrl}" style="background:#6d28d9;color:#fff;padding:10px 16px;border-radius:8px;text-decoration:none">Reset Password</a></p>
+      <p>If you did not request this, you can safely ignore this email.</p>
+    </div>
+  `;
+  try {
+    await resend.emails.send({ from, to, subject: 'Reset your ANOINT Array password', html });
+  } catch (e) {
+    console.error('Failed to send password reset email:', e);
+  }
+}

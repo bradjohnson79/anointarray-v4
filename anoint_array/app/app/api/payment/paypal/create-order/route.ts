@@ -2,49 +2,9 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import fs from 'fs/promises';
 import { calculateCanadianTaxes } from '@/lib/canadian-taxes';
-import path from 'path';
 import { getFxRate } from '@/lib/currency';
-
-const STORE_PAYMENTS_PATH = path.join(process.cwd(), 'data', 'storefront-payments.json');
-
-async function loadPaypalCreds() {
-  try {
-    const raw = await fs.readFile(STORE_PAYMENTS_PATH, 'utf-8');
-    const cfg = JSON.parse(raw);
-    const useSandbox = !!cfg?.paypal?.testMode;
-    const clientId = useSandbox ? cfg?.paypal?.testClientId : cfg?.paypal?.clientId;
-    const clientSecret = useSandbox ? cfg?.paypal?.testClientSecret : cfg?.paypal?.clientSecret;
-    const base = useSandbox ? 'https://api.sandbox.paypal.com' : 'https://api.paypal.com';
-    return { clientId, clientSecret, base };
-  } catch {
-    // fallback to environment sandbox
-    return {
-      clientId: process.env.PAYPAL_CLIENT_ID_SANDBOX,
-      clientSecret: process.env.PAYPAL_CLIENT_SECRET_SANDBOX,
-      base: 'https://api.sandbox.paypal.com'
-    };
-  }
-}
-
-async function getPayPalAccessToken(base: string, clientId?: string, clientSecret?: string) {
-  const isSandbox = /sandbox/.test(base);
-  const id = (clientId || (isSandbox ? process.env.PAYPAL_CLIENT_ID_SANDBOX : process.env.PAYPAL_CLIENT_ID_LIVE) || '').trim();
-  const secret = (clientSecret || (isSandbox ? process.env.PAYPAL_CLIENT_SECRET_SANDBOX : process.env.PAYPAL_SECRET_LIVE) || '').trim();
-  const response = await fetch(`${base}/v1/oauth2/token`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-      'Accept': 'application/json',
-      'Authorization': `Basic ${Buffer.from(`${id}:${secret}`).toString('base64')}`,
-    },
-    body: 'grant_type=client_credentials',
-  });
-
-  const data = await response.json();
-  return data.access_token;
-}
+import { resolvePaypalConfig, getPaypalAccessToken, createPaypalOrder } from '@/lib/paypal';
 
 export async function POST(request: Request) {
   try {
@@ -106,17 +66,11 @@ export async function POST(request: Request) {
       totalAmount = subtotal + extraAmount + shipAmt;
     }
 
-    const { clientId, clientSecret, base } = await loadPaypalCreds();
-    const accessToken = await getPayPalAccessToken(base, clientId, clientSecret);
+    const conf = await resolvePaypalConfig();
+    const accessToken = await getPaypalAccessToken(conf);
 
     // Create PayPal order
-    const orderResponse = await fetch(`${base}/v2/checkout/orders`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${accessToken}`,
-      },
-      body: JSON.stringify({
+    const orderData = await createPaypalOrder(conf, accessToken, {
         intent: 'CAPTURE',
         purchase_units: [{
           amount: {
@@ -147,14 +101,7 @@ export async function POST(request: Request) {
           brand_name: 'ANOINT Array',
           user_action: 'PAY_NOW',
         },
-      }),
-    });
-
-    const orderData = await orderResponse.json();
-
-    if (orderData.error) {
-      throw new Error(orderData.error_description || 'PayPal order creation failed');
-    }
+      });
 
     // Store order data temporarily (in production, use a database)
     // For now, we'll pass it through the URL parameters

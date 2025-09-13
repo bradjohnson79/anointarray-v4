@@ -36,13 +36,8 @@ export default function DashboardOverview({ user }: DashboardOverviewProps) {
   const [recentActivity, setRecentActivity] = useState([]);
 
   useEffect(() => {
-    // TODO: Fetch real data from API
-    setStats({
-      totalOrders: 3,
-      totalDownloads: 7,
-      arraysGenerated: 12,
-      memberSince: 'January 2024',
-    });
+    // TODO: Optionally fetch real data from API when available
+    // Keep defaults for live site until wired up
   }, []);
 
   const statCards = [
@@ -72,7 +67,7 @@ export default function DashboardOverview({ user }: DashboardOverviewProps) {
     },
     {
       title: 'Member Since',
-      value: stats.memberSince,
+      value: stats.memberSince || '—',
       icon: Calendar,
       color: 'text-yellow-400',
       bgColor: 'bg-yellow-500/20',

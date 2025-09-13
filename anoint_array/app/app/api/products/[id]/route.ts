@@ -44,6 +44,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         imageGallery: true,
         featured: true,
         comingSoon: true,
+        sortOrder: true,
         inventory: true,
         weight: true,
         dimensions: true,
@@ -73,6 +74,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       ...product,
       price: Number(product.price),
       weight: product.weight ? Number(product.weight) : null,
+      sortOrder: Number((product as any).sortOrder ?? 9999),
       youtubeUrl: null, // Add this field for frontend compatibility
       defaultCustomsValueCad: (product as any).defaultCustomsValueCad != null ? Number((product as any).defaultCustomsValueCad) : null,
       variants: product.variants?.map((v: any) => ({ ...v, price: Number(v.price) })) || [],
@@ -120,6 +122,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       digitalFileUrl,
       instructionManualUrl,
       variants,
+      sortOrder,
       // Customs & Compliance
       hsCode,
       countryOfOrigin,
@@ -171,6 +174,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     if (featured !== undefined) updateData.featured = featured;
     if (comingSoon !== undefined) updateData.comingSoon = comingSoon;
     if (imageUrl !== undefined) updateData.imageUrl = imageUrl;
+    if (sortOrder !== undefined) updateData.sortOrder = Number(sortOrder);
     if (inventory !== undefined) updateData.inventory = inventory;
     if (weight !== undefined) updateData.weight = weight;
     if (dimensions !== undefined) updateData.dimensions = dimensions;
@@ -222,6 +226,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         imageGallery: true,
         featured: true,
         comingSoon: true,
+        sortOrder: true,
         inventory: true,
         weight: true,
         dimensions: true,
@@ -245,6 +250,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       ...product,
       price: Number(product.price),
       weight: product.weight ? Number(product.weight) : null,
+      sortOrder: Number((product as any).sortOrder ?? 9999),
       youtubeUrl: null, // Add this field for frontend compatibility
       defaultCustomsValueCad: product.defaultCustomsValueCad != null ? Number(product.defaultCustomsValueCad) : null,
       variants: product.variants?.map((v: any) => ({ ...v, price: Number(v.price) })) || [],
@@ -264,21 +270,48 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
     const session = await getServerSession(authOptions);
-    
     if (!session || session.user?.role !== 'ADMIN') {
       return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
     }
 
-    await prisma.product.delete({
-      where: { id: params.id },
-    });
+    const { searchParams } = new URL(request.url);
+    const force = searchParams.get('force') === 'true';
+
+    // Only allow hard delete for known sample/mock products; all others must be archived
+    const sampleNames = [
+      'Harmonic Seal – Vitality',
+      'Clarity Seal – Insight',
+      'Guardian Array – Protection',
+    ];
+    const current = await prisma.product.findUnique({ where: { id: params.id }, select: { id: true, name: true } });
+    if (!current) return NextResponse.json({ error: 'Product not found' }, { status: 404 });
+    const isSample = sampleNames.includes(current.name);
+    if (!isSample) {
+      return NextResponse.json({ error: 'Deletion disabled for live products. Use archive instead.' }, { status: 409 });
+    }
+
+    // For the three sample products, allow hard delete. If referenced by orders, need force=true.
+    const orderItemCount = await prisma.orderItem.count({ where: { productId: params.id } });
+    if (orderItemCount > 0 && !force) {
+      return NextResponse.json(
+        { error: `Sample product is referenced by ${orderItemCount} order item(s). Retry with ?force=true to remove related order items.` },
+        { status: 409 }
+      );
+    }
+
+    await prisma.$transaction([
+      // Clean up variants explicitly (even if cascading) for clarity
+      prisma.productVariant.deleteMany({ where: { productId: params.id } }),
+      // If forcing, remove dependent order items to satisfy FK constraints
+      ...(force ? [prisma.orderItem.deleteMany({ where: { productId: params.id } })] : []),
+      prisma.product.delete({ where: { id: params.id } }),
+    ]);
 
     return NextResponse.json({ success: true });
-
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error deleting product:', error);
     return NextResponse.json(
-      { error: 'Failed to delete product' },
+      { error: error?.message || 'Failed to delete product' },
       { status: 500 }
     );
   }

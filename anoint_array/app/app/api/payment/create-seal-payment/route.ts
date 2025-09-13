@@ -5,6 +5,7 @@ import { authOptions } from '@/lib/auth';
 import fs from 'fs/promises';
 import path from 'path';
 import { getAffiliateCodeFromHeaders } from '@/lib/affiliates';
+import { resolvePaypalConfig, getPaypalAccessToken, createPaypalOrder } from '@/lib/paypal';
 
 const PAYMENTS_CONFIG_PATH = path.join(process.cwd(), 'data', 'payments-config.json');
 
@@ -96,38 +97,25 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Stripe payment is not enabled' }, { status: 400 });
       }
       
-      const useTestMode = testMode || paymentConfig.stripe.testMode;
-      const stripeSecretKey = useTestMode ? paymentConfig.stripe.testSecretKey : paymentConfig.stripe.secretKey;
-      
-      if (!stripeSecretKey) {
-        return NextResponse.json({ error: 'Stripe secret key not configured' }, { status: 500 });
-      }
-      
-      // Create Stripe checkout session
-      const stripeResponse = await fetch('https://api.stripe.com/v1/checkout/sessions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${stripeSecretKey}`,
-          'Content-Type': 'application/x-www-form-urlencoded'
-        },
-        body: new URLSearchParams({
-          'payment_method_types[0]': 'card',
-          'line_items[0][price_data][currency]': currency.toLowerCase(),
-          'line_items[0][price_data][product_data][name]': `ANOINT Seal Array - ${sealConfig.category}`,
-          'line_items[0][price_data][product_data][description]': `Custom seal array for ${userDetails.fullName}`,
-          'line_items[0][price_data][unit_amount]': Math.round(amount * 100).toString(), // Convert to cents and string
-          'line_items[0][quantity]': '1',
-          'mode': 'payment',
-          'success_url': `${process.env.NEXTAUTH_URL}/success?provider=stripe&order_id=${orderId}`,
-          'cancel_url': `${process.env.NEXTAUTH_URL}/dashboard/seal-generator?payment=cancelled`,
-          'metadata[order_id]': orderId,
-          'metadata[user_id]': userId,
-          'metadata[product_type]': 'seal_array'
-        })
+      const { resolveStripeConfig, createStripeCheckoutSession } = await import('@/lib/stripe');
+      const conf = await resolveStripeConfig();
+      if (!conf.secretKey) return NextResponse.json({ error: 'Stripe secret key not configured' }, { status: 500 });
+      const params = new URLSearchParams({
+        'payment_method_types[0]': 'card',
+        'line_items[0][price_data][currency]': currency.toLowerCase(),
+        'line_items[0][price_data][product_data][name]': `ANOINT Seal Array - ${sealConfig.category}`,
+        'line_items[0][price_data][product_data][description]': `Custom seal array for ${userDetails.fullName}`,
+        'line_items[0][price_data][unit_amount]': Math.round(amount * 100).toString(),
+        'line_items[0][quantity]': '1',
+        'mode': 'payment',
+        'success_url': `${process.env.NEXTAUTH_URL}/success?provider=stripe&order_id=${orderId}`,
+        'cancel_url': `${process.env.NEXTAUTH_URL}/dashboard/seal-generator?payment=cancelled`,
+        'metadata[order_id]': orderId,
+        'metadata[user_id]': userId,
+        'metadata[product_type]': 'seal_array'
       });
-
-      if (stripeResponse.ok) {
-        const stripeData = await stripeResponse.json();
+      const stripeData = await createStripeCheckoutSession(conf, params);
+      if (stripeData) {
         return NextResponse.json({
           success: true,
           checkoutUrl: stripeData.url,
@@ -143,64 +131,26 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'PayPal payment is not enabled' }, { status: 400 });
       }
       
-      const useTestMode = testMode || paymentConfig.paypal.testMode;
-      const paypalClientId = useTestMode ? paymentConfig.paypal.testClientId : paymentConfig.paypal.clientId;
-      const paypalClientSecret = useTestMode ? paymentConfig.paypal.testClientSecret : paymentConfig.paypal.clientSecret;
-      const paypalApiBase = useTestMode ? 'https://api.sandbox.paypal.com' : 'https://api.paypal.com';
-      
-      if (!paypalClientId || !paypalClientSecret) {
-        return NextResponse.json({ error: 'PayPal credentials not configured' }, { status: 500 });
-      }
-      
-      // Create PayPal order using configured credentials
-      const paypalAuth = Buffer.from(
-        `${paypalClientId}:${paypalClientSecret}`
-      ).toString('base64');
-
-      // Get PayPal access token
-      const tokenResponse = await fetch(`${paypalApiBase}/v1/oauth2/token`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Basic ${paypalAuth}`,
-          'Content-Type': 'application/x-www-form-urlencoded'
-        },
-        body: 'grant_type=client_credentials'
-      });
-
-      if (!tokenResponse.ok) {
-        throw new Error('PayPal token request failed');
-      }
-
-      const tokenData = await tokenResponse.json();
-
-      // Create PayPal order
-      const paypalOrderResponse = await fetch(`${paypalApiBase}/v2/checkout/orders`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${tokenData.access_token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          intent: 'CAPTURE',
-          purchase_units: [
-            {
-              amount: {
-                currency_code: currency.toUpperCase(),
-                value: amount.toFixed(2)
-              },
-              description: `ANOINT Seal Array - ${sealConfig.category}`,
-              custom_id: orderId
-            }
-          ],
-          application_context: {
-            return_url: `${process.env.NEXTAUTH_URL}/api/payment/paypal/capture?custom_data=${encodeURIComponent(JSON.stringify({ aff }))}`,
-            cancel_url: `${process.env.NEXTAUTH_URL}/dashboard/seal-generator?payment=cancelled`
+      const conf = await resolvePaypalConfig();
+      const tokenData = await getPaypalAccessToken(conf);
+      const paypalData = await createPaypalOrder(conf, tokenData, {
+        intent: 'CAPTURE',
+        purchase_units: [
+          {
+            amount: {
+              currency_code: currency.toUpperCase(),
+              value: amount.toFixed(2)
+            },
+            description: `ANOINT Seal Array - ${sealConfig.category}`,
+            custom_id: orderId
           }
-        })
+        ],
+        application_context: {
+          return_url: `${process.env.NEXTAUTH_URL}/api/payment/paypal/capture?custom_data=${encodeURIComponent(JSON.stringify({ aff }))}`,
+          cancel_url: `${process.env.NEXTAUTH_URL}/dashboard/seal-generator?payment=cancelled`
+        }
       });
-
-      if (paypalOrderResponse.ok) {
-        const paypalData = await paypalOrderResponse.json();
+      if (paypalData) {
         const approvalUrl = paypalData.links.find((link: any) => link.rel === 'approve')?.href;
         
         return NextResponse.json({

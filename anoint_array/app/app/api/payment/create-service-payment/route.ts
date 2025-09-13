@@ -3,6 +3,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { sendAdminServiceOrderEmail } from '@/lib/email';
 import { getAffiliateCodeFromHeaders } from '@/lib/affiliates';
+import { resolvePaypalConfig, getPaypalAccessToken, createPaypalOrder } from '@/lib/paypal';
 
 const PAYMENTS_CONFIG_PATH = path.join(process.cwd(), 'data', 'payments-config.json');
 
@@ -70,30 +71,25 @@ export async function POST(req: NextRequest) {
 
     if (paymentMethod === 'stripe') {
       if (!paymentConfig.stripe.enabled) return NextResponse.json({ error: 'Stripe not enabled' }, { status: 400 });
-      const useTest = paymentConfig.stripe.testMode;
-      const secret = useTest ? paymentConfig.stripe.testSecretKey : paymentConfig.stripe.secretKey;
-      if (!secret) return NextResponse.json({ error: 'Stripe key missing' }, { status: 500 });
-      const resp = await fetch('https://api.stripe.com/v1/checkout/sessions', {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${secret}`, 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({
-          'payment_method_types[0]': 'card',
-          'line_items[0][price_data][currency]': currency.toLowerCase(),
-          'line_items[0][price_data][product_data][name]': `ANOINT Service — ${service.name}`,
-          'line_items[0][price_data][product_data][description]': service.description,
-          'line_items[0][price_data][unit_amount]': Math.round(amount * 100).toString(),
-          'line_items[0][quantity]': '1',
-          'mode': 'payment',
-          'success_url': successUrl,
-          'cancel_url': cancelUrl,
-          'metadata[order_id]': orderId,
-          'metadata[product_type]': 'service',
-          'metadata[service_type]': serviceType,
-          'metadata[aff]': aff || '',
-        })
+      const { resolveStripeConfig, createStripeCheckoutSession } = await import('@/lib/stripe');
+      const conf = await resolveStripeConfig();
+      if (!conf.secretKey) return NextResponse.json({ error: 'Stripe key missing' }, { status: 500 });
+      const params = new URLSearchParams({
+        'payment_method_types[0]': 'card',
+        'line_items[0][price_data][currency]': currency.toLowerCase(),
+        'line_items[0][price_data][product_data][name]': `ANOINT Service — ${service.name}`,
+        'line_items[0][price_data][product_data][description]': service.description,
+        'line_items[0][price_data][unit_amount]': Math.round(amount * 100).toString(),
+        'line_items[0][quantity]': '1',
+        'mode': 'payment',
+        'success_url': successUrl,
+        'cancel_url': cancelUrl,
+        'metadata[order_id]': orderId,
+        'metadata[product_type]': 'service',
+        'metadata[service_type]': serviceType,
+        'metadata[aff]': aff || '',
       });
-      if (!resp.ok) return NextResponse.json({ error: 'Stripe checkout creation failed' }, { status: 500 });
-      const data = await resp.json();
+      const data = await createStripeCheckoutSession(conf, params);
       // Notify admin
       try { await sendAdminServiceOrderEmail(process.env.ADMIN_EMAIL || process.env.EMAIL_FROM || '', { orderId, serviceName: service.name, price: amount, currency, customer, photoData }); } catch {}
       return NextResponse.json({ success: true, checkoutUrl: data.url, orderId });
@@ -101,22 +97,13 @@ export async function POST(req: NextRequest) {
 
     if (paymentMethod === 'paypal') {
       if (!paymentConfig.paypal.enabled) return NextResponse.json({ error: 'PayPal not enabled' }, { status: 400 });
-      const useTest = paymentConfig.paypal.testMode;
-      const cid = useTest ? paymentConfig.paypal.testClientId : paymentConfig.paypal.clientId;
-      const secret = useTest ? paymentConfig.paypal.testClientSecret : paymentConfig.paypal.clientSecret;
-      const base = useTest ? 'https://api.sandbox.paypal.com' : 'https://api.paypal.com';
-      if (!cid || !secret) return NextResponse.json({ error: 'PayPal credentials missing' }, { status: 500 });
-      const auth = Buffer.from(`${cid}:${secret}`).toString('base64');
-      const tokenResp = await fetch(`${base}/v1/oauth2/token`, { method:'POST', headers:{ 'Authorization': `Basic ${auth}`, 'Content-Type':'application/x-www-form-urlencoded' }, body: 'grant_type=client_credentials' });
-      if (!tokenResp.ok) return NextResponse.json({ error: 'PayPal token failed' }, { status: 500 });
-      const token = await tokenResp.json();
-      const orderResp = await fetch(`${base}/v2/checkout/orders`, { method:'POST', headers:{ 'Authorization': `Bearer ${token.access_token}`, 'Content-Type':'application/json' }, body: JSON.stringify({
+      const conf = await resolvePaypalConfig();
+      const token = await getPaypalAccessToken(conf);
+      const orderData = await createPaypalOrder(conf, token, {
         intent: 'CAPTURE',
         purchase_units: [{ amount: { currency_code: currency, value: amount.toFixed(2) }, description: `ANOINT Service — ${service.name}`, custom_id: orderId }],
         application_context: { return_url: `${process.env.NEXTAUTH_URL}/api/payment/paypal/capture?custom_data=${encodeURIComponent(JSON.stringify({ aff }))}`, cancel_url: cancelUrl }
-      })});
-      if (!orderResp.ok) return NextResponse.json({ error: 'PayPal order failed' }, { status: 500 });
-      const orderData = await orderResp.json();
+      });
       const approval = orderData.links.find((l: any)=>l.rel==='approve')?.href;
       try { await sendAdminServiceOrderEmail(process.env.ADMIN_EMAIL || process.env.EMAIL_FROM || '', { orderId, serviceName: service.name, price: amount, currency, customer, photoData }); } catch {}
       return NextResponse.json({ success: true, paypalUrl: approval, orderId });
