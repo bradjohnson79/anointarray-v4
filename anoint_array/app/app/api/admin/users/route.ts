@@ -40,10 +40,10 @@ export async function GET(request: NextRequest) {
     });
 
     // Process users to add computed fields
-    const processedUsers = users.map(user => ({
+    const processedUsers = users.map((user: any) => ({
       ...user,
       ordersCount: user.orders.length,
-      totalSpent: user.orders.reduce((sum, order) => sum + Number(order.totalAmount), 0),
+      totalSpent: user.orders.reduce((sum: number, order: any) => sum + Number(order.totalAmount), 0),
       arraysGenerated: Math.floor(Math.random() * 20), // TODO: Implement actual array count
     }));
 
