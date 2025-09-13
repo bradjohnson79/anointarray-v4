@@ -57,7 +57,37 @@ export async function GET(request: NextRequest) {
     const carrier_accounts = [cpId, upsId].filter(Boolean);
 
     const checkRates = async (to: any) => {
-      const shipment = await shippo.shipment.create({ address_from: from, address_to: to, parcels: [parcel], parcel_template: parcelTemplateId || undefined, async: false, ...(carrier_accounts.length?{carrier_accounts}:{}), });
+      // For international lanes, include a simple customs declaration (DDP) so carriers return rates
+      let customs_declaration_id: string | undefined;
+      const isIntl = String(to?.country || '').toUpperCase() !== 'CA';
+      if (isIntl) {
+        try {
+          const item = await shippo.customsitem.create({
+            description: 'Sample Goods',
+            quantity: 1,
+            net_weight: parcel.weight,
+            mass_unit: parcel.mass_unit,
+            value_amount: 100,
+            value_currency: 'CAD',
+            origin_country: 'CA',
+            hs_tariff_number: '7117110000',
+          });
+          const decl = await shippo.customsdeclaration.create({
+            contents_type: 'MERCHANDISE',
+            incoterm: 'DDP',
+            non_delivery_option: 'RETURN',
+            certify: true,
+            certify_signer: 'Admin',
+            eel_pfc: 'NOEEI_30_37_a',
+            items: [item.object_id],
+          });
+          customs_declaration_id = decl.object_id;
+        } catch (e) {
+          // If customs creation fails, continue without it; the rate check will report messages
+        }
+      }
+
+      const shipment = await shippo.shipment.create({ address_from: from, address_to: to, parcels: [parcel], parcel_template: parcelTemplateId || undefined, async: false, ...(carrier_accounts.length?{carrier_accounts}:{}), ...(customs_declaration_id?{ customs_declaration: customs_declaration_id }:{}), });
       const rates = Array.isArray(shipment?.rates) ? shipment.rates : [];
       const messages = shipment?.messages || [];
       const cp = rates.filter((r:any)=>/canada post/i.test(r?.provider||r?.carrier||''));

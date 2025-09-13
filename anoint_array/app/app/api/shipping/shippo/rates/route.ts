@@ -58,8 +58,9 @@ export async function POST(request: NextRequest) {
       acc[prov] = acc[prov] || []; acc[prov].push(r); return acc;
     }, {});
     return NextResponse.json({ shipmentId: shipment?.object_id, rates, grouped, messages });
-  } catch (e) {
-    console.error('Shippo rates error:', e);
-    return NextResponse.json({ error: 'Shippo rates error' }, { status: 500 });
+  } catch (e: any) {
+    const msg = String(e?.message || e);
+    console.error('Shippo rates error:', msg);
+    return NextResponse.json({ error: 'Shippo rates error', detail: msg }, { status: 500 });
   }
 }

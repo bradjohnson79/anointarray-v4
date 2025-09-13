@@ -210,3 +210,36 @@ MCP: github
 Files Changed: `scripts/audit-env.ts`, `scripts/audit-routes.ts`, `scripts/audit-db.ts`, package scripts
 Inputs: add guard:env/routes/db/build/all npm tasks
 Outputs: ✅ scripts added; ready for pre-push checks
+### [Cutover – Supabase pooled URL standard]
+Action: Update DB connection per guardrails/DB_SETUP.md
+Files Changed: `guardrails/DB_SETUP.md`, `.env.local`
+MCP: vercel.env.set (Preview + Production)
+Old DATABASE_URL: postgresql://postgres:********@db.znqtfdfvcrbwsefzmtam.supabase.co:5432/postgres?sslmode=require
+New DATABASE_URL: postgresql://postgres:********@db.znqtfdfvcrbwsefzmtam.supabase.co:6543/postgres?sslmode=require
+Verification: Supabase sanity + prisma db push OK (local). Prod redeploy pending.
+Deployment: will record next READY deployment ID after UI cache-clear redeploy.
+### [2025-09-11]
+Action: Vercel redeploy + agents after pooled URL standard
+MCP: vercel (API poll)
+Deployment ID: dpl_E5zfV9htvWYHtzTEScuCVZ96Rugp (url: anointarray-iz8cpwayw-anoint.vercel.app)
+Results:
+- Full‑Stack scan: 9/11 OK (fail: /api/debug/db 500, /api/products 500)
+- QA sweep: 9/11 OK (same failures)
+Next Step: Confirm official Supabase Pooling host from Dashboard and set DATABASE_URL to that hostname; redeploy with clear cache. If immediate unblock needed, keep runtime on DIRECT_URL.
+### [2025-09-11]
+Action: Switch DATABASE_URL to Supabase Session Pooler host
+MCP: vercel.env.set (Preview + Production)
+Old DATABASE_URL: postgresql://postgres:********@db.znqtfdfvcrbwsefzmtam.supabase.co:6543/postgres?sslmode=require
+New DATABASE_URL: postgresql://postgres.znqtfdfvcrbwsefzmtam:********@aws-1-ca-central-1.pooler.supabase.com:5432/postgres?sslmode=require
+Local session-pooler connectivity: OK
+Next Step: Redeploy with Clear Build Cache; re-run agents and expect /api/debug/db + /api/products to pass.
+### [2025-09-12 01:51:58 UTC]
+Action: Agents run after pooled session URL rollout
+MCP: vercel (API), agents (Full‑Stack + QA)
+Deployment ID: dpl_9shFVBEG8Ez2JCuiWzHVfZKxUK3b (url: anointarray-idgsr965c-anoint.vercel.app, state: READY)
+Results: 11/11 OK on Full‑Stack and QA.
+Details: /api/debug/db { ok:true }, /api/products 200 JSON
+### [2025-09-12 02:15:13 UTC]
+Action: Seed products + align DATABASE_URL with session pooler + redeploy
+Deployment: dpl_9shFVBEG8Ez2JCuiWzHVfZKxUK3b (anointarray-idgsr965c-anoint.vercel.app)
+Notes: Seeded 3 products; /api/products returns data; /api/debug/db ok:true. Agents 11/11 OK.

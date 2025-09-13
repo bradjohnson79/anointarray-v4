@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import AdminLayout from '@/components/admin/admin-layout';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Shield, CreditCard, Bot, RefreshCw, Save, Upload, FileText, File } from 'lucide-react';
+import { Shield, CreditCard, Bot, RefreshCw, Save, Upload, FileText, File, Truck } from 'lucide-react';
 import { toast } from 'sonner';
 
 type StorefrontPayments = {
@@ -28,6 +28,34 @@ export default function AdminSettingsPage() {
   const [kbUploading, setKbUploading] = useState(false);
   const [kbSelected, setKbSelected] = useState<FileList | null>(null);
   const [kbUpdateProgress, setKbUpdateProgress] = useState(0);
+  // Shipping config state
+  type ShippingConfig = {
+    origin?: { name?: string; company?: string; street1?: string; city?: string; state?: string; zip?: string; country?: string; phone?: string };
+    parcelDefault?: { length?: number; width?: number; height?: number; distance_unit?: 'cm'|'in'; weight?: number; mass_unit?: 'kg'|'lb' };
+    carrierAccountIds?: { canadaPost?: string; upsCanada?: string };
+    parcelTemplateId?: string;
+  };
+  const [shipping, setShipping] = useState<ShippingConfig | null>(null);
+  const [shippingSaving, setShippingSaving] = useState(false);
+  const [shippoStatus, setShippoStatus] = useState<{ ok: boolean; checks: Array<{ key: string; label: string; ok?: boolean; detail?: any }> } | null>(null);
+  const [shippoStatusLoading, setShippoStatusLoading] = useState(false);
+
+  const runShippoStatus = async () => {
+    setShippoStatusLoading(true);
+    try {
+      const qs = shipping?.parcelTemplateId ? `?parcelTemplateId=${encodeURIComponent(shipping.parcelTemplateId)}` : '';
+      const resp = await fetch(`/api/shipping/shippo/status${qs}`);
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data?.error || 'Status check failed');
+      setShippoStatus(data);
+      toast.success('Shippo status check completed');
+    } catch (e: any) {
+      toast.error(e?.message || 'Status check failed');
+      setShippoStatus(null);
+    } finally {
+      setShippoStatusLoading(false);
+    }
+  };
 
   useEffect(() => {
     const load = async () => {
@@ -41,6 +69,8 @@ export default function AdminSettingsPage() {
           const data = await list.json();
           setKbList({ pdfs: data.pdfs || [], mds: data.mds || [], images: data.images || [] });
         }
+        const shipCfg = await fetch('/api/admin/shipping/config');
+        if (shipCfg.ok) setShipping(await shipCfg.json());
       } catch (e) {
         console.error(e);
       } finally {
@@ -168,6 +198,7 @@ export default function AdminSettingsPage() {
             <TabsTrigger value="support" className="text-white"><Bot className="h-4 w-4 mr-2"/>AI Support</TabsTrigger>
             <TabsTrigger value="emails" className="text-white"><FileText className="h-4 w-4 mr-2"/>Emails</TabsTrigger>
             <TabsTrigger value="currency" className="text-white"><span className="mr-2">$</span>Currency</TabsTrigger>
+            <TabsTrigger value="shipping" className="text-white"><Truck className="h-4 w-4 mr-2"/>Shipping</TabsTrigger>
           </TabsList>
 
           <TabsContent value="payments" className="mt-4">
@@ -291,6 +322,136 @@ export default function AdminSettingsPage() {
                 <RefreshCw className="h-4 w-4 mr-2"/> Run Scan
               </button>
               <div className="mt-3 text-gray-300 text-sm">Status: {scanStatus}</div>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="shipping" className="mt-4">
+            <div className="bg-gray-800 rounded-lg p-6 space-y-6">
+              <div className="flex items-center justify-between">
+                <h3 className="text-white font-semibold">Shipping Configuration</h3>
+                <button onClick={runShippoStatus} disabled={shippoStatusLoading} className="px-3 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-md flex items-center text-sm">
+                  {shippoStatusLoading ? <RefreshCw className="h-4 w-4 mr-2 animate-spin"/> : <RefreshCw className="h-4 w-4 mr-2"/>}
+                  Run Status
+                </button>
+              </div>
+              {loading && !shipping ? (
+                <div className="text-gray-400">Loading shipping config…</div>
+              ) : (
+                <div className="space-y-6">
+                  {/* Origin */}
+                  <div className="bg-gray-900 rounded-lg p-4 border border-gray-700">
+                    <h4 className="text-white font-semibold mb-3">Origin (Ship‑From)</h4>
+                    <div className="grid md:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-sm text-gray-300 mb-1">Name</label>
+                        <input value={shipping?.origin?.name || ''} onChange={(e)=>setShipping(s=>({ ...(s||{}), origin: { ...(s?.origin||{}), name: e.target.value } }))} className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white"/>
+                      </div>
+                      <div>
+                        <label className="block text-sm text-gray-300 mb-1">Company</label>
+                        <input value={shipping?.origin?.company || ''} onChange={(e)=>setShipping(s=>({ ...(s||{}), origin: { ...(s?.origin||{}), company: e.target.value } }))} className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white"/>
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className="block text-sm text-gray-300 mb-1">Street</label>
+                        <input value={shipping?.origin?.street1 || ''} onChange={(e)=>setShipping(s=>({ ...(s||{}), origin: { ...(s?.origin||{}), street1: e.target.value } }))} className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white"/>
+                      </div>
+                      <div>
+                        <label className="block text-sm text-gray-300 mb-1">City</label>
+                        <input value={shipping?.origin?.city || ''} onChange={(e)=>setShipping(s=>({ ...(s||{}), origin: { ...(s?.origin||{}), city: e.target.value } }))} className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white"/>
+                      </div>
+                      <div>
+                        <label className="block text-sm text-gray-300 mb-1">Province/State</label>
+                        <input value={shipping?.origin?.state || ''} onChange={(e)=>setShipping(s=>({ ...(s||{}), origin: { ...(s?.origin||{}), state: e.target.value } }))} className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white"/>
+                      </div>
+                      <div>
+                        <label className="block text-sm text-gray-300 mb-1">Postal Code</label>
+                        <input value={shipping?.origin?.zip || ''} onChange={(e)=>setShipping(s=>({ ...(s||{}), origin: { ...(s?.origin||{}), zip: e.target.value } }))} className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white"/>
+                      </div>
+                      <div>
+                        <label className="block text-sm text-gray-300 mb-1">Country</label>
+                        <input value={shipping?.origin?.country || ''} onChange={(e)=>setShipping(s=>({ ...(s||{}), origin: { ...(s?.origin||{}), country: e.target.value } }))} className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white"/>
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className="block text-sm text-gray-300 mb-1">Phone</label>
+                        <input value={shipping?.origin?.phone || ''} onChange={(e)=>setShipping(s=>({ ...(s||{}), origin: { ...(s?.origin||{}), phone: e.target.value } }))} className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white"/>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Parcel Defaults */}
+                  <div className="bg-gray-900 rounded-lg p-4 border border-gray-700">
+                    <h4 className="text-white font-semibold mb-3">Parcel Defaults</h4>
+                    <div className="grid md:grid-cols-3 gap-3 items-end">
+                      <div>
+                        <label className="block text-sm text-gray-300 mb-1">Length</label>
+                        <input type="number" step="0.01" value={shipping?.parcelDefault?.length ?? ''} onChange={(e)=>setShipping(s=>({ ...(s||{}), parcelDefault: { ...(s?.parcelDefault||{}), length: Number(e.target.value) } }))} className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white"/>
+                      </div>
+                      <div>
+                        <label className="block text-sm text-gray-300 mb-1">Width</label>
+                        <input type="number" step="0.01" value={shipping?.parcelDefault?.width ?? ''} onChange={(e)=>setShipping(s=>({ ...(s||{}), parcelDefault: { ...(s?.parcelDefault||{}), width: Number(e.target.value) } }))} className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white"/>
+                      </div>
+                      <div>
+                        <label className="block text-sm text-gray-300 mb-1">Height</label>
+                        <input type="number" step="0.01" value={shipping?.parcelDefault?.height ?? ''} onChange={(e)=>setShipping(s=>({ ...(s||{}), parcelDefault: { ...(s?.parcelDefault||{}), height: Number(e.target.value) } }))} className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white"/>
+                      </div>
+                      <div>
+                        <label className="block text-sm text-gray-300 mb-1">Distance Unit</label>
+                        <select value={shipping?.parcelDefault?.distance_unit || 'cm'} onChange={(e)=>setShipping(s=>({ ...(s||{}), parcelDefault: { ...(s?.parcelDefault||{}), distance_unit: e.target.value as any } }))} className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white">
+                          <option value="cm">cm</option>
+                          <option value="in">in</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm text-gray-300 mb-1">Weight</label>
+                        <input type="number" step="0.01" value={shipping?.parcelDefault?.weight ?? ''} onChange={(e)=>setShipping(s=>({ ...(s||{}), parcelDefault: { ...(s?.parcelDefault||{}), weight: Number(e.target.value) } }))} className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white"/>
+                      </div>
+                      <div>
+                        <label className="block text-sm text-gray-300 mb-1">Mass Unit</label>
+                        <select value={shipping?.parcelDefault?.mass_unit || 'kg'} onChange={(e)=>setShipping(s=>({ ...(s||{}), parcelDefault: { ...(s?.parcelDefault||{}), mass_unit: e.target.value as any } }))} className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white">
+                          <option value="kg">kg</option>
+                          <option value="lb">lb</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Carrier Accounts */}
+                  <div className="bg-gray-900 rounded-lg p-4 border border-gray-700">
+                    <h4 className="text-white font-semibold mb-3">Carrier Accounts</h4>
+                    <div className="grid md:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-sm text-gray-300 mb-1">Shippo Canada Post Account ID</label>
+                        <input value={shipping?.carrierAccountIds?.canadaPost || ''} onChange={(e)=>setShipping(s=>({ ...(s||{}), carrierAccountIds: { ...(s?.carrierAccountIds||{}), canadaPost: e.target.value } }))} className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white" placeholder="e.g., 0ba8325c..."/>
+                      </div>
+                      <div>
+                        <label className="block text-sm text-gray-300 mb-1">Shippo UPS Canada Account ID</label>
+                        <input value={shipping?.carrierAccountIds?.upsCanada || ''} onChange={(e)=>setShipping(s=>({ ...(s||{}), carrierAccountIds: { ...(s?.carrierAccountIds||{}), upsCanada: e.target.value } }))} className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white" placeholder="e.g., c0149183..."/>
+                      </div>
+                    </div>
+                  </div>
+
+                  {shippoStatus && (
+                    <div className="bg-gray-900 rounded-lg p-4 border border-gray-700">
+                      <h4 className="text-white font-semibold mb-2">Shippo Status</h4>
+                      <div className={`text-sm mb-3 ${shippoStatus.ok ? 'text-green-400' : 'text-yellow-400'}`}>Overall: {shippoStatus.ok ? 'OK' : 'Warnings/Errors'}</div>
+                      <div className="grid md:grid-cols-3 gap-3">
+                        {shippoStatus.checks?.map((c:any)=> (
+                          <div key={c.key} className={`p-3 rounded border text-sm ${c.ok===false ? 'border-red-600 text-red-300' : 'border-green-600 text-green-300'}`}>
+                            <div className="font-semibold">{c.label}</div>
+                            <div className="break-words text-xs text-gray-300 mt-1">{typeof c.detail === 'string' ? c.detail : JSON.stringify(c.detail)}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex justify-end">
+                    <button onClick={async()=>{ setShippingSaving(true); try { const r = await fetch('/api/admin/shipping/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(shipping || {}) }); const j = await r.json(); if (!r.ok) throw new Error(j?.error || 'Save failed'); toast.success('Shipping configuration saved'); } catch (e:any) { toast.error(e?.message || 'Save failed'); } finally { setShippingSaving(false); } }} disabled={shippingSaving} className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg flex items-center">
+                      {shippingSaving ? <RefreshCw className="h-4 w-4 mr-2 animate-spin"/> : <Save className="h-4 w-4 mr-2"/>}
+                      Save Shipping
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </TabsContent>
 
