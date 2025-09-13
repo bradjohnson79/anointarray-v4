@@ -55,3 +55,7 @@ anoint_array/app/compose.env
 anoint_array/app/.devpid
 supabase password.rtf
 .vercel
+
+# Allow committed ops logs for Shippo verification
+!anoint_array/app/logs/
+!anoint_array/app/logs/*.json
