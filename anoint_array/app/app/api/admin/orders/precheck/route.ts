@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { getConfig } from '@/lib/app-config';
 import fs from 'fs/promises';
 import path from 'path';
 
@@ -138,12 +139,16 @@ export async function GET(request: NextRequest) {
     // Shippo / Canada Post
     const shippoLive = !!process.env.SHIPPO_API_KEY;
     const shippoTest = !!process.env.SHIPPO_API_TEST_KEY;
-    const shippoCpAccount = !!process.env.SHIPPO_CP_ACCOUNT_ID;
+    const cfg = await getConfig<any>('shipping-config');
+    const cpAccountId = cfg?.carrierAccountIds?.canadaPost || process.env.SHIPPO_CP_ACCOUNT_ID;
+    const upsAccountId = cfg?.carrierAccountIds?.upsCanada || process.env.SHIPPO_UPS_CA_ACCOUNT_ID;
+    const shippoCpAccount = !!cpAccountId;
+    const shippoUpsAccount = !!upsAccountId;
     checks.push({
       key: 'shippo',
-      label: 'Shippo (Canada Post)',
+      label: 'Shippo (Canada Post / UPS CA)',
       status: (shippoLive || shippoTest) ? 'ok' : 'warn',
-      details: { shippoLive, shippoTest, shippoCpAccount }
+      details: { shippoLive, shippoTest, canadaPostAccount: shippoCpAccount, upsCanadaAccount: shippoUpsAccount }
     });
 
     const cpCreds = !!(
