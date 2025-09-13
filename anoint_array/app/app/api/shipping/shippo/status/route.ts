@@ -6,6 +6,17 @@ import { getConfig } from '@/lib/app-config';
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
+async function shippoFetch(path: string, apiKey: string, init?: RequestInit) {
+  const url = `https://api.goshippo.com${path}`;
+  const headers: Record<string, string> = {
+    Authorization: `ShippoToken ${apiKey}`,
+    'Content-Type': 'application/json',
+  };
+  const res = await fetch(url, { ...init, headers: { ...headers, ...(init?.headers as any) } });
+  const data = await res.json().catch(() => ({}));
+  return { ok: res.ok, status: res.status, data };
+}
+
 export async function GET(request: NextRequest) {
   const checks: any[] = [];
   try {
@@ -15,82 +26,60 @@ export async function GET(request: NextRequest) {
     }
     const url = new URL(request.url);
     const parcelTemplateId = url.searchParams.get('parcelTemplateId') || '';
+    const carrierAccountIdOverride = url.searchParams.get('carrierAccountId') || '';
 
     const liveKey = process.env.SHIPPO_API_KEY;
     const testKey = process.env.SHIPPO_API_TEST_KEY;
     const apiKey = (process.env.NODE_ENV === 'production' ? (liveKey || testKey) : (testKey || liveKey)) || '';
 
     checks.push({ key: 'apiKey', label: 'Shippo API key present', ok: !!apiKey, detail: apiKey ? 'OK' : 'Missing SHIPPO_API_TEST_KEY/SHIPPO_API_KEY' });
-    if (!apiKey) return NextResponse.json({ checks, ok: false });
+    if (!apiKey) return NextResponse.json({ ok: false, checks }, { status: 400 });
 
-    // Fetch carrier accounts
-    try {
-      const resp = await fetch('https://api.goshippo.com/carrier_accounts/', {
-        headers: { 'Authorization': `ShippoToken ${apiKey}` }
-      });
-      const data = await resp.json();
-      const accounts = Array.isArray(data?.results) ? data.results : [];
-      const hasList = resp.ok && accounts.length >= 0;
-      checks.push({ key: 'carrierList', label: 'Carrier accounts reachable', ok: hasList, detail: hasList ? `${accounts.length} account(s)` : JSON.stringify(data) });
-      const cfg = await getConfig<any>('shipping-config');
-      const cpId = cfg?.carrierAccountIds?.canadaPost || process.env.SHIPPO_CP_ACCOUNT_ID;
-      const upsId = cfg?.carrierAccountIds?.upsCanada || process.env.SHIPPO_UPS_CA_ACCOUNT_ID;
-      if (cpId) checks.push({ key: 'cpAccount', label: 'Canada Post account configured', ok: !!accounts.find((a:any)=>String(a.object_id)===cpId) });
-      if (upsId) checks.push({ key: 'upsAccount', label: 'UPS Canada account configured', ok: !!accounts.find((a:any)=>String(a.object_id)===upsId) });
-    } catch (e: any) {
-      checks.push({ key: 'carrierList', label: 'Carrier accounts reachable', ok: false, detail: String(e?.message || e) });
+    const cfg = await getConfig<any>('shipping-config');
+    const cpId = carrierAccountIdOverride || cfg?.carrierAccountIds?.canadaPost || process.env.SHIPPO_CP_ACCOUNT_ID;
+    const upsId = cfg?.carrierAccountIds?.upsCanada || process.env.SHIPPO_UPS_CA_ACCOUNT_ID;
+
+    // Carrier accounts list
+    const list = await shippoFetch('/carrier_accounts/', apiKey, { method: 'GET' });
+    if (!list.ok) {
+      checks.push({ key: 'carrierList', label: 'Carrier accounts reachable', ok: false, detail: JSON.stringify(list.data) });
+    } else {
+      const accounts = Array.isArray((list.data as any)?.results) ? (list.data as any).results : [];
+      checks.push({ key: 'carrierList', label: 'Carrier accounts reachable', ok: true, detail: `${accounts.length} account(s)` });
+      if (cpId) checks.push({ key: 'cpAccount', label: 'Canada Post account configured', ok: !!accounts.find((a:any)=>String(a.object_id)===String(cpId)) });
+      if (upsId) checks.push({ key: 'upsAccount', label: 'UPS Canada account configured', ok: !!accounts.find((a:any)=>String(a.object_id)===String(upsId)) });
     }
 
-    // Try rate for Domestic CA and USA
-    const mkAddr = (country: string, city: string, state: string, zip: string) => ({
-      name: 'Test', street1: '123 Test St', city, state, zip, country
-    });
-    const from = mkAddr('CA','Toronto','ON','M1A 1A1');
-    const toCA = mkAddr('CA','Toronto','ON','M5S 1T8');
-    const toUS = mkAddr('US','Mountain View','CA','94043');
-    const toGB = mkAddr('GB','London','LND','EC1A 1BB');
-    const parcel = { length: 30, width: 23, height: 15, distance_unit: 'cm', weight: 0.5, mass_unit: 'kg' };
+    const origin = cfg?.origin || { name:'Test', street1:'123 Test St', city:'Toronto', state:'ON', zip:'M1A 1A1', country:'CA' };
+    const toCA = { name:'Receiver', street1:'456 King', city:'Toronto', state:'ON', zip:'M5S 1T8', country:'CA' };
+    const toUS = { name:'Receiver', street1:'1600 Amphitheatre Pkwy', city:'Mountain View', state:'CA', zip:'94043', country:'US' };
+    const toGB = { name:'Receiver', street1:'1 St Martin Le Grand', city:'London', state:'LND', zip:'EC1A 1BB', country:'GB' };
+    const parcel = cfg?.parcelDefault || { length:30, width:23, height:15, distance_unit:'cm', weight:0.5, mass_unit:'kg' };
+    const carrier_accounts = [cpId, upsId].filter(Boolean) as string[];
 
-    const shippo = require('shippo')(apiKey);
-    const cfg = await getConfig<any>('shipping-config');
-    const cpId = cfg?.carrierAccountIds?.canadaPost || process.env.SHIPPO_CP_ACCOUNT_ID;
-    const upsId = cfg?.carrierAccountIds?.upsCanada || process.env.SHIPPO_UPS_CA_ACCOUNT_ID;
-    const carrier_accounts = [cpId, upsId].filter(Boolean);
+    const createCustoms = async () => {
+      const item = await shippoFetch('/customs/items/', apiKey, { method:'POST', body: JSON.stringify({ description:'Sample Goods', quantity:1, net_weight: parcel.weight || 0.5, mass_unit: parcel.mass_unit || 'kg', value_amount: 100, value_currency:'CAD', origin_country:'CA', hs_tariff_number:'7117110000' }) });
+      if (!item.ok) return null;
+      const decl = await shippoFetch('/customs/declarations/', apiKey, { method:'POST', body: JSON.stringify({ contents_type:'MERCHANDISE', incoterm:'DDP', non_delivery_option:'RETURN', certify:true, certify_signer:'Admin', eel_pfc:'NOEEI_30_37_a', items:[(item.data as any).object_id] }) });
+      return decl.ok ? (decl.data as any).object_id : null;
+    };
 
     const checkRates = async (to: any) => {
-      // For international lanes, include a simple customs declaration (DDP) so carriers return rates
-      let customs_declaration_id: string | undefined;
-      const isIntl = String(to?.country || '').toUpperCase() !== 'CA';
-      if (isIntl) {
-        try {
-          const item = await shippo.customsitem.create({
-            description: 'Sample Goods',
-            quantity: 1,
-            net_weight: parcel.weight,
-            mass_unit: parcel.mass_unit,
-            value_amount: 100,
-            value_currency: 'CAD',
-            origin_country: 'CA',
-            hs_tariff_number: '7117110000',
-          });
-          const decl = await shippo.customsdeclaration.create({
-            contents_type: 'MERCHANDISE',
-            incoterm: 'DDP',
-            non_delivery_option: 'RETURN',
-            certify: true,
-            certify_signer: 'Admin',
-            eel_pfc: 'NOEEI_30_37_a',
-            items: [item.object_id],
-          });
-          customs_declaration_id = decl.object_id;
-        } catch (e) {
-          // If customs creation fails, continue without it; the rate check will report messages
-        }
+      let customs_declaration: string | null = null;
+      if (String(to.country).toUpperCase() !== 'CA') {
+        customs_declaration = await createCustoms();
       }
-
-      const shipment = await shippo.shipment.create({ address_from: from, address_to: to, parcels: [parcel], parcel_template: parcelTemplateId || undefined, async: false, ...(carrier_accounts.length?{carrier_accounts}:{}), ...(customs_declaration_id?{ customs_declaration: customs_declaration_id }:{}), });
-      const rates = Array.isArray(shipment?.rates) ? shipment.rates : [];
-      const messages = shipment?.messages || [];
+      const body: any = { address_from: origin, address_to: to, async:false };
+      if (parcelTemplateId) body.parcel_template = parcelTemplateId; else body.parcels = [parcel];
+      if (carrier_accounts.length) body.carrier_accounts = carrier_accounts;
+      if (customs_declaration) body.customs_declaration = customs_declaration;
+      const shipment = await shippoFetch('/shipments/', apiKey, { method:'POST', body: JSON.stringify(body) });
+      if (!shipment.ok) {
+        const detail = typeof shipment.data === 'string' ? shipment.data : JSON.stringify(shipment.data);
+        return { ok:false, detail };
+      }
+      const rates = Array.isArray((shipment.data as any)?.rates) ? (shipment.data as any).rates : [];
+      const messages = (shipment.data as any)?.messages || [];
       const cp = rates.filter((r:any)=>/canada post/i.test(r?.provider||r?.carrier||''));
       const ups = rates.filter((r:any)=>/ups/i.test(r?.provider||r?.carrier||''));
       const any = rates.length>0;
@@ -106,9 +95,8 @@ export async function GET(request: NextRequest) {
 
     const ok = checks.every(c => c.ok !== false);
     return NextResponse.json({ ok, checks });
-
-  } catch (e) {
-    checks.push({ key: 'exception', label: 'Exception during status check', ok: false, detail: String(e) });
+  } catch (e: any) {
+    checks.push({ key: 'exception', label: 'Exception during status check', ok: false, detail: String(e?.message || e) });
     return NextResponse.json({ ok: false, checks }, { status: 500 });
   }
 }
