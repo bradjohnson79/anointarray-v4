@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { prisma, selectedDbUrl } from '@/lib/prisma';
 import { withApiErrorHandling } from '@/lib/api-handler';
 import { HttpError } from '@/lib/http-errors';
 
@@ -8,22 +8,17 @@ export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 async function handler(_req: NextRequest) {
-  // Use DIRECT_URL explicitly for probe to bypass pooler issues
-  // Prefer explicit Supabase session URL if provided, then DATABASE_URL, then DIRECT_URL
-  // Use the canonical session pooler URL; no fallback to keep signal clear
-  const url = process.env.SUPABASE_SESSION_URL || process.env.DATABASE_URL;
-  const client = new PrismaClient(url ? { datasources: { db: { url } } } : undefined);
   try {
-    const r = await client.$queryRawUnsafe('SELECT 1 as one');
-    return NextResponse.json({ ok: true, result: r });
+    const r = await prisma.$queryRawUnsafe('SELECT 1 as one');
+    const usingAccelerate = !!(process.env.PRISMA_ACCELERATE_URL || process.env.ACCELERATE_URL);
+    const dsn = selectedDbUrl();
+    const host = (()=>{ try { return dsn ? new URL(dsn).hostname : undefined; } catch { return undefined; } })();
+    return NextResponse.json({ ok: true, result: r, usingAccelerate, host });
   } catch (e: any) {
     // Sanitize the message to avoid leaking DSN
     let msg = String(e?.message || e || 'DB probe failed');
     msg = msg.replace(/postgresql:\/\/[^@]+@/gi, 'postgresql://***:***@');
     throw new HttpError(500, msg, 'DB_PROBE_FAILED');
-  }
-  finally {
-    await client.$disconnect();
   }
 }
 
