@@ -35,7 +35,8 @@ function createClient() {
   const accelUrl = process.env.PRISMA_ACCELERATE_URL || process.env.ACCELERATE_URL;
   if (accelUrl) {
     try {
-      return base.$extends(withAccelerate({ accelerateURL: accelUrl }));
+      // withAccelerate reads PRISMA_ACCELERATE_URL from env; no args needed
+      return (base as any).$extends(withAccelerate());
     } catch (_) {
       // If extension init fails for any reason, fall back to base client.
       return base;
