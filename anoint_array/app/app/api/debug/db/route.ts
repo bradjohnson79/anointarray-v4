@@ -10,7 +10,8 @@ export const runtime = 'nodejs';
 async function handler(_req: NextRequest) {
   // Use DIRECT_URL explicitly for probe to bypass pooler issues
   // Prefer explicit Supabase session URL if provided, then DATABASE_URL, then DIRECT_URL
-  const url = process.env.SUPABASE_SESSION_URL || process.env.DATABASE_URL || process.env.DIRECT_URL;
+  // Use the canonical session pooler URL; no fallback to keep signal clear
+  const url = process.env.SUPABASE_SESSION_URL || process.env.DATABASE_URL;
   const client = new PrismaClient(url ? { datasources: { db: { url } } } : undefined);
   try {
     const r = await client.$queryRawUnsafe('SELECT 1 as one');
