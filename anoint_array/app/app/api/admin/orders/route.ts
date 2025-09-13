@@ -5,6 +5,7 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
 export async function GET(request: NextRequest) {
   try {
@@ -67,10 +68,11 @@ export async function GET(request: NextRequest) {
     }));
 
     return NextResponse.json(processedOrders);
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error fetching orders:', error);
+    const detail = typeof error?.message === 'string' ? error.message : String(error);
     return NextResponse.json(
-      { error: 'Failed to fetch orders' },
+      { error: 'Failed to fetch orders', detail },
       { status: 500 }
     );
   }
@@ -186,10 +188,11 @@ export async function POST(request: NextRequest) {
       dutiesEstimatedCad: Number(order.dutiesEstimatedCad),
       taxesEstimatedCad: Number(order.taxesEstimatedCad),
     }, { status: 201 });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error creating order:', error);
+    const detail = typeof error?.message === 'string' ? error.message : String(error);
     return NextResponse.json(
-      { error: 'Failed to create order' },
+      { error: 'Failed to create order', detail },
       { status: 500 }
     );
   }
