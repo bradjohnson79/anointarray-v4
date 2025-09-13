@@ -1294,7 +1294,9 @@ export default function OrderManagementPage() {
                           )}
                         </div>
                         <div>
-                          <p className="font-medium text-white">{order.orderNumber}</p>
+                          <button onClick={() => handleViewDetails(order)} className="font-medium text-white hover:underline text-left">
+                            {order.orderNumber}
+                          </button>
                           <p className="text-sm text-gray-400">{order.items.length} items</p>
                           {order.trackingNumber && (
                             <p className="text-xs text-teal-400">Track: {order.trackingNumber}</p>
@@ -1304,7 +1306,9 @@ export default function OrderManagementPage() {
                     </td>
                     <td className="py-4 px-6">
                       <div className="text-sm">
-                        <p className="font-medium text-white">{order.customerName}</p>
+                        <button onClick={() => handleViewDetails(order)} className="font-medium text-white hover:underline text-left">
+                          {order.customerName}
+                        </button>
                         <div className="flex items-center text-gray-400 mb-1">
                           <Mail className="h-3 w-3 mr-1" />
                           <span className="truncate max-w-[150px]">{order.customerEmail}</span>
@@ -1360,18 +1364,7 @@ export default function OrderManagementPage() {
                           <option value="delivered">Delivered</option>
                           <option value="cancelled">Cancelled</option>
                         </select>
-                        {order.shippingAddress && (order.status === 'processing' || order.status === 'pending') && (
-                          <button
-                            onClick={() => {
-                              setSelectedOrder(order);
-                              setShowShippingLabelModal(true);
-                            }}
-                            className="p-2 text-teal-400 hover:text-teal-300 hover:bg-teal-500/20 rounded-lg transition-colors duration-200"
-                            title="Create Shipping Label"
-                          >
-                            <Send className="h-4 w-4" />
-                          </button>
-                        )}
+                        {/* Removed inline label creation; use details modal with external Shippo link */}
                         {order.paymentStatus === 'paid' && (
                           <button
                             onClick={() => handleRefundOrder(order.id)}
@@ -1469,18 +1462,27 @@ export default function OrderManagementPage() {
                   <div className="bg-gray-800 rounded-lg p-4">
                     <h3 className="font-semibold text-white mb-3">Customer Information</h3>
                     <div className="space-y-2 text-sm">
-                      <div className="flex items-center">
-                        <User className="h-4 w-4 text-gray-400 mr-2" />
-                        <span className="text-white">{selectedOrder.customerName}</span>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center">
+                          <User className="h-4 w-4 text-gray-400 mr-2" />
+                          <span className="text-white">{selectedOrder.customerName}</span>
+                        </div>
+                        <button onClick={() => copyToClipboard(selectedOrder.customerName, 'Customer name')} className="text-xs px-2 py-1 bg-gray-700 hover:bg-gray-600 text-white rounded flex items-center gap-1"><Copy className="h-3 w-3"/> Copy</button>
                       </div>
-                      <div className="flex items-center">
-                        <Mail className="h-4 w-4 text-gray-400 mr-2" />
-                        <span className="text-white">{selectedOrder.customerEmail}</span>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center">
+                          <Mail className="h-4 w-4 text-gray-400 mr-2" />
+                          <span className="text-white">{selectedOrder.customerEmail}</span>
+                        </div>
+                        <button onClick={() => copyToClipboard(selectedOrder.customerEmail, 'Customer email')} className="text-xs px-2 py-1 bg-gray-700 hover:bg-gray-600 text-white rounded flex items-center gap-1"><Copy className="h-3 w-3"/> Copy</button>
                       </div>
                       {selectedOrder.customerPhone && (
-                        <div className="flex items-center">
-                          <Phone className="h-4 w-4 text-gray-400 mr-2" />
-                          <span className="text-white">{selectedOrder.customerPhone}</span>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center">
+                            <Phone className="h-4 w-4 text-gray-400 mr-2" />
+                            <span className="text-white">{selectedOrder.customerPhone}</span>
+                          </div>
+                          <button onClick={() => copyToClipboard(selectedOrder.customerPhone!, 'Customer phone')} className="text-xs px-2 py-1 bg-gray-700 hover:bg-gray-600 text-white rounded flex items-center gap-1"><Copy className="h-3 w-3"/> Copy</button>
                         </div>
                       )}
                     </div>
@@ -1509,6 +1511,26 @@ export default function OrderManagementPage() {
 
                 {/* Order Items & Totals */}
                 <div className="space-y-4">
+                  {selectedOrder.billingAddress && (
+                    <div className="bg-gray-800 rounded-lg p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <h3 className="font-semibold text-white">Billing Address</h3>
+                        <button onClick={() => {
+                          const a: any = selectedOrder.billingAddress;
+                          const lines = [selectedOrder.customerName, a.street, `${a.city}, ${a.state}`, `${a.country} ${a.zip}`].filter(Boolean).join('\n');
+                          copyToClipboard(lines, 'Billing address');
+                        }} className="text-xs px-2 py-1 bg-gray-700 hover:bg-gray-600 text-white rounded flex items-center gap-1"><Copy className="h-3 w-3"/> Copy</button>
+                      </div>
+                      <div className="flex items-start">
+                        <MapPin className="h-4 w-4 text-gray-400 mr-2 mt-1" />
+                        <div className="text-sm text-white">
+                          <p>{(selectedOrder as any).billingAddress.street}</p>
+                          <p>{(selectedOrder as any).billingAddress.city}, {(selectedOrder as any).billingAddress.state}</p>
+                          <p>{(selectedOrder as any).billingAddress.country} {(selectedOrder as any).billingAddress.zip}</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                   <div className="bg-gray-800 rounded-lg p-4">
                     <div className="flex items-center justify-between mb-3">
                       <h3 className="font-semibold text-white">Order Items</h3>
