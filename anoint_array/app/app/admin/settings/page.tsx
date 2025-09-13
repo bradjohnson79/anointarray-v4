@@ -43,8 +43,10 @@ export default function AdminSettingsPage() {
   const runShippoStatus = async () => {
     setShippoStatusLoading(true);
     try {
-      const qs = shipping?.parcelTemplateId ? `?parcelTemplateId=${encodeURIComponent(shipping.parcelTemplateId)}` : '';
-      const resp = await fetch(`/api/shipping/shippo/status${qs}`);
+      const params = new URLSearchParams();
+      if (shipping?.parcelTemplateId) params.set('parcelTemplateId', shipping.parcelTemplateId);
+      if (shipping?.carrierAccountIds?.canadaPost) params.set('carrierAccountId', shipping.carrierAccountIds.canadaPost);
+      const resp = await fetch(`/api/shipping/shippo/status${params.toString() ? `?${params.toString()}` : ''}`);
       const data = await resp.json();
       if (!resp.ok) throw new Error(data?.error || 'Status check failed');
       setShippoStatus(data);
