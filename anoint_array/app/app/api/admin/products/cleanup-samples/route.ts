@@ -28,7 +28,7 @@ export async function POST(_req: NextRequest) {
       return NextResponse.json({ message: 'No sample products found' });
     }
 
-    const ids = products.map(p => p.id);
+    const ids = products.map((p: { id: string }) => p.id);
 
     await prisma.$transaction([
       prisma.productVariant.deleteMany({ where: { productId: { in: ids } } }),
@@ -42,4 +42,3 @@ export async function POST(_req: NextRequest) {
     return NextResponse.json({ error: error?.message || 'Cleanup failed' }, { status: 500 });
   }
 }
-
