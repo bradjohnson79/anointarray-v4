@@ -319,7 +319,7 @@ export default function OrderManagementPage() {
       const payload = buildShippoPayloadForOrder(order);
       const resp = await fetch('/api/shipping/shippo/rates', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       const data = await resp.json();
-      if (!resp.ok) throw new Error(data?.error || 'Failed to get rates');
+      if (!resp.ok) throw new Error(data?.detail ? (typeof data.detail === 'string' ? data.detail : JSON.stringify(data.detail)) : (data?.error || 'Failed to get rates'));
       setRates(data.rates || []);
       setSelectedRateId('');
     } catch (e: any) {
@@ -333,7 +333,7 @@ export default function OrderManagementPage() {
     try {
       const resp = await fetch('/api/shipping/shippo/purchase', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rateObjectId: selectedRateId, orderId: labelOrderId }) });
       const data = await resp.json();
-      if (!resp.ok) throw new Error(data?.error || 'Purchase failed');
+      if (!resp.ok) throw new Error(data?.detail ? (typeof data.detail === 'string' ? data.detail : JSON.stringify(data.detail)) : (data?.error || 'Purchase failed'));
       const order = orders.find(o => o.id === labelOrderId)!;
       const newLabel: ShippingLabel = {
         id: `label-${Date.now()}`,
