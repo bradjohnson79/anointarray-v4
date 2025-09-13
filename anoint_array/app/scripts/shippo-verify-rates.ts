@@ -25,8 +25,9 @@ async function shippoFetch(pathname: string, apiKey: string, init?: RequestInit)
 }
 
 async function main() {
-  const apiKey = process.env.SHIPPO_API_KEY || process.env.SHIPPO_API_TEST_KEY;
-  if (!apiKey) throw new Error('Missing SHIPPO_API_KEY/SHIPPO_API_TEST_KEY');
+  const rawKey = process.env.SHIPPO_API_KEY || process.env.SHIPPO_API_TEST_KEY;
+  if (!rawKey) throw new Error('Missing SHIPPO_API_KEY/SHIPPO_API_TEST_KEY');
+  const apiKey: string = rawKey as string;
   const cfgRow = await prisma.appConfig.findUnique({ where: { key: 'shipping-config' } });
   await prisma.$disconnect();
   const cfg = (cfgRow?.value as any) || {};
@@ -73,4 +74,3 @@ async function main() {
 }
 
 main().catch(e=>{ console.error(e); process.exit(1); });
-
