@@ -5,7 +5,7 @@ import Navigation from '@/components/navigation';
 import Footer from '@/components/footer';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
-import { Wand2, Activity, Home, Upload, CreditCard, DollarSign, Coins } from 'lucide-react';
+import { Wand2, Activity, Home, Upload, CreditCard, DollarSign } from 'lucide-react';
 
 type ServiceType = 'basic' | 'full' | 'environmental';
 
@@ -46,7 +46,7 @@ export default function ServicesPage() {
     return true;
   };
 
-  const submitPayment = async (method: 'stripe' | 'paypal' | 'nowpayments') => {
+  const submitPayment = async (method: 'stripe' | 'paypal') => {
     if (!validate()) return;
     setIsSubmitting(true);
     try {
@@ -70,8 +70,6 @@ export default function ServicesPage() {
         toast.success('Checkout opened in a new tab');
       } else if (data.paypalUrl) {
         window.open(data.paypalUrl, '_blank');
-      } else if (data.cryptoUrl) {
-        window.open(data.cryptoUrl, '_blank');
       } else {
         toast.error('Unexpected response from payment gateway');
       }
@@ -165,9 +163,7 @@ export default function ServicesPage() {
           <button disabled={isSubmitting} onClick={()=>submitPayment('paypal')} className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-60 px-6 py-3 min-h-[44px] rounded-lg font-semibold">
             <DollarSign className="h-5 w-5" /> PayPal
           </button>
-          <button disabled={isSubmitting} onClick={()=>submitPayment('nowpayments')} className="flex items-center justify-center gap-2 bg-orange-600 hover:bg-orange-500 disabled:opacity-60 px-6 py-3 min-h-[44px] rounded-lg font-semibold">
-            <Coins className="h-5 w-5" /> Crypto
-          </button>
+          {/* Crypto disabled intentionally */}
         </div>
       </section>
       <Footer />

@@ -109,26 +109,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true, paypalUrl: approval, orderId });
     }
 
-    if (paymentMethod === 'nowpayments') {
-      if (!paymentConfig.nowPayments.enabled) return NextResponse.json({ error: 'Crypto not enabled' }, { status: 400 });
-      const useTest = paymentConfig.nowPayments.testMode;
-      const apiKey = useTest ? paymentConfig.nowPayments.testApiKey : paymentConfig.nowPayments.apiKey;
-      const base = useTest ? 'https://api-sandbox.nowpayments.io' : 'https://api.nowpayments.io';
-      if (!apiKey) return NextResponse.json({ error: 'NOWPayments key missing' }, { status: 500 });
-      const npResp = await fetch(`${base}/v1/payment`, { method:'POST', headers:{ 'x-api-key': apiKey, 'Content-Type':'application/json' }, body: JSON.stringify({
-        price_amount: amount,
-        price_currency: currency.toLowerCase(),
-        pay_currency: 'btc',
-        order_id: orderId,
-        order_description: JSON.stringify({ t: 'service', name: service.name, aff }),
-        success_url: successUrl,
-        cancel_url: cancelUrl,
-      })});
-      if (!npResp.ok) return NextResponse.json({ error: 'NOWPayments failed' }, { status: 500 });
-      const npData = await npResp.json();
-      try { await sendAdminServiceOrderEmail(process.env.ADMIN_EMAIL || process.env.EMAIL_FROM || '', { orderId, serviceName: service.name, price: amount, currency, customer, photoData }); } catch {}
-      return NextResponse.json({ success: true, cryptoUrl: npData.invoice_url || npData.payment_url, orderId });
-    }
+    // Crypto/NowPayments removed
 
     return NextResponse.json({ error: 'Invalid payment method' }, { status: 400 });
   } catch (e) {

@@ -5,7 +5,6 @@ import { useSession } from 'next-auth/react';
 import { usePayment } from '@/contexts/payment-context';
 import StripePayment from '@/components/payment/stripe-payment';
 import PayPalPayment from '@/components/payment/paypal-payment';
-import CryptoPayment from '@/components/payment/crypto-payment';
 import { calculateCanadianTaxes } from '@/lib/canadian-taxes';
 import { ChevronDown, ChevronUp, MapPin, Phone, User, Mail, ShoppingCart } from 'lucide-react';
 
@@ -230,9 +229,7 @@ export default function CheckoutPage() {
                     {paymentsCfg?.paypal?.enabled && (
                       <PayPalPayment amount={totals.total} shippingAmount={totals.shippingEstimate} currency={currencyCode} displaySymbol={sym} />
                     )}
-                    {paymentsCfg?.nowPayments?.enabled && (
-                      <CryptoPayment amount={totals.total} shippingAmount={totals.shippingEstimate} currency={currencyCode} displaySymbol={sym} />
-                    )}
+                    {/* Crypto (NOWPayments) disabled */}
                   </>
                 )}
               </div>

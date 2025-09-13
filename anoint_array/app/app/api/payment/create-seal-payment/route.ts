@@ -163,48 +163,7 @@ export async function POST(request: NextRequest) {
       }
 
     } else if (paymentMethod === 'nowpayments') {
-      // Check if NowPayments is enabled
-      if (!paymentConfig.nowPayments.enabled) {
-        return NextResponse.json({ error: 'Cryptocurrency payment is not enabled' }, { status: 400 });
-      }
-      
-      const useTestMode = testMode || paymentConfig.nowPayments.testMode;
-      const nowPaymentsApiKey = useTestMode ? paymentConfig.nowPayments.testApiKey : paymentConfig.nowPayments.apiKey;
-      const nowPaymentsApiBase = useTestMode ? 'https://api-sandbox.nowpayments.io' : 'https://api.nowpayments.io';
-      
-      if (!nowPaymentsApiKey) {
-        return NextResponse.json({ error: 'NowPayments API key not configured' }, { status: 500 });
-      }
-      
-      // Create NowPayments crypto payment
-      const nowPaymentsResponse = await fetch(`${nowPaymentsApiBase}/v1/payment`, {
-        method: 'POST',
-        headers: {
-          'x-api-key': nowPaymentsApiKey,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          price_amount: amount,
-          price_currency: currency.toLowerCase(),
-          pay_currency: 'btc', // Default to Bitcoin
-          order_id: orderId,
-          order_description: JSON.stringify({ t: 'seal-array', category: sealConfig.category, aff }),
-          success_url: `${process.env.NEXTAUTH_URL}/success?provider=nowpayments&order_id=${orderId}`,
-          cancel_url: `${process.env.NEXTAUTH_URL}/dashboard/seal-generator?payment=cancelled`
-        })
-      });
-
-      if (nowPaymentsResponse.ok) {
-        const nowPaymentsData = await nowPaymentsResponse.json();
-        
-        return NextResponse.json({
-          success: true,
-          cryptoUrl: nowPaymentsData.invoice_url || nowPaymentsData.payment_url,
-          orderId
-        });
-      } else {
-        throw new Error('NowPayments creation failed');
-      }
+      return NextResponse.json({ error: 'Crypto payments disabled' }, { status: 400 });
     }
 
     return NextResponse.json({ error: 'Invalid payment method' }, { status: 400 });

@@ -247,17 +247,7 @@ export default function AdminSettingsPage() {
                     </div>
                   </div>
 
-                  {/* NowPayments */}
-                  <div className="bg-gray-900 rounded-lg p-4 border border-gray-700">
-                    <h3 className="text-white font-semibold mb-2">NowPayments</h3>
-                    <div className="grid md:grid-cols-3 gap-3 text-sm">
-                      <label className="flex items-center gap-2 text-gray-300">
-                        <input type="checkbox" checked={payments.nowPayments.enabled} onChange={(e)=>setPayments({ ...payments, nowPayments: { ...payments.nowPayments, enabled: e.target.checked }})}/>
-                        Enabled
-                      </label>
-                      <div className="text-gray-400">Public Key: {payments.nowPayments.publicKey ? 'set' : 'empty'}</div>
-                    </div>
-                  </div>
+                  {/* Crypto removed */}
 
                   <div className="flex justify-between items-center">
                     <div className="text-sm text-gray-400">
@@ -271,10 +261,7 @@ export default function AdminSettingsPage() {
                             <div className="font-semibold">PayPal</div>
                             <div className="text-xs break-words">{ping.paypal?.message || '-'}</div>
                           </div>
-                          <div className={`p-2 rounded border ${ping.nowPayments?.ok ? 'border-green-600 text-green-300' : 'border-red-600 text-red-300'}`}>
-                            <div className="font-semibold">NOWPayments</div>
-                            <div className="text-xs break-words">{ping.nowPayments?.message || '-'}</div>
-                          </div>
+                          {/* NOWPayments removed */}
                         </div>
                       )}
                     </div>
