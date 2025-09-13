@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
     });
 
     // Process orders for frontend consumption
-    const processedOrders = orders.map(order => ({
+    const processedOrders = orders.map((order: any) => ({
       ...order,
       totalAmount: Number(order.totalAmount),
       subtotal: order.subtotal ? Number(order.subtotal) : null,
@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
       taxesEstimatedCad: order.taxesEstimatedCad ? Number(order.taxesEstimatedCad) : 0,
       dutiesTaxesCurrency: order.dutiesTaxesCurrency,
       incoterm: order.incoterm,
-      items: order.orderItems.map(item => ({
+      items: order.orderItems.map((item: any) => ({
         id: item.id,
         name: item.product.name,
         quantity: item.quantity,
@@ -125,7 +125,7 @@ export async function POST(request: NextRequest) {
     const orderNumber = `ANA-${new Date().getFullYear()}-${String(orderCount + 1).padStart(3, '0')}`;
 
     // Create order with optional items in a transaction
-    const order = await prisma.$transaction(async (tx) => {
+    const order = await prisma.$transaction(async (tx: any) => {
       const created = await tx.order.create({
         data: {
           orderNumber,

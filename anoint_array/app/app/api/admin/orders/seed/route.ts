@@ -109,7 +109,7 @@ export async function POST(request: NextRequest) {
       select: { id: true, name: true, hsCode: true, countryOfOrigin: true, customsDescription: true, defaultCustomsValueCad: true, massGrams: true, isDigital: true }
     });
 
-    const productMap = products.reduce((acc, product) => {
+    const productMap = products.reduce((acc: any, product: any) => {
       acc[product.name] = product;
       return acc;
     }, {} as any);

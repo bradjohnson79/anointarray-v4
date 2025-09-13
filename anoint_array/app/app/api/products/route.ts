@@ -71,7 +71,7 @@ async function getHandler(request: NextRequest) {
     });
 
     // Convert Decimal fields to numbers for JSON serialization and add missing fields
-    const processedProducts = products.map(product => ({
+    const processedProducts = products.map((product: any) => ({
       ...product,
       price: Number(product?.price || 0),
       weight: product?.weight ? Number(product.weight) : null,
