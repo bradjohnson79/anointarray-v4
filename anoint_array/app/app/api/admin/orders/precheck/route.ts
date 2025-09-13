@@ -7,6 +7,7 @@ import fs from 'fs/promises';
 import path from 'path';
 
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
 type CheckStatus = 'ok' | 'warn' | 'error';
 
@@ -185,8 +186,9 @@ export async function GET(request: NextRequest) {
     // Result
     const ok = checks.every(c => c.status !== 'error');
     return NextResponse.json({ ok, checks });
-  } catch (e) {
+  } catch (e: any) {
     console.error('Precheck error:', e);
-    return NextResponse.json({ error: 'Precheck failed' }, { status: 500 });
+    const detail = typeof e?.message === 'string' ? e.message : String(e);
+    return NextResponse.json({ error: 'Precheck failed', detail }, { status: 500 });
   }
 }
