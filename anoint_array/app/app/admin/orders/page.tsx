@@ -150,6 +150,33 @@ export default function OrderManagementPage() {
   const [ratesLoading, setRatesLoading] = useState<boolean>(false);
   const [selectedRateId, setSelectedRateId] = useState<string>('');
   const [purchaseLoading, setPurchaseLoading] = useState<boolean>(false);
+  // Clipboard + Shippo manual helpers
+  const copyToClipboard = async (text: string, label: string) => {
+    try { await navigator.clipboard.writeText(text); toast.success(`${label} copied`); }
+    catch { toast.error(`Failed to copy ${label.toLowerCase()}`); }
+  };
+  const handleCopyShippingAddress = (order: Order) => {
+    if (!order?.shippingAddress) { toast.error('No shipping address'); return; }
+    const a: any = order.shippingAddress;
+    const lines = [
+      order.customerName,
+      a.street,
+      `${a.city}, ${a.state}`,
+      `${a.country} ${a.zip}`
+    ].filter(Boolean).join('\n');
+    copyToClipboard(lines, 'Shipping address');
+  };
+  const handleCopyOrderItems = (order: Order) => {
+    const rows = order.items.map(it => {
+      const customs = [it.hsCode, it.countryOfOrigin, it.customsDescription].filter(Boolean).join(' | ');
+      return `• ${it.name} x${it.quantity} — $${Number(it.price).toFixed(2)}${customs ? ` (${customs})` : ''}`;
+    }).join('\n');
+    const text = `Order ${order.orderNumber}\nItems:\n${rows}`;
+    copyToClipboard(text, 'Order items');
+  };
+  const openShippoManualCreate = () => {
+    window.open('https://apps.goshippo.com/orders/create?', '_blank');
+  };
 
   useEffect(() => {
     fetchOrders();
@@ -163,9 +190,11 @@ export default function OrderManagementPage() {
         const data = await response.json();
         setOrders(data);
       } else {
-        console.error('Failed to fetch orders:', response.statusText);
+        let detail = '';
+        try { const j = await response.json(); detail = j?.detail || j?.error || response.statusText; } catch { detail = response.statusText; }
+        console.error('Failed to fetch orders:', detail);
         setOrders([]);
-        toast.error('Failed to load orders. Click "Seed Sample Orders" to add test data.');
+        toast.error(`Failed to load orders${detail ? `: ${detail}` : ''}`);
       }
     } catch (error) {
       console.error('Error fetching orders:', error);
@@ -1460,7 +1489,12 @@ export default function OrderManagementPage() {
                   {/* Shipping Address */}
                   {selectedOrder.shippingAddress && (
                     <div className="bg-gray-800 rounded-lg p-4">
-                      <h3 className="font-semibold text-white mb-3">Shipping Address</h3>
+                      <div className="flex items-center justify-between mb-3">
+                        <h3 className="font-semibold text-white">Shipping Address</h3>
+                        <button onClick={() => handleCopyShippingAddress(selectedOrder)} className="text-xs px-2 py-1 bg-gray-700 hover:bg-gray-600 text-white rounded flex items-center gap-1">
+                          <Copy className="h-3 w-3"/> Copy
+                        </button>
+                      </div>
                       <div className="flex items-start">
                         <MapPin className="h-4 w-4 text-gray-400 mr-2 mt-1" />
                         <div className="text-sm text-white">
@@ -1476,7 +1510,12 @@ export default function OrderManagementPage() {
                 {/* Order Items & Totals */}
                 <div className="space-y-4">
                   <div className="bg-gray-800 rounded-lg p-4">
-                    <h3 className="font-semibold text-white mb-3">Order Items</h3>
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="font-semibold text-white">Order Items</h3>
+                      <button onClick={() => handleCopyOrderItems(selectedOrder)} className="text-xs px-2 py-1 bg-gray-700 hover:bg-gray-600 text-white rounded flex items-center gap-1">
+                        <Copy className="h-3 w-3"/> Copy
+                      </button>
+                    </div>
                     <div className="space-y-2">
                       {selectedOrder.items.map((item) => (
                         <div key={item.id} className="flex justify-between items-center text-sm">
@@ -1555,6 +1594,14 @@ export default function OrderManagementPage() {
                   }))}
                   isEditable={false}
                 />
+              </div>
+
+              {/* Manual Shippo create */}
+              <div className="mt-6 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                <div className="text-sm text-gray-400">If APIs are unavailable, copy details and create a label directly in Shippo.</div>
+                <button onClick={openShippoManualCreate} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center gap-2">
+                  <Truck className="h-4 w-4"/> Create label in Shippo
+                </button>
               </div>
             </motion.div>
           </div>
