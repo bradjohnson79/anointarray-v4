@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth';
 import { getConfig } from '@/lib/app-config';
 
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
 export async function GET(request: NextRequest) {
   const checks: any[] = [];
