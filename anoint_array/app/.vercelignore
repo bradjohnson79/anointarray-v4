@@ -1,0 +1,4 @@
+.env
+prisma/.env
+*.local
+*.env.local
