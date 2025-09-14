@@ -6,7 +6,16 @@ import { PrismaClient } from '@prisma/client';
 import { sendReceiptEmail } from '@/lib/email';
 import { notifyGoAffProConversion } from '@/lib/affiliates';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
+function getStripe(): Stripe {
+  const key = process.env.STRIPE_SECRET_KEY || process.env.STRIPE_SECRET_TEST_KEY;
+  if (!key) {
+    throw new Error('Stripe API key not configured');
+  }
+  return new Stripe(key);
+}
 
 const prisma = new PrismaClient();
 
@@ -19,10 +28,13 @@ export async function POST(request: Request) {
     let event: Stripe.Event;
 
     try {
+      const stripe = getStripe();
+      const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET || process.env.STRIPE_WEBHOOK_TEST_SECRET;
+      if (!webhookSecret) throw new Error('Stripe webhook secret not configured');
       event = stripe.webhooks.constructEvent(
         body,
         signature,
-        process.env.STRIPE_WEBHOOK_SECRET!
+        webhookSecret
       );
     } catch (err) {
       console.error('Webhook signature verification failed:', err);
