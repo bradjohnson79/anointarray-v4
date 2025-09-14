@@ -1,5 +1,7 @@
 
 import { NextResponse } from 'next/server';
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 import { redirect } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
 import fs from 'fs/promises';
