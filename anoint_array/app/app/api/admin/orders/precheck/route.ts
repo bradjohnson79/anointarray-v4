@@ -71,24 +71,21 @@ export async function GET(request: NextRequest) {
         const base = `${url.protocol}//${url.username ? `${url.username}${url.password ? ':' + url.password : ''}@` : ''}${url.hostname}`;
         const path = `${url.pathname}${url.search}${url.hash}`;
         const currentPort = url.port ? Number(url.port) : 5432;
-        const candidates = [5432, 5433].filter(p => p !== currentPort);
-        const probeResults: Record<string, any> = {};
-        for (const p of candidates) {
-          const alt = `${base}:${p}${path}`;
+        // Enforce policy: only 5432 is supported
+        if (currentPort !== 5432) {
+          const alt = `${base}:5432${path}`;
           try {
             const { PrismaClient } = await import('@prisma/client');
             const client = new PrismaClient({ datasources: { db: { url: alt } } });
             await client.$queryRaw`SELECT 1`;
             await client.$disconnect();
-            probeResults[p] = 'ok';
             suggestions.recommendedDatabaseUrl = alt;
-            suggestions.recommendation = `Database reachable at port ${p}. Update .env.local DATABASE_URL to use :${p} and restart dev server.`;
-            break;
+            suggestions.recommendation = 'Port 5432 is required by policy. Update DATABASE_URL to use :5432 and restart dev server.';
+            suggestions.probe5432 = 'ok';
           } catch (pe: any) {
-            probeResults[p] = String(pe?.message || pe);
+            suggestions.probe5432 = String(pe?.message || pe);
           }
         }
-        suggestions.probes = probeResults;
       } catch {
         // ignore URL parsing errors
       }
