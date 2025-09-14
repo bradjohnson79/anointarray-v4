@@ -42,9 +42,9 @@ export async function POST(request: Request) {
               currency,
             }));
           }
-          const admins = await prisma.user.findMany({ where: { role: 'ADMIN', isActive: true }, select: { email: true } });
-          admins.filter(a => a.email).forEach(a => {
-            sends.push(sendReceiptEmail(a.email!, {
+          const admins: { email: string | null }[] = await prisma.user.findMany({ where: { role: 'ADMIN', isActive: true }, select: { email: true } });
+          admins.filter((a: { email: string | null }) => !!a.email).forEach((a: { email: string | null }) => {
+            sends.push(sendReceiptEmail(a.email as string, {
               orderNumber: `CRYPTO_${body.payment_id}`,
               items: [],
               total: parseFloat(body.price_amount),
