@@ -1,0 +1,52 @@
+# Codex CLI MCP server configuration
+# Fill in tokens/IDs where indicated. Secrets are placeholders.
+
+# Supabase MCP
+[mcpServers.supabase]
+command = "pnpm"
+args = [
+  "dlx", "@supabase/mcp-server-supabase@latest",
+  "--access-token", "sbp_XXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+]
+# Optional project scoping (uncomment if needed)
+# args = ["dlx","@supabase/mcp-server-supabase@latest","--access-token","sbp_…","--project-ref","your_project_ref"]
+
+# Vercel MCP
+[mcpServers.vercel]
+command = "pnpm"
+args = [
+  "dlx", "@vercel/mcp-server-vercel@latest",
+  "--access-token", "vercel_pat_XXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+]
+
+# GitHub MCP
+[mcpServers.github]
+command = "pnpm"
+args = [
+  "dlx", "@github/mcp-server-github@latest",
+  "--access-token", "ghp_XXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+]
+
+# PayPal MCP (access token only)
+# If your organization uses a different package name, adjust below.
+[mcpServers.paypal]
+command = "pnpm"
+args = [
+  "dlx", "@paypal/mcp-server-paypal@latest",
+  "--access-token", "PAYPAL_ACCESS_TOKEN"
+]
+
+# Stripe MCP (test or live)
+# If your organization uses a different package name, adjust below.
+[mcpServers.stripe]
+command = "pnpm"
+args = [
+  "dlx", "@stripe/mcp-server-stripe@latest",
+  "--api-key", "sk_test_XXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+  "--test", "true"
+]
+
+# Notes:
+# - Replace placeholders with real tokens/keys. Do not commit secrets.
+# - After editing, restart Codex CLI or run `mcp list-tools` to verify.
+# - For PayPal/Stripe, you may instead supply credentials via environment if your MCP server supports it.
