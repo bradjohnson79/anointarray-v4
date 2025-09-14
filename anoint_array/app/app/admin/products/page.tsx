@@ -519,28 +519,6 @@ export default function ProductManagementPage() {
           {note ? <div className="text-xs text-gray-400 mt-0.5">{note}</div> : null}
           </div>
         </div>
-
-        {/* Pre‑Check Green‑Light Checklist */}
-        <div className="mystical-card p-4 rounded-lg">
-          <div className="flex items-center justify-between mb-3">
-            <div className="text-sm font-semibold text-white">Pre‑Check Status</div>
-            <button
-              onClick={runPreflight}
-              disabled={preflightRunning}
-              className="text-xs px-3 py-1 rounded-md border border-purple-500/40 text-purple-200 hover:bg-purple-500/10 disabled:opacity-60 flex items-center gap-1"
-            >
-              <RefreshCw className={`h-3 w-3 ${preflightRunning ? 'animate-spin' : ''}`} />
-              {preflightRunning ? 'Running…' : 'Re‑run checks'}
-            </button>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-            {renderCheck('Database', preflight.db?.ok, preflight.db?.note)}
-            {renderCheck('List products', preflight.list?.ok, preflight.list?.count!=null ? `${preflight.list.count} found` : preflight.list?.note)}
-            {renderCheck('Admin access', preflight.admin?.ok, preflight.admin?.note)}
-            {renderCheck('Edit/archive route', preflight.editRoute?.ok, preflight.editRoute?.note)}
-          </div>
-          <p className="text-xs text-gray-500 mt-2">Green = ready, Red = action required.</p>
-        </div>
     );
   }
 
@@ -597,6 +575,28 @@ export default function ProductManagementPage() {
             </div>
           </div>
         </motion.div>
+
+        {/* Pre‑Check Green‑Light Checklist */}
+        <div className="mystical-card p-4 rounded-lg">
+          <div className="flex items-center justify-between mb-3">
+            <div className="text-sm font-semibold text-white">Pre‑Check Status</div>
+            <button
+              onClick={runPreflight}
+              disabled={preflightRunning}
+              className="text-xs px-3 py-1 rounded-md border border-purple-500/40 text-purple-200 hover:bg-purple-500/10 disabled:opacity-60 flex items-center gap-1"
+            >
+              <RefreshCw className={`h-3 w-3 ${preflightRunning ? 'animate-spin' : ''}`} />
+              {preflightRunning ? 'Running…' : 'Re‑run checks'}
+            </button>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+            {renderCheck('Database', preflight.db?.ok, preflight.db?.note)}
+            {renderCheck('List products', preflight.list?.ok, preflight.list?.count!=null ? `${preflight.list.count} found` : preflight.list?.note)}
+            {renderCheck('Admin access', preflight.admin?.ok, preflight.admin?.note)}
+            {renderCheck('Edit/archive route', preflight.editRoute?.ok, preflight.editRoute?.note)}
+          </div>
+          <p className="text-xs text-gray-500 mt-2">Green = ready, Red = action required.</p>
+        </div>
 
         {/* Filters */}
         <motion.div
