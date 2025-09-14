@@ -135,9 +135,9 @@ export async function GET(request: Request) {
               shippingAddress,
             }));
           }
-          const admins = await prisma.user.findMany({ where: { role: 'ADMIN', isActive: true }, select: { email: true } });
-          admins.filter(a => a.email).forEach(a => {
-            sends.push(sendReceiptEmail(a.email!, {
+          const admins: { email: string | null }[] = await prisma.user.findMany({ where: { role: 'ADMIN', isActive: true }, select: { email: true } });
+          admins.filter((a: { email: string | null }) => !!a.email).forEach((a: { email: string | null }) => {
+            sends.push(sendReceiptEmail(a.email as string, {
               customerName: customerName || 'Customer',
               orderNumber: `PAYPAL_${token}`,
               items,
