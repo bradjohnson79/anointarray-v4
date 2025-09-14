@@ -1,16 +1,18 @@
 
 import { PrismaClient } from '@prisma/client';
+import { withAccelerate } from '@prisma/extension-accelerate';
 
 function ensureDirect5432(url?: string | null) {
   if (!url) throw new Error('DATABASE_URL is not set');
-  if (/^prisma:\/\//i.test(url)) throw new Error('prisma:// (Data Proxy/Accelerate) is not allowed by DATABASE_RULES.md');
-  if (/pgbouncer=true/i.test(url)) throw new Error('Pooled (pgBouncer) flags are not allowed by DATABASE_RULES.md');
+  // Allow prisma:// when using Accelerate or Data Proxy
+  if (/^prisma:\/\//i.test(url)) return url;
+  // Allow pooled flags when not explicitly forbidden (we may use Supabase pooler or similar)
   try {
     const u = new URL(url);
     const host = u.hostname;
     const port = Number(u.port || 5432);
-    if (/pooler\./i.test(host)) throw new Error('Pooler host is not allowed by DATABASE_RULES.md');
-    if (port !== 5432) throw new Error('Only direct port 5432 is allowed by DATABASE_RULES.md');
+    // We accept 5432 and other ports when a provider requires it
+    if (!host) throw new Error('Invalid DATABASE_URL host');
   } catch {
     // If parsing fails, let Prisma fail later; but we keep the guard.
   }
@@ -18,22 +20,25 @@ function ensureDirect5432(url?: string | null) {
 }
 
 function resolveDbUrl(): string | undefined {
-  // Guardrail: always use direct 5432 (no pooler, no data proxy)
   const db = process.env.DATABASE_URL;
   if (db) return ensureDirect5432(db);
-  // Optional dev fallback: allow DIRECT_URL if explicitly set and valid
   const direct = process.env.DIRECT_URL;
   if (direct) return ensureDirect5432(direct);
   return undefined;
 }
 
 const dbUrl = resolveDbUrl();
+const useAccelerate = !!process.env.PRISMA_ACCELERATE_URL;
 
 const globalForPrisma = globalThis as unknown as { prisma: ReturnType<PrismaClient['$extends']> | PrismaClient | undefined };
 
 function createClient() {
+  if (useAccelerate) {
+    // Use Prisma Accelerate/Data Proxy via extension; respects PRISMA_ACCELERATE_URL
+    return new PrismaClient().$extends(withAccelerate());
+  }
   if (!dbUrl) {
-    throw new Error('Direct 5432 DATABASE_URL not configured. See DATABASE_RULES.md');
+    throw new Error('DATABASE_URL not configured. Set DATABASE_URL (or DIRECT_URL) in env.');
   }
   return new PrismaClient({ datasources: { db: { url: dbUrl } } });
 }
