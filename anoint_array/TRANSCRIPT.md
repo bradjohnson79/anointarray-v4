@@ -25,3 +25,10 @@ Verification steps
 
 Notes
 - DB schema already had these fields (see app/prisma/schema.prisma Product model). The issue was the API not reading/writing them.
+## 2025-09-14 — DB Connectivity Policy Update (Pooled + MCP)
+
+- Switched Prisma runtime to use pooled `DATABASE_URL` (Supabase pgBouncer 6543) or Prisma Data Proxy (`prisma://`) instead of direct 5432.
+- Kept `DIRECT_URL` only for migrations. `schema.prisma` continues to declare `directUrl = env("DIRECT_URL")`.
+- Updated `app/lib/prisma.ts` to prefer pooled/Data Proxy and enable Accelerate when present; disallows falling back to `DIRECT_URL` in production.
+- Normalized scripts to prefer `DATABASE_URL` with fallback to `DIRECT_URL` for local/dev.
+- Verified with MCP/Prisma sweep: schema aligned, `products.sortOrder` present, FK checks good.

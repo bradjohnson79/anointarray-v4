@@ -86,13 +86,13 @@ function normalizeDbUrl(url: string): string {
 }
 
 function enhanceWithSupabaseMapping(input: { key: string; value: string }[]): { key: string; value: string }[] {
+  // DATABASE_RULES.md: never push pooled/pgBouncer or prisma:// into production.
   if (!process.env.MAP_SUPABASE) return input;
   const map = new Map(input.map(e => [e.key, e.value] as const));
   const out = [...input];
-  const pooled = map.get('SUPABASE_POOLED_URL') || map.get('SUPABASE_DB_POOLER_URL') || map.get('SUPABASE_PRISMA_URL') || '';
   const direct = map.get('SUPABASE_DIRECT_URL') || map.get('SUPABASE_DB_URL') || map.get('SUPABASE_NON_POOLING_URL') || '';
-  if (!map.get('DATABASE_URL') && pooled) {
-    out.push({ key: 'DATABASE_URL', value: normalizeDbUrl(pooled.includes('pgbouncer') ? pooled : (pooled + (pooled.includes('?') ? '&' : '?') + 'pgbouncer=true&connection_limit=1')) });
+  if (!map.get('DATABASE_URL') && direct) {
+    out.push({ key: 'DATABASE_URL', value: normalizeDbUrl(direct) });
   }
   if (!map.get('DIRECT_URL') && direct) {
     out.push({ key: 'DIRECT_URL', value: normalizeDbUrl(direct) });

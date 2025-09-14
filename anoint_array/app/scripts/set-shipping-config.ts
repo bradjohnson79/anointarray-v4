@@ -5,7 +5,7 @@ import dotenv from 'dotenv';
 
 const envPath = path.resolve(process.cwd(), '.env.local');
 if (fs.existsSync(envPath)) dotenv.config({ path: envPath });
-const url = process.env.DIRECT_URL || (process.env.DATABASE_URL && !/^prisma:\/\//i.test(process.env.DATABASE_URL) ? process.env.DATABASE_URL : undefined);
+const url = process.env.DATABASE_URL || process.env.DIRECT_URL;
 const prisma = new PrismaClient(url ? { datasources: { db: { url } } } : undefined);
 
 async function main(){

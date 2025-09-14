@@ -1,26 +1,29 @@
 
 import { PrismaClient } from '@prisma/client';
-// Accelerate is intentionally not used; we require direct, non‑pooled connections
 
-function isPooled(url?: string | null) {
-  if (!url) return false;
+function ensureDirect5432(url?: string | null) {
+  if (!url) throw new Error('DATABASE_URL is not set');
+  if (/^prisma:\/\//i.test(url)) throw new Error('prisma:// (Data Proxy/Accelerate) is not allowed by DATABASE_RULES.md');
+  if (/pgbouncer=true/i.test(url)) throw new Error('Pooled (pgBouncer) flags are not allowed by DATABASE_RULES.md');
   try {
-    const host = new URL(url).hostname;
-    return /pooler\./i.test(host);
+    const u = new URL(url);
+    const host = u.hostname;
+    const port = Number(u.port || 5432);
+    if (/pooler\./i.test(host)) throw new Error('Pooler host is not allowed by DATABASE_RULES.md');
+    if (port !== 5432) throw new Error('Only direct port 5432 is allowed by DATABASE_RULES.md');
   } catch {
-    return false;
+    // If parsing fails, let Prisma fail later; but we keep the guard.
   }
+  return url;
 }
 
 function resolveDbUrl(): string | undefined {
-  // Always prefer a direct, non‑pooled Postgres URL. Never use prisma:// or poolers.
-  const direct = process.env.DIRECT_URL;
-  if (direct) return direct;
-
+  // Guardrail: always use direct 5432 (no pooler, no data proxy)
   const db = process.env.DATABASE_URL;
-  if (db && !/^prisma:\/\//i.test(db) && !isPooled(db)) return db;
-
-  // Do NOT fallback to pooled/session URLs — explicit by project policy
+  if (db) return ensureDirect5432(db);
+  // Optional dev fallback: allow DIRECT_URL if explicitly set and valid
+  const direct = process.env.DIRECT_URL;
+  if (direct) return ensureDirect5432(direct);
   return undefined;
 }
 
@@ -30,11 +33,9 @@ const globalForPrisma = globalThis as unknown as { prisma: ReturnType<PrismaClie
 
 function createClient() {
   if (!dbUrl) {
-    // Hard fail to avoid accidental pooled/proxy connections
-    throw new Error('Non-pooled Postgres URL not configured. Set DIRECT_URL or a non-pooled DATABASE_URL.');
+    throw new Error('Direct 5432 DATABASE_URL not configured. See DATABASE_RULES.md');
   }
-  const base = new PrismaClient({ datasources: { db: { url: dbUrl } } });
-  return base;
+  return new PrismaClient({ datasources: { db: { url: dbUrl } } });
 }
 
 export const prisma = (globalForPrisma.prisma as any) ?? createClient();

@@ -6,11 +6,8 @@
 import { PrismaClient } from '@prisma/client';
 
 function resolveUrl() {
-  const direct = process.env.DIRECT_URL;
-  if (direct) return direct;
-  const db = process.env.DATABASE_URL || '';
-  if (db && !/^prisma:\/\//i.test(db)) return db;
-  return undefined;
+  // Guardrail: DATABASE_URL should be direct 5432. Fallback to DIRECT_URL if set.
+  return process.env.DATABASE_URL || process.env.DIRECT_URL;
 }
 
 const prisma = new PrismaClient(resolveUrl() ? { datasources: { db: { url: resolveUrl()! } } } : undefined);
