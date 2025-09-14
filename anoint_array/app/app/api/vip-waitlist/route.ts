@@ -1,10 +1,9 @@
 
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/lib/prisma';
 import { withApiErrorHandling } from '@/lib/api-handler';
 import { BadRequestError, ConflictError } from '@/lib/http-errors';
 
-const prisma = new PrismaClient();
 
 export const dynamic = 'force-dynamic';
 

@@ -2,7 +2,7 @@
 import { NextResponse } from 'next/server';
 import { headers } from 'next/headers';
 import Stripe from 'stripe';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/lib/prisma';
 import { sendReceiptEmail } from '@/lib/email';
 import { notifyGoAffProConversion } from '@/lib/affiliates';
 
@@ -17,7 +17,6 @@ function getStripe(): Stripe {
   return new Stripe(key);
 }
 
-const prisma = new PrismaClient();
 
 export async function POST(request: Request) {
   try {

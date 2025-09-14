@@ -10,7 +10,7 @@ import { PrismaClient } from '@prisma/client';
 const envPath = path.resolve(process.cwd(), '.env.local');
 if (fs.existsSync(envPath)) dotenv.config({ path: envPath });
 
-const url = process.env.DIRECT_URL || process.env.SUPABASE_SESSION_URL || process.env.DATABASE_URL;
+const url = process.env.DIRECT_URL || (process.env.DATABASE_URL && !/^prisma:\/\//i.test(process.env.DATABASE_URL) ? process.env.DATABASE_URL : undefined);
 const prisma = new PrismaClient(url ? { datasources: { db: { url } } } : undefined);
 
 async function shippoFetch(pathname: string, apiKey: string, init?: RequestInit) {

@@ -19,7 +19,8 @@ export async function GET(request: NextRequest) {
       include: {
         orderItems: {
           include: {
-            product: true,
+            // Select only needed product fields to avoid schema mismatches
+            product: { select: { name: true } },
           }
         },
         user: {

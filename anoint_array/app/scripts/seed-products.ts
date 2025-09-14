@@ -6,7 +6,11 @@
 import { PrismaClient } from '@prisma/client';
 
 function resolveUrl() {
-  return process.env.DIRECT_URL || process.env.SUPABASE_SESSION_URL || process.env.DATABASE_URL;
+  const direct = process.env.DIRECT_URL;
+  if (direct) return direct;
+  const db = process.env.DATABASE_URL || '';
+  if (db && !/^prisma:\/\//i.test(db)) return db;
+  return undefined;
 }
 
 const prisma = new PrismaClient(resolveUrl() ? { datasources: { db: { url: resolveUrl()! } } } : undefined);
@@ -79,4 +83,3 @@ main().catch((e) => {
 }).finally(async () => {
   await prisma.$disconnect();
 });
-

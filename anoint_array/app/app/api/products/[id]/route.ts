@@ -26,9 +26,9 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       }
     }
 
-    const product = await prisma.product.findUnique({
-      where: { id: params.id },
-      select: {
+    // Attempt to select including sortOrder; if column missing, fallback without it
+    let product: any | null = null;
+    const selectBase: any = {
         id: true,
         name: true,
         slug: true,
@@ -44,7 +44,6 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         imageGallery: true,
         featured: true,
         comingSoon: true,
-        sortOrder: true,
         inventory: true,
         weight: true,
         dimensions: true,
@@ -62,8 +61,15 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         variants: {
           select: { id: true, style: true, price: true, quantity: true, sku: true }
         }
-      },
-    });
+      };
+    try {
+      product = await prisma.product.findUnique({ where: { id: params.id }, select: { ...selectBase, sortOrder: true } });
+    } catch (e: any) {
+      const msg = String(e?.message || e).toLowerCase();
+      const missingSort = msg.includes('sortorder') || msg.includes('sort_order');
+      if (!missingSort) throw e;
+      product = await prisma.product.findUnique({ where: { id: params.id }, select: selectBase });
+    }
 
     if (!product) {
       return NextResponse.json({ error: 'Product not found' }, { status: 404 });

@@ -62,15 +62,34 @@ async function getHandler(request: NextRequest) {
       (select as any).defaultCustomsValueCad = true;
       (select as any).massGrams = true;
     }
-    const products = await prisma.product.findMany({
-      where,
-      select,
-      orderBy: [
-        { featured: 'desc' },
-        { sortOrder: 'asc' },
-        { createdAt: 'desc' }
-      ]
-    });
+    // Try with sortOrder first; if the column is missing in DB, fallback without it
+    let products: any[] = [];
+    try {
+      products = await prisma.product.findMany({
+        where,
+        select,
+        orderBy: [
+          { featured: 'desc' },
+          { sortOrder: 'asc' },
+          { createdAt: 'desc' }
+        ]
+      });
+    } catch (e: any) {
+      const msg = String(e?.message || e).toLowerCase();
+      const missingSort = msg.includes('sortorder') || msg.includes('sort_order');
+      if (!missingSort) throw e;
+      // Fallback: query again without referencing sortOrder
+      const selectNoSort = { ...select } as any;
+      delete selectNoSort.sortOrder;
+      products = await prisma.product.findMany({
+        where,
+        select: selectNoSort,
+        orderBy: [
+          { featured: 'desc' },
+          { createdAt: 'desc' }
+        ]
+      });
+    }
 
     // For admin view, compute order item counts per product in one query
     let countsMap: Record<string, number> = {};
@@ -89,7 +108,7 @@ async function getHandler(request: NextRequest) {
       ...product,
       price: Number(product?.price || 0),
       weight: product?.weight ? Number(product.weight) : null,
-      sortOrder: Number(product?.sortOrder ?? 9999),
+      sortOrder: Number((product as any)?.sortOrder ?? 9999),
       youtubeUrl: null, // Add this field for frontend compatibility
       ...(admin === 'true' ? { orderItemCount: countsMap[product.id] || 0 } : {}),
       ...(admin === 'true' ? { defaultCustomsValueCad: (product as any).defaultCustomsValueCad != null ? Number((product as any).defaultCustomsValueCad) : null } : {}),

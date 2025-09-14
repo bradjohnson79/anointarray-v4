@@ -27,7 +27,11 @@ import {
   ExternalLink,
   Camera,
   Loader2,
-  Archive
+  Archive,
+  CheckCircle2,
+  AlertTriangle,
+  XCircle,
+  RefreshCw
 } from 'lucide-react';
 import AdminLayout from '@/components/admin/admin-layout';
 import { toast } from 'sonner';
@@ -79,6 +83,68 @@ export default function ProductManagementPage() {
     fetchProducts();
   }, []);
 
+  // Green‑light preflight checklist state
+  const [preflightRunning, setPreflightRunning] = useState(false);
+  const [preflight, setPreflight] = useState<{
+    db?: { ok: boolean; note?: string };
+    list?: { ok: boolean; count?: number; note?: string };
+    admin?: { ok: boolean; note?: string };
+    editRoute?: { ok: boolean; note?: string };
+  }>({});
+
+  async function runPreflight() {
+    setPreflightRunning(true);
+    const next: typeof preflight = {};
+    try {
+      // 1) DB connectivity
+      try {
+        const r = await fetch('/api/debug/db', { cache: 'no-store' });
+        const j = await r.json().catch(() => ({} as any));
+        next.db = { ok: r.ok && !!j?.ok, note: j?.host ? `DB host: ${j.host}` : undefined };
+      } catch (e: any) {
+        next.db = { ok: false, note: e?.message || 'DB probe failed' };
+      }
+
+      // 2) Product list (admin)
+      let firstId: string | undefined;
+      try {
+        const r = await fetch('/api/products?admin=true', { cache: 'no-store' });
+        const j = await r.json().catch(() => [] as any);
+        const arr = Array.isArray(j) ? j : [];
+        firstId = arr?.[0]?.id;
+        next.list = { ok: r.ok && Array.isArray(arr), count: arr.length, note: r.ok ? undefined : 'GET /api/products failed' };
+      } catch (e: any) {
+        next.list = { ok: false, note: e?.message || 'Failed to list products' };
+      }
+
+      // 3) Admin auth sanity (any admin‑only endpoint)
+      try {
+        const r = await fetch('/api/admin/users?limit=1', { cache: 'no-store' });
+        next.admin = { ok: r.ok, note: r.ok ? undefined : `Admin endpoint returned ${r.status}` };
+      } catch (e: any) {
+        next.admin = { ok: false, note: e?.message || 'Admin check failed' };
+      }
+
+      // 4) Edit/archive route presence (product id route)
+      try {
+        if (!firstId) {
+          // If no products, we still check that a product id route exists using a fake id to inspect 404 vs 405
+          firstId = '000000';
+        }
+        // Prefer OPTIONS to avoid mutations; many routes will 404 if missing
+        const r = await fetch(`/api/products/${firstId}`, { method: 'OPTIONS' as any });
+        // If OPTIONS not implemented, try HEAD which should succeed for existing route or 405 if method not allowed
+        const okish = r.ok || r.status === 405; // 405 Method Not Allowed still indicates the route exists
+        next.editRoute = { ok: okish, note: okish ? undefined : `Missing /api/products/[id] (status ${r.status})` };
+      } catch (e: any) {
+        next.editRoute = { ok: false, note: e?.message || 'Route probe failed' };
+      }
+    } finally {
+      setPreflight(next);
+      setPreflightRunning(false);
+    }
+  }
+
   const fetchProducts = async () => {
     try {
       const response = await fetch('/api/products?admin=true');
@@ -91,6 +157,8 @@ export default function ProductManagementPage() {
       toast.error('Failed to load products');
     } finally {
       setIsLoading(false);
+      // Kick off preflight after initial load
+      runPreflight().catch(()=>{});
     }
   };
 
@@ -437,6 +505,44 @@ export default function ProductManagementPage() {
     name === 'Clarity Seal – Insight' ||
     name === 'Guardian Array – Protection'
   );
+
+  function renderCheck(label: string, ok?: boolean, note?: string) {
+    const Icon = ok == null ? Loader2 : ok ? CheckCircle2 : XCircle;
+    const color = ok == null ? 'text-gray-400' : ok ? 'text-green-400' : 'text-red-400';
+    const border = ok == null ? 'border-gray-700' : ok ? 'border-green-500/40' : 'border-red-500/40';
+    const bg = ok == null ? 'bg-gray-800/40' : ok ? 'bg-green-500/10' : 'bg-red-600/10';
+    return (
+      <div className={`rounded-lg ${bg} border ${border} p-3 flex items-start gap-3`}> 
+        <Icon className={`h-5 w-5 ${color} ${ok==null? 'animate-spin': ''}`} />
+        <div>
+          <div className="text-sm text-white font-medium">{label}</div>
+          {note ? <div className="text-xs text-gray-400 mt-0.5">{note}</div> : null}
+          </div>
+        </div>
+
+        {/* Pre‑Check Green‑Light Checklist */}
+        <div className="mystical-card p-4 rounded-lg">
+          <div className="flex items-center justify-between mb-3">
+            <div className="text-sm font-semibold text-white">Pre‑Check Status</div>
+            <button
+              onClick={runPreflight}
+              disabled={preflightRunning}
+              className="text-xs px-3 py-1 rounded-md border border-purple-500/40 text-purple-200 hover:bg-purple-500/10 disabled:opacity-60 flex items-center gap-1"
+            >
+              <RefreshCw className={`h-3 w-3 ${preflightRunning ? 'animate-spin' : ''}`} />
+              {preflightRunning ? 'Running…' : 'Re‑run checks'}
+            </button>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+            {renderCheck('Database', preflight.db?.ok, preflight.db?.note)}
+            {renderCheck('List products', preflight.list?.ok, preflight.list?.count!=null ? `${preflight.list.count} found` : preflight.list?.note)}
+            {renderCheck('Admin access', preflight.admin?.ok, preflight.admin?.note)}
+            {renderCheck('Edit/archive route', preflight.editRoute?.ok, preflight.editRoute?.note)}
+          </div>
+          <p className="text-xs text-gray-500 mt-2">Green = ready, Red = action required.</p>
+        </div>
+    );
+  }
 
   if (isLoading) {
     return (

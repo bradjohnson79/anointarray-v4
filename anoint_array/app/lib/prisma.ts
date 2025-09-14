@@ -1,6 +1,6 @@
 
 import { PrismaClient } from '@prisma/client';
-import { withAccelerate } from '@prisma/extension-accelerate';
+// Accelerate is intentionally not used; we require direct, non‑pooled connections
 
 function isPooled(url?: string | null) {
   if (!url) return false;
@@ -13,18 +13,14 @@ function isPooled(url?: string | null) {
 }
 
 function resolveDbUrl(): string | undefined {
-  // Always prefer a direct, non‑pooled Postgres URL if provided
+  // Always prefer a direct, non‑pooled Postgres URL. Never use prisma:// or poolers.
   const direct = process.env.DIRECT_URL;
   if (direct) return direct;
 
   const db = process.env.DATABASE_URL;
-  // If DATABASE_URL is non‑pooled Postgres, prefer it
   if (db && !/^prisma:\/\//i.test(db) && !isPooled(db)) return db;
 
-  // Avoid pooled session URLs unless nothing else is available
-  const supabaseSession = process.env.SUPABASE_SESSION_URL;
-  if (db) return db; // fallback (may be prisma:// or pooled depending on env)
-  if (supabaseSession) return supabaseSession;
+  // Do NOT fallback to pooled/session URLs — explicit by project policy
   return undefined;
 }
 
@@ -33,19 +29,11 @@ const dbUrl = resolveDbUrl();
 const globalForPrisma = globalThis as unknown as { prisma: ReturnType<PrismaClient['$extends']> | PrismaClient | undefined };
 
 function createClient() {
-  const base = new PrismaClient(dbUrl ? { datasources: { db: { url: dbUrl } } } : undefined);
-  const accelUrl = process.env.PRISMA_ACCELERATE_URL || process.env.ACCELERATE_URL;
-  // Only use Accelerate extension when explicitly on prisma:// or no direct URL was resolved
-  const shouldUseAccelerate = !!accelUrl && (process.env.DIRECT_URL ? false : (process.env.DATABASE_URL || '').startsWith('prisma://'));
-  if (shouldUseAccelerate) {
-    try {
-      // withAccelerate reads PRISMA_ACCELERATE_URL from env; no args needed
-      return (base as any).$extends(withAccelerate());
-    } catch (_) {
-      // If extension init fails for any reason, fall back to base client.
-      return base;
-    }
+  if (!dbUrl) {
+    // Hard fail to avoid accidental pooled/proxy connections
+    throw new Error('Non-pooled Postgres URL not configured. Set DIRECT_URL or a non-pooled DATABASE_URL.');
   }
+  const base = new PrismaClient({ datasources: { db: { url: dbUrl } } });
   return base;
 }
 

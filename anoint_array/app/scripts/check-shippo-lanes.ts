@@ -12,7 +12,7 @@ async function main(){
   if (fs.existsSync(envPath)) dotenv.config({ path: envPath });
   const apiKey = process.env.SHIPPO_API_KEY || process.env.SHIPPO_API_TEST_KEY;
   if (!apiKey) { console.error('Missing SHIPPO_API_KEY/SHIPPO_API_TEST_KEY'); process.exit(1); }
-  const url = process.env.DIRECT_URL || process.env.SUPABASE_SESSION_URL || process.env.DATABASE_URL;
+  const url = process.env.DIRECT_URL || (process.env.DATABASE_URL && !/^prisma:\/\//i.test(process.env.DATABASE_URL) ? process.env.DATABASE_URL : undefined);
   const prisma = new PrismaClient(url ? { datasources: { db: { url } } } : undefined);
   const cfgRow = await prisma.appConfig.findUnique({ where: { key: 'shipping-config' } });
   await prisma.$disconnect();

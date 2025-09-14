@@ -1,13 +1,12 @@
 
 import { NextResponse } from 'next/server';
 import { redirect } from 'next/navigation';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/lib/prisma';
 import fs from 'fs/promises';
 import path from 'path';
 import { sendReceiptEmail } from '@/lib/email';
 import { notifyGoAffProConversion } from '@/lib/affiliates';
 
-const prisma = new PrismaClient();
 
 const STORE_PAYMENTS_PATH = path.join(process.cwd(), 'data', 'storefront-payments.json');
 const PAYMENTS_CONFIG_PATH = path.join(process.cwd(), 'data', 'payments-config.json');
