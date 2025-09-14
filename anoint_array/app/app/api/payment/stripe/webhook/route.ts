@@ -124,12 +124,12 @@ export async function POST(request: Request) {
             }));
           }
           // Admin notifications receive the same receipt template
-          const admins = await prisma.user.findMany({
+          const admins: { email: string | null }[] = await prisma.user.findMany({
             where: { role: 'ADMIN', isActive: true },
             select: { email: true },
           });
-          admins.filter(a => a.email).forEach(a => {
-            sends.push(sendReceiptEmail(a.email!, {
+          admins.filter((a: { email: string | null }) => !!a.email).forEach((a: { email: string | null }) => {
+            sends.push(sendReceiptEmail(a.email as string, {
               customerName: session.customer_details?.name || 'Customer',
               orderNumber: `STRIPE_${session.id}`,
               items,
