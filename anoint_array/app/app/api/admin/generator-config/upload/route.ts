@@ -4,13 +4,20 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import fs from 'fs/promises';
 import path from 'path';
+import { getConfig } from '@/lib/app-config';
 
-const AI_RESOURCES_DIR = path.join(process.cwd(), 'data', 'ai-resources');
-const CSV_DIR = path.join(AI_RESOURCES_DIR, 'csv');
-const TEMPLATE_DIR = path.join(AI_RESOURCES_DIR, 'templates');
+async function getDirs() {
+  const cfg = await getConfig<any>('generator-config');
+  const base = process.env.WRITABLE_DIR || cfg?.system?.writableDir || '/tmp';
+  const AI_RESOURCES_DIR = path.join(base, 'ai-resources');
+  const CSV_DIR = path.join(AI_RESOURCES_DIR, 'csv');
+  const TEMPLATE_DIR = path.join(AI_RESOURCES_DIR, 'templates');
+  return { AI_RESOURCES_DIR, CSV_DIR, TEMPLATE_DIR };
+}
 
 // Ensure directories exist
 async function ensureDirectories() {
+  const { AI_RESOURCES_DIR, CSV_DIR, TEMPLATE_DIR } = await getDirs();
   try {
     await fs.access(AI_RESOURCES_DIR);
   } catch {
@@ -39,6 +46,7 @@ export async function POST(request: NextRequest) {
     }
 
     await ensureDirectories();
+    const { CSV_DIR, TEMPLATE_DIR } = await getDirs();
 
     const formData = await request.formData();
     const files = formData.getAll('files') as File[];

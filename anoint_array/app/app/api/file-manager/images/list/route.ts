@@ -4,6 +4,7 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { readdir, stat } from 'fs/promises';
 import path from 'path';
+import { getConfig } from '@/lib/app-config';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,7 +17,9 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const uploadsDir = path.join(process.cwd(), 'uploads');
+    const cfg = await getConfig<any>('generator-config');
+    const writable = process.env.WRITABLE_DIR || cfg?.system?.writableDir || '/tmp';
+    const uploadsDir = path.join(writable, 'uploads');
     
     try {
       const files = await readdir(uploadsDir);
@@ -35,7 +38,7 @@ export async function GET(request: NextRequest) {
           const displayName = file;
           
           imageOptions.push({
-            value: `/api/files/${file}`,
+            value: `/api/files/uploads/${file}`,
             label: displayName,
             filename: file,
             size: stats.size,

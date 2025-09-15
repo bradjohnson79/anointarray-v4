@@ -7,12 +7,21 @@ import { randomUUID } from 'crypto';
 import { writeFile, mkdir } from 'fs/promises';
 import { existsSync } from 'fs';
 import path from 'path';
+import { getConfig } from '@/lib/app-config';
 
 const s3Client = createS3Client();
 const { bucketName, folderPrefix } = getBucketConfig();
 
 // Check if we should use local storage as fallback
 const useLocalFallback = !process.env.AWS_ACCESS_KEY_ID || process.env.NODE_ENV === 'development';
+
+async function getLocalBaseDir() {
+  const cfg = await getConfig<any>('generator-config');
+  const writable = process.env.WRITABLE_DIR || cfg?.system?.writableDir || '/tmp';
+  const base = path.join(writable, 'uploads');
+  if (!existsSync(base)) await mkdir(base, { recursive: true });
+  return base;
+}
 
 export interface UploadResult {
   success: boolean;
@@ -34,10 +43,7 @@ export async function uploadFile(buffer: Buffer, customFileName: string, content
 
     if (useLocalFallback) {
       // Use local storage as fallback
-      const uploadsDir = path.join(process.cwd(), 'uploads');
-      if (!existsSync(uploadsDir)) {
-        await mkdir(uploadsDir, { recursive: true });
-      }
+      const uploadsDir = await getLocalBaseDir();
 
       // Handle filename conflicts
       let finalFilename = filename;
@@ -55,8 +61,8 @@ export async function uploadFile(buffer: Buffer, customFileName: string, content
 
       return {
         success: true,
-        cloudStoragePath: finalFilename, // Store just filename for local files
-        publicUrl: `/api/files/${finalFilename}`,
+        cloudStoragePath: `uploads/${finalFilename}`,
+        publicUrl: `/api/files/uploads/${finalFilename}`,
       };
     } else {
       // Use S3 for production
@@ -120,7 +126,8 @@ export async function deleteFile(key: string): Promise<boolean> {
     if (useLocalFallback) {
       // For local files, delete from filesystem
       const fs = await import('fs/promises');
-      const filePath = path.join(process.cwd(), 'uploads', key);
+      const base = await getLocalBaseDir();
+      const filePath = path.join(base, key.replace(/^uploads\//, ''));
       await fs.unlink(filePath);
       return true;
     } else {
@@ -144,8 +151,9 @@ export async function renameFile(oldKey: string, newKey: string): Promise<boolea
     if (useLocalFallback) {
       // For local files, rename in filesystem
       const fs = await import('fs/promises');
-      const oldPath = path.join(process.cwd(), 'uploads', oldKey);
-      const newPath = path.join(process.cwd(), 'uploads', newKey);
+      const base = await getLocalBaseDir();
+      const oldPath = path.join(base, oldKey.replace(/^uploads\//, ''));
+      const newPath = path.join(base, newKey.replace(/^uploads\//, ''));
       await fs.rename(oldPath, newPath);
       return true;
     } else {

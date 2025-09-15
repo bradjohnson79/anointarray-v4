@@ -53,19 +53,28 @@ async function loadAIConfiguration(): Promise<AIConfiguration | null> {
   }
 }
 
+import { getConfig } from '@/lib/app-config';
+
 async function getUploadedFiles() {
-  const AI_RESOURCES_DIR = path.join(process.cwd(), 'data', 'ai-resources');
-  const CSV_DIR = path.join(AI_RESOURCES_DIR, 'csv');
-  const TEMPLATE_DIR = path.join(AI_RESOURCES_DIR, 'templates');
+  const cfg = await getConfig<any>('generator-config');
+  const baseA = path.join(process.cwd(), 'data', 'ai-resources');
+  const baseB = (process.env.WRITABLE_DIR || cfg?.system?.writableDir || '/tmp') + '/ai-resources';
+  const CSV_DIRS = [path.join(baseB, 'csv'), path.join(baseA, 'csv')];
+  const TEMPLATE_DIRS = [path.join(baseB, 'templates'), path.join(baseA, 'templates')];
 
   try {
-    const csvFiles = await fs.readdir(CSV_DIR).catch(() => []);
-    const templateFiles = await fs.readdir(TEMPLATE_DIR).catch(() => []);
+    // Merge directory listings across preferred locations
+    let csvFiles: string[] = [];
+    for (const d of CSV_DIRS) { try { const list = await fs.readdir(d); csvFiles = Array.from(new Set([...csvFiles, ...list])); } catch {} }
+    let templateFiles: string[] = [];
+    for (const d of TEMPLATE_DIRS) { try { const list = await fs.readdir(d); templateFiles = Array.from(new Set([...templateFiles, ...list])); } catch {} }
     
     // Read CSV file contents
     const csvData: { [key: string]: string } = {};
     for (const csvFile of csvFiles) {
-      const filePath = path.join(CSV_DIR, csvFile);
+      let filePath: string | null = null;
+      for (const d of CSV_DIRS) { const p = path.join(d, csvFile); try { await fs.access(p); filePath = p; break; } catch {} }
+      if (!filePath) continue;
       try {
         const content = await fs.readFile(filePath, 'utf-8');
         csvData[csvFile] = content;
@@ -78,8 +87,8 @@ async function getUploadedFiles() {
       csvFiles,
       templateFiles,
       csvData,
-      csvDir: CSV_DIR,
-      templateDir: TEMPLATE_DIR
+      csvDir: CSV_DIRS[0],
+      templateDir: TEMPLATE_DIRS[0]
     };
   } catch (error) {
     console.error('Failed to get uploaded files:', error);
