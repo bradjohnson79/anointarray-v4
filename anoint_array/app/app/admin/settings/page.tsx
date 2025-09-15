@@ -201,6 +201,7 @@ export default function AdminSettingsPage() {
             <TabsTrigger value="emails" className="text-white"><FileText className="h-4 w-4 mr-2"/>Emails</TabsTrigger>
             <TabsTrigger value="currency" className="text-white"><span className="mr-2">$</span>Currency</TabsTrigger>
             <TabsTrigger value="shipping" className="text-white"><Truck className="h-4 w-4 mr-2"/>Shipping</TabsTrigger>
+            <TabsTrigger value="admin-passwords" className="text-white"><Shield className="h-4 w-4 mr-2"/>Admin Passwords</TabsTrigger>
           </TabsList>
 
           <TabsContent value="payments" className="mt-4">
@@ -278,6 +279,11 @@ export default function AdminSettingsPage() {
                 </div>
               )}
             </div>
+          </TabsContent>
+
+          {/* Admin Passwords */}
+          <TabsContent value="admin-passwords" className="mt-4">
+            <AdminPasswordsPanel />
           </TabsContent>
 
           <TabsContent value="currency" className="mt-4">
@@ -651,6 +657,60 @@ function EmailStatusPanel() {
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+function AdminPasswordsPanel() {
+  const [oldPwd, setOldPwd] = useState('');
+  const [newPwd, setNewPwd] = useState('');
+  const [confirmPwd, setConfirmPwd] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const apply = async () => {
+    if (!oldPwd || !newPwd || !confirmPwd) { toast.error('Please fill all fields'); return; }
+    if (newPwd !== confirmPwd) { toast.error('New passwords do not match'); return; }
+    if (newPwd.length < 8) { toast.error('New password must be at least 8 characters'); return; }
+    setSaving(true);
+    try {
+      const r = await fetch('/api/admin/account/password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ oldPassword: oldPwd, newPassword: newPwd, confirmPassword: confirmPwd }),
+      });
+      const j = await r.json().catch(()=>({}));
+      if (!r.ok) throw new Error(j?.error || 'Password change failed');
+      toast.success('Password updated');
+      setOldPwd(''); setNewPwd(''); setConfirmPwd('');
+    } catch (e: any) {
+      toast.error(e?.message || 'Password change failed');
+    } finally { setSaving(false); }
+  };
+
+  return (
+    <div className="bg-gray-800 rounded-lg p-6 max-w-2xl">
+      <h3 className="text-white font-semibold mb-2">Update Admin Password</h3>
+      <p className="text-gray-400 text-sm mb-4">For your current admin account. Enter your current password and choose a new one.</p>
+      <div className="space-y-4">
+        <div>
+          <label className="block text-sm text-gray-300 mb-2">Current Password</label>
+          <input type="password" value={oldPwd} onChange={e=>setOldPwd(e.target.value)} className="w-full bg-gray-900 border border-gray-700 rounded px-4 py-2 text-white" placeholder="Enter current password"/>
+        </div>
+        <div>
+          <label className="block text-sm text-gray-300 mb-2">New Password</label>
+          <input type="password" value={newPwd} onChange={e=>setNewPwd(e.target.value)} className="w-full bg-gray-900 border border-gray-700 rounded px-4 py-2 text-white" placeholder="Enter new password"/>
+        </div>
+        <div>
+          <label className="block text-sm text-gray-300 mb-2">Confirm New Password</label>
+          <input type="password" value={confirmPwd} onChange={e=>setConfirmPwd(e.target.value)} className="w-full bg-gray-900 border border-gray-700 rounded px-4 py-2 text-white" placeholder="Re-enter new password"/>
+        </div>
+        <div className="pt-2">
+          <button onClick={apply} disabled={saving} className="px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded text-white flex items-center gap-2">
+            {saving ? <RefreshCw className="h-4 w-4 animate-spin"/> : <Save className="h-4 w-4"/>}
+            {saving ? 'Applying…' : 'Apply'}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
