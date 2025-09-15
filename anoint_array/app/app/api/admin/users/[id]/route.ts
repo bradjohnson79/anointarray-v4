@@ -1,141 +1,72 @@
-
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
-interface RouteParams {
-  params: {
-    id: string;
-  };
-}
+type RouteContext = { params: { id: string } };
 
-export async function PATCH(request: NextRequest, { params }: RouteParams) {
+export async function GET(_req: NextRequest, ctx: RouteContext) {
   try {
     const session = await getServerSession(authOptions);
-    
     if (!session || session.user?.role !== 'ADMIN') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-
-    const { id } = params;
-    const body = await request.json();
-    const { name, email, phone, role, isActive } = body;
-
-    const updatedUser = await prisma.user.update({
+    const id = ctx.params.id;
+    const user = await prisma.user.findUnique({
       where: { id },
-      data: {
-        ...(name && { name }),
-        ...(email && { email }),
-        ...(phone && { phone }),
-        ...(role && { role }),
-        ...(isActive !== undefined && { isActive }),
+      select: {
+        id: true, name: true, email: true, role: true, phone: true,
+        address: true, isActive: true, lastLoginAt: true, createdAt: true, updatedAt: true,
       },
     });
-
-    // Don't return password
-    const { password: _, ...userWithoutPassword } = updatedUser;
-
-    return NextResponse.json(userWithoutPassword);
-  } catch (error) {
-    console.error('Error updating user:', error);
-    return NextResponse.json(
-      { error: 'Failed to update user' },
-      { status: 500 }
-    );
+    if (!user) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    return NextResponse.json(user);
+  } catch (e) {
+    return NextResponse.json({ error: 'Failed to fetch user' }, { status: 500 });
   }
 }
 
-export async function DELETE(request: NextRequest, { params }: RouteParams) {
+export async function PATCH(req: NextRequest, ctx: RouteContext) {
   try {
     const session = await getServerSession(authOptions);
-    
     if (!session || session.user?.role !== 'ADMIN') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-
-    const { id } = params;
-
-    // Check if user exists
-    const user = await prisma.user.findUnique({
-      where: { id },
-    });
-
-    if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    const id = ctx.params.id;
+    const body = await req.json().catch(() => ({}));
+    const data: any = {};
+    if (typeof body.name === 'string') data.name = body.name;
+    if (typeof body.phone === 'string') data.phone = body.phone;
+    if (typeof body.role === 'string' && (body.role === 'USER' || body.role === 'ADMIN')) data.role = body.role;
+    if (typeof body.isActive === 'boolean') data.isActive = body.isActive;
+    if (Object.keys(data).length === 0) {
+      return NextResponse.json({ error: 'No valid fields to update' }, { status: 400 });
     }
-
-    // Don't allow deletion of the last admin
-    if (user.role === 'ADMIN') {
-      const adminCount = await prisma.user.count({
-        where: { role: 'ADMIN' },
-      });
-      
-      if (adminCount <= 1) {
-        return NextResponse.json(
-          { error: 'Cannot delete the last admin user' },
-          { status: 400 }
-        );
-      }
-    }
-
-    await prisma.user.delete({
-      where: { id },
-    });
-
-    return NextResponse.json({ message: 'User deleted successfully' });
-  } catch (error) {
-    console.error('Error deleting user:', error);
-    return NextResponse.json(
-      { error: 'Failed to delete user' },
-      { status: 500 }
-    );
+    const updated = await prisma.user.update({ where: { id }, data, select: { id: true, name: true, email: true, role: true, phone: true, isActive: true } });
+    return NextResponse.json(updated);
+  } catch (e: any) {
+    const msg = String(e?.message || e || '');
+    if (/record to update not found/i.test(msg)) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    return NextResponse.json({ error: 'Failed to update user' }, { status: 500 });
   }
 }
 
-export async function GET(request: NextRequest, { params }: RouteParams) {
+export async function DELETE(_req: NextRequest, ctx: RouteContext) {
   try {
     const session = await getServerSession(authOptions);
-    
     if (!session || session.user?.role !== 'ADMIN') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-
-    const { id } = params;
-
-    const user = await prisma.user.findUnique({
-      where: { id },
-      include: {
-        orders: {
-          include: {
-            orderItems: {
-              include: {
-                product: true,
-              }
-            }
-          },
-          orderBy: {
-            createdAt: 'desc'
-          }
-        }
-      }
-    });
-
-    if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    }
-
-    // Don't return password
-    const { password: _, ...userWithoutPassword } = user;
-
-    return NextResponse.json(userWithoutPassword);
-  } catch (error) {
-    console.error('Error fetching user:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch user' },
-      { status: 500 }
-    );
+    const id = ctx.params.id;
+    await prisma.user.delete({ where: { id } });
+    return NextResponse.json({ ok: true });
+  } catch (e: any) {
+    const msg = String(e?.message || e || '');
+    if (/record to delete does not exist/i.test(msg)) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    return NextResponse.json({ error: 'Failed to delete user' }, { status: 500 });
   }
 }
+

@@ -1,0 +1,31 @@
+# MCP server configuration for ANOINT Array
+# No secrets are stored here — tokens are read from environment variables.
+
+[meta]
+version = 1
+description = "MCP servers used by the project (Supabase, Vercel, GitHub)"
+
+# Supabase MCP
+# Requires: SUPABASE_ACCESS_TOKEN in your environment
+[mcpServers.supabase]
+command = "pnpm"
+args = ["dlx", "@supabase/mcp-server-supabase@latest"]
+# Env values are injected at runtime by your shell/agent
+env.SUPABASE_ACCESS_TOKEN = "${SUPABASE_ACCESS_TOKEN}"
+# Optional project reference (e.g., znqtfdfvcrbwsefzmtam)
+env.SUPABASE_PROJECT_REF = "${SUPABASE_PROJECT_REF}"
+
+# Vercel MCP
+# Requires: VERCEL_PERSONAL_ACCESS_TOKEN
+[mcpServers.vercel]
+command = "pnpm"
+args = ["dlx", "@vercel/mcp-server-vercel@latest"]
+env.VERCEL_API_TOKEN = "${VERCEL_PERSONAL_ACCESS_TOKEN}"
+
+# GitHub MCP
+# Requires: GIT_PERSONAL_ACCESS_TOKEN
+[mcpServers.github]
+command = "pnpm"
+args = ["dlx", "@github/mcp-server-github@latest"]
+env.GITHUB_TOKEN = "${GIT_PERSONAL_ACCESS_TOKEN}"
+

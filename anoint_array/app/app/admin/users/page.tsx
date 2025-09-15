@@ -49,6 +49,12 @@ export default function UserManagementPage() {
   const [filterStatus, setFilterStatus] = useState<'ALL' | 'ACTIVE' | 'INACTIVE'>('ALL');
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
   const [showAddUserModal, setShowAddUserModal] = useState(false);
+  const [addName, setAddName] = useState('');
+  const [addEmail, setAddEmail] = useState('');
+  const [addPhone, setAddPhone] = useState('');
+  const [addRole, setAddRole] = useState<'USER'|'ADMIN'>('USER');
+  const [addPassword, setAddPassword] = useState('');
+  const [adding, setAdding] = useState(false);
   const [selectedUserOrders, setSelectedUserOrders] = useState<any[]>([]);
   const [showOrderHistoryModal, setShowOrderHistoryModal] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
@@ -566,7 +572,25 @@ export default function UserManagementPage() {
                 </button>
               </div>
 
-              <form className="space-y-4">
+              <form className="space-y-4" onSubmit={async (e)=>{
+                e.preventDefault();
+                try{
+                  setAdding(true);
+                  const res = await fetch('/api/admin/users',{
+                    method:'POST',
+                    headers:{'Content-Type':'application/json'},
+                    body: JSON.stringify({ name: addName, email: addEmail, phone: addPhone, role: addRole, password: addPassword })
+                  });
+                  const j = await res.json().catch(()=>({}));
+                  if(!res.ok) throw new Error(j?.error || 'Failed to create user');
+                  setUsers(prev=>[{...j, ordersCount:0, totalSpent:0, arraysGenerated:0, isActive:true, createdAt: new Date().toISOString()}, ...prev]);
+                  setShowAddUserModal(false);
+                  setAddName(''); setAddEmail(''); setAddPhone(''); setAddRole('USER'); setAddPassword('');
+                  toast.success('User created');
+                }catch(err:any){
+                  toast.error(err?.message || 'Failed to create user');
+                }finally{ setAdding(false); }
+              }}>
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-2">
                     Full Name
@@ -575,6 +599,8 @@ export default function UserManagementPage() {
                     type="text"
                     className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:border-purple-500"
                     placeholder="Enter full name"
+                    value={addName}
+                    onChange={(e)=>setAddName(e.target.value)}
                   />
                 </div>
 
@@ -586,6 +612,8 @@ export default function UserManagementPage() {
                     type="email"
                     className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:border-purple-500"
                     placeholder="Enter email address"
+                    value={addEmail}
+                    onChange={(e)=>setAddEmail(e.target.value)}
                   />
                 </div>
 
@@ -597,6 +625,8 @@ export default function UserManagementPage() {
                     type="tel"
                     className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:border-purple-500"
                     placeholder="Enter phone number"
+                    value={addPhone}
+                    onChange={(e)=>setAddPhone(e.target.value)}
                   />
                 </div>
 
@@ -604,7 +634,7 @@ export default function UserManagementPage() {
                   <label className="block text-sm font-medium text-gray-300 mb-2">
                     Role
                   </label>
-                  <select className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-purple-500">
+                  <select className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-purple-500" value={addRole} onChange={(e)=>setAddRole(e.target.value as any)}>
                     <option value="USER">User</option>
                     <option value="ADMIN">Admin</option>
                   </select>
@@ -618,6 +648,8 @@ export default function UserManagementPage() {
                     type="password"
                     className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:border-purple-500"
                     placeholder="Enter password"
+                    value={addPassword}
+                    onChange={(e)=>setAddPassword(e.target.value)}
                   />
                 </div>
 
@@ -629,11 +661,8 @@ export default function UserManagementPage() {
                   >
                     Cancel
                   </button>
-                  <button
-                    type="submit"
-                    className="flex-1 aurora-gradient text-white py-2 rounded-lg hover:shadow-lg transition-all duration-300"
-                  >
-                    Add User
+                  <button type="submit" disabled={adding} className="flex-1 aurora-gradient text-white py-2 rounded-lg hover:shadow-lg transition-all duration-300">
+                    {adding ? 'Adding…' : 'Add User'}
                   </button>
                 </div>
               </form>

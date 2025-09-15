@@ -2,12 +2,28 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
+import { prisma, selectedDbUrl } from '@/lib/prisma';
+import { withApiErrorHandling } from '@/lib/api-handler';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
-export async function GET(request: NextRequest) {
+function dbEnvSummary() {
+  const dsn = selectedDbUrl();
+  let mode: 'accelerate' | 'direct' | 'unknown' = 'unknown';
+  let host: string | undefined;
+  let port: number | undefined;
+  const accel = process.env.PRISMA_ACCELERATE_URL || process.env.ACCELERATE_URL || '';
+  const db = process.env.DATABASE_URL || '';
+  try {
+    if (/^prisma:/.test(db) || /^prisma:/.test(accel)) mode = 'accelerate';
+    if (accel) mode = 'accelerate';
+    if (dsn) { const u = new URL(dsn); host = u.hostname; port = Number(u.port || 5432); }
+  } catch {}
+  return { mode, host, port, hasAccelerate: !!accel, hasDbUrl: !!db, envSource: process.env.DATABASE_URL ? 'DATABASE_URL' : (process.env.DIRECT_URL ? 'DIRECT_URL' : 'none') };
+}
+
+async function GET_handler(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     
@@ -70,16 +86,23 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(processedOrders);
   } catch (error: any) {
-    console.error('Error fetching orders:', error);
-    const detail = typeof error?.message === 'string' ? error.message : String(error);
-    return NextResponse.json(
-      { error: 'Failed to fetch orders', detail },
-      { status: 500 }
-    );
+    const raw = String(error?.message || error || '');
+    // Sanitize DSN credentials if present
+    const detail = raw.replace(/postgresql:\/\/[^@]+@/gi, 'postgresql://***:***@');
+    const summary = dbEnvSummary();
+    // Add short hint classification
+    const m = raw.toLowerCase();
+    let hint: string | undefined;
+    if (m.includes('econnrefused') || m.includes('getaddrinfo') || m.includes('cannot') && m.includes('reach')) hint = 'DB_CONNECT_FAILED';
+    else if (m.includes('timeout')) hint = 'DB_TIMEOUT';
+    else if (m.includes('password authentication failed')) hint = 'DB_AUTH_FAILED';
+    const body = { error: 'Failed to fetch orders', detail, db: summary, hint };
+    console.error('orders:list error', body);
+    return NextResponse.json(body, { status: 500 });
   }
 }
 
-export async function POST(request: NextRequest) {
+async function POST_handler(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     
@@ -190,11 +213,13 @@ export async function POST(request: NextRequest) {
       taxesEstimatedCad: Number(order.taxesEstimatedCad),
     }, { status: 201 });
   } catch (error: any) {
-    console.error('Error creating order:', error);
-    const detail = typeof error?.message === 'string' ? error.message : String(error);
-    return NextResponse.json(
-      { error: 'Failed to create order', detail },
-      { status: 500 }
-    );
+    const raw = String(error?.message || error || '');
+    const detail = raw.replace(/postgresql:\/\/[^@]+@/gi, 'postgresql://***:***@');
+    const body = { error: 'Failed to create order', detail, db: dbEnvSummary() };
+    console.error('orders:create error', body);
+    return NextResponse.json(body, { status: 500 });
   }
 }
+
+export const GET = withApiErrorHandling(GET_handler, '/api/admin/orders');
+export const POST = withApiErrorHandling(POST_handler, '/api/admin/orders');
