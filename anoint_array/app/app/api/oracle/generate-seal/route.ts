@@ -3,7 +3,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import fs from 'fs/promises';
-import { getConfig } from '@/lib/app-config';
 import path from 'path';
 
 const AI_CONFIG_PATH = path.join(process.cwd(), 'data', 'ai-config.json');
@@ -53,7 +52,7 @@ async function loadAIConfiguration(): Promise<AIConfiguration | null> {
   }
 }
 
-import { getConfig } from '@/lib/app-config';
+// getConfig already imported above
 
 async function getUploadedFiles() {
   const cfg = await getConfig<any>('generator-config');
