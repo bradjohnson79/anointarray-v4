@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import path from 'path';
 import fs from 'fs/promises';
+import { getConfig } from '@/lib/app-config';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -169,8 +170,14 @@ export async function POST(req: NextRequest) {
     let data: any = null;
     if (seal && typeof seal === 'object') data = seal;
     else if (typeof filename === 'string' && filename) {
-      const base = path.join(process.cwd(), 'data', 'generated-seals');
-      const full = path.join(base, filename.replace(/^\/+/, ''));
+      const cfg = await getConfig<any>('generator-config');
+      const baseTmp = path.join(process.env.WRITABLE_DIR || cfg?.system?.writableDir || '/tmp', 'generated-seals');
+      const baseData = path.join(process.cwd(), 'data', 'generated-seals');
+      const rel = filename.replace(/^\/+/, '');
+      const fullCandidates = [path.join(baseTmp, rel), path.join(baseData, rel)];
+      let full: string | null = null;
+      for (const p of fullCandidates) { try { await fs.access(p); full = p; break; } catch {} }
+      if (!full) return NextResponse.json({ error: 'Seal JSON not found' }, { status: 404 });
       const raw = await fs.readFile(full, 'utf-8');
       data = JSON.parse(raw);
     }

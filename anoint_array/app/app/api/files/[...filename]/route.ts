@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { withApiErrorHandlingCtx } from '@/lib/api-handler';
 import { BadRequestError, NotFoundError } from '@/lib/http-errors';
 import { readFile } from 'fs/promises';
+import { getConfig } from '@/lib/app-config';
 import path from 'path';
 import { existsSync } from 'fs';
 
@@ -23,7 +24,10 @@ async function handler(request: NextRequest, { params }: RouteParams) {
   }
 
     // Resolve against several known locations
+    const cfg = await getConfig<any>('generator-config');
+    const writableBase = process.env.WRITABLE_DIR || cfg?.system?.writableDir || '/tmp';
     const candidates = [
+      path.join(writableBase, filename), // files written at runtime (serverless /tmp)
       path.join(process.cwd(), 'uploads', filename), // app-local uploads
       path.join(process.cwd(), '..', '..', 'Uploads', filename), // repo root 'Uploads' (capital U)
       path.join(process.cwd(), '..', 'Uploads', filename), // fallback in case cwd differs

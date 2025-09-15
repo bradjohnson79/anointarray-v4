@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import fs from 'fs/promises';
+import { getConfig } from '@/lib/app-config';
 import path from 'path';
 
 const AI_CONFIG_PATH = path.join(process.cwd(), 'data', 'ai-config.json');
@@ -352,7 +353,9 @@ async function generateMockSealArray(
   const fileName = `seal_${userDetails.fullName.replace(/\s+/g, '_')}_${sealConfig.centralDesign}_${timestamp}.json`;
   
   // Save the generated seal data for the frontend to use
-  const recordsDir = path.join(process.cwd(), 'data', 'generated-seals');
+  const cfg = await getConfig<any>('generator-config');
+  const writableBase = process.env.WRITABLE_DIR || cfg?.system?.writableDir || '/tmp';
+  const recordsDir = path.join(writableBase, 'generated-seals');
   try {
     await fs.access(recordsDir);
   } catch {
@@ -562,7 +565,9 @@ export async function POST(request: NextRequest) {
       };
 
       // Save to file system for now (in production, you might use a database)
-      const recordsDir = path.join(process.cwd(), 'data', 'seal-generations');
+      const cfg2 = await getConfig<any>('generator-config');
+      const writableBase = process.env.WRITABLE_DIR || cfg2?.system?.writableDir || '/tmp';
+      const recordsDir = path.join(writableBase, 'seal-generations');
       try {
         await fs.access(recordsDir);
       } catch {

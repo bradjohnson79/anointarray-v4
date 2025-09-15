@@ -259,7 +259,9 @@ export default function GeneratorSettingsPage() {
     opacity: 30,
     enabled: false
   });
-  const [selectedTab, setSelectedTab] = useState<'calibration' | 'config' | 'payments'>('calibration');
+  const [selectedTab, setSelectedTab] = useState<'calibration' | 'config' | 'payments' | 'system'>('calibration');
+  const [writableDir, setWritableDir] = useState<string>('');
+  const [health, setHealth] = useState<any | null>(null);
   const [isCalibrating, setIsCalibrating] = useState(false);
   const [aiConfig, setAiConfig] = useState<AIConfiguration>({
     chatGptDispatcherPrompt: '',
@@ -333,6 +335,7 @@ export default function GeneratorSettingsPage() {
     // Load existing uploaded files, AI configuration, and payment configuration
     loadUploadedFiles();
     loadAIConfiguration();
+    loadGeneratorConfig();
     loadPaymentConfiguration();
   }, [session, status, router]);
 
@@ -373,6 +376,44 @@ export default function GeneratorSettingsPage() {
 
     setCoordinates(newCoordinates);
     drawCanvas();
+  };
+
+  const loadGeneratorConfig = async () => {
+    try {
+      const r = await fetch('/api/admin/generator-config');
+      const j = await r.json();
+      if (r.ok) {
+        const wd = j?.system?.writableDir || '';
+        if (wd) setWritableDir(wd);
+      }
+    } catch {}
+  };
+
+  const saveSystem = async () => {
+    try {
+      const r0 = await fetch('/api/admin/generator-config');
+      const base = r0.ok ? await r0.json() : {};
+      const body = { ...base, system: { ...(base?.system||{}), writableDir: writableDir || '/tmp' } };
+      const r = await fetch('/api/admin/generator-config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j?.error || 'Save failed');
+      toast.success('System settings saved');
+    } catch (e: any) {
+      toast.error(e?.message || 'Save failed');
+    }
+  };
+
+  const runHealth = async () => {
+    try {
+      const r = await fetch('/api/oracle/health');
+      const j = await r.json();
+      if (!r.ok) throw new Error(j?.error || 'Health check failed');
+      setHealth(j);
+      toast.success(j?.ok ? 'Seal system OK' : 'Seal system issues detected');
+    } catch (e: any) {
+      toast.error(e?.message || 'Health check failed');
+      setHealth(null);
+    }
   };
 
   const drawCanvas = () => {
@@ -1072,7 +1113,8 @@ export default function GeneratorSettingsPage() {
             {[
               { id: 'calibration', label: 'Coordinate Calibration', icon: Target },
               { id: 'config', label: 'AI Configuration', icon: Settings },
-              { id: 'payments', label: 'Payment Gateways', icon: CreditCard }
+              { id: 'payments', label: 'Payment Gateways', icon: CreditCard },
+              { id: 'system', label: 'System', icon: Shield }
             ].map(tab => (
               <button
                 key={tab.id}
@@ -1657,6 +1699,38 @@ export default function GeneratorSettingsPage() {
                           Click on any node to view coordinates. Adjust controls to calibrate ring spacing.
                         </div>
                       </div>
+                    </div>
+                  </div>
+              </motion.div>
+              )}
+              {selectedTab === 'system' && (
+                <motion.div
+                  key="system"
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 20 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <div className="grid md:grid-cols-2 gap-6">
+                    <div className="bg-gray-800 p-4 rounded-lg">
+                      <h3 className="text-lg font-semibold text-white mb-3 flex items-center"><Shield className="h-5 w-5 mr-2 text-purple-400"/>Writable Directory</h3>
+                      <p className="text-gray-400 text-sm mb-3">Runtime writable location for generated seals (serverless defaults to /tmp).</p>
+                      <input value={writableDir} onChange={(e)=>setWritableDir(e.target.value)} placeholder="/tmp" className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white mb-3"/>
+                      <button onClick={saveSystem} className="px-3 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded flex items-center gap-2"><Save className="h-4 w-4"/>Save</button>
+                    </div>
+                    <div className="bg-gray-800 p-4 rounded-lg">
+                      <h3 className="text-lg font-semibold text-white mb-3 flex items-center"><Zap className="h-5 w-5 mr-2 text-cyan-400"/>Seal System Check</h3>
+                      <p className="text-gray-400 text-sm mb-3">Runs checks for AI config, templates/glyphs, and writable dir.</p>
+                      <button onClick={runHealth} className="px-3 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded flex items-center gap-2 mb-3"><RotateCcw className="h-4 w-4"/>Run Health Check</button>
+                      {health && (
+                        <div className="text-sm text-gray-200 space-y-2">
+                          <div>AI: {health.ai?.configured ? <span className="text-green-400">configured</span> : <span className="text-yellow-400">missing</span>} <span className="text-gray-400">({health.ai?.path})</span></div>
+                          <div>Templates: {health.templates?.ok ? <span className="text-green-400">OK</span> : <span className="text-red-400">Missing</span>}</div>
+                          <div>Glyphs: {health.glyphs?.ok ? <span className="text-green-400">OK</span> : <span className="text-red-400">Missing</span>}</div>
+                          <div>Writable: {health.writable?.canWrite ? <span className="text-green-400">OK</span> : <span className="text-red-400">No write</span>} <span className="text-gray-400">dir={health.writable?.dir}</span></div>
+                          {!health.ok && health.writable?.error && (<div className="text-red-300">{health.writable.error}</div>)}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </motion.div>
