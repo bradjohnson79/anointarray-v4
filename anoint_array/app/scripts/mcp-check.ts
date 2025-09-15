@@ -20,6 +20,8 @@ const need = {
   SUPABASE_ACCESS_TOKEN: process.env.SUPABASE_ACCESS_TOKEN,
   NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
   SUPABASE_PROJECT_REF: process.env.SUPABASE_PROJECT_REF,
+  PAYPAL_ACCESS_TOKEN: process.env.PAYPAL_ACCESS_TOKEN,
+  PAYPAL_ENVIRONMENT: process.env.PAYPAL_ENVIRONMENT,
 };
 
 function supabaseRefFromUrl(url?: string) {
@@ -43,6 +45,8 @@ const have = {
   supabaseToken: !!need.SUPABASE_ACCESS_TOKEN,
   supabaseUrl: !!need.NEXT_PUBLIC_SUPABASE_URL,
   supabaseProjectRef: need.SUPABASE_PROJECT_REF || derivedRef || '',
+  paypalToken: !!need.PAYPAL_ACCESS_TOKEN,
+  paypalEnv: !!need.PAYPAL_ENVIRONMENT,
 };
 
 const report = {
@@ -54,6 +58,8 @@ const report = {
     SUPABASE_ACCESS_TOKEN: mask(need.SUPABASE_ACCESS_TOKEN),
     NEXT_PUBLIC_SUPABASE_URL: need.NEXT_PUBLIC_SUPABASE_URL || 'missing',
     SUPABASE_PROJECT_REF: (need.SUPABASE_PROJECT_REF || derivedRef || 'missing'),
+    PAYPAL_ACCESS_TOKEN: mask(need.PAYPAL_ACCESS_TOKEN),
+    PAYPAL_ENVIRONMENT: need.PAYPAL_ENVIRONMENT || 'missing',
   },
   next: [] as string[],
 };
@@ -64,6 +70,8 @@ if (!have.githubToken) report.next.push('export GIT_PERSONAL_ACCESS_TOKEN=ghp_�
 if (!have.supabaseToken) report.next.push('export SUPABASE_ACCESS_TOKEN=sbp_…');
 if (!have.supabaseUrl) report.next.push('export NEXT_PUBLIC_SUPABASE_URL=https://<ref>.supabase.co');
 if (!have.supabaseProjectRef) report.next.push('export SUPABASE_PROJECT_REF=<ref>   # e.g., znqtfdfvcrbwsefzmtam');
+if (!have.paypalToken) report.next.push('export PAYPAL_ACCESS_TOKEN=A21A…   # short‑lived OAuth Access Token');
+if (!have.paypalEnv) report.next.push('export PAYPAL_ENVIRONMENT=SANDBOX  # or LIVE');
 
 // Suggested smoke tests
 const ref = have.supabaseProjectRef || '<ref>';
@@ -77,4 +85,3 @@ report.next.push(
 
 console.log(JSON.stringify(report, null, 2));
 if (!report.ok) process.exit(2);
-

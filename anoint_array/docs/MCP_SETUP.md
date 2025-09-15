@@ -10,6 +10,8 @@ This project uses MCP servers for provider operations (Supabase, Vercel, GitHub)
   - `SUPABASE_ACCESS_TOKEN=sbp_…`
   - `VERCEL_PERSONAL_ACCESS_TOKEN=vercel_pat_…`
   - `GIT_PERSONAL_ACCESS_TOKEN=ghp_…`
+  - `PAYPAL_ACCESS_TOKEN=A21A…` (short‑lived OAuth access token)
+  - `PAYPAL_ENVIRONMENT=SANDBOX` (or `LIVE`)
   - Recommended:
     - `VERCEL_PROJECT_ID=prj_rc4JpBUeOGNDdts7FApnqxopbeC0`
     - `SUPABASE_PROJECT_REF=znqtfdfvcrbwsefzmtam`
@@ -33,6 +35,11 @@ Run these from your MCP client/terminal after envs are exported.
   - Optional table counts:
     - `mcp supabase sql "select count(*) as c from orders;"`
 
+- PayPal: presence and basic probe
+  - `mcp list-tools` → verify PayPal tools are listed (e.g., `paypal/*`)
+  - Ensure `PAYPAL_ACCESS_TOKEN` is valid for the environment you set (`PAYPAL_ENVIRONMENT`).
+  - If tools support status, run the exposed status/ping tool (varies by version).
+
 ## 3) Troubleshooting
 - Tool missing from `mcp list-tools`:
   - Ensure `.codex/config.toml` is present and the required env var for that tool is exported.
@@ -44,4 +51,3 @@ Run these from your MCP client/terminal after envs are exported.
 ## 4) Notes
 - Production runtime uses Prisma Accelerate (prisma://) — keep `DATABASE_URL` prisma:// in Vercel and `DIRECT_URL` for migrations only.
 - Keep secrets in Vercel env or local shell; do not commit them.
-
