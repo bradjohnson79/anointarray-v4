@@ -14,8 +14,13 @@ import path from 'path';
 const s3Client = createS3Client();
 const { bucketName, folderPrefix } = getBucketConfig();
 
-// Check if we should use local storage as fallback
-const useLocalFallback = !process.env.AWS_ACCESS_KEY_ID || process.env.NODE_ENV === 'development';
+function shouldUseLocalFallback() {
+  return (
+    !process.env.AWS_ACCESS_KEY_ID ||
+    process.env.NODE_ENV === 'development' ||
+    process.env.FORCE_LOCAL_UPLOADS === '1'
+  );
+}
 
 async function getLocalBaseDir() {
   let writable = process.env.WRITABLE_DIR || '/tmp';
@@ -51,7 +56,7 @@ export async function uploadFile(buffer: Buffer, customFileName: string, content
       filename = `${filename}.${extension}`;
     }
 
-    if (useLocalFallback) {
+    if (shouldUseLocalFallback()) {
       // Use local storage as fallback
       const uploadsDir = await getLocalBaseDir();
 
@@ -75,7 +80,7 @@ export async function uploadFile(buffer: Buffer, customFileName: string, content
         publicUrl: `/api/files/uploads/${finalFilename}`,
       };
     } else {
-      // Use S3 for production
+      // Use S3 for production, but gracefully fall back to local on credential errors
       const key = `${folderPrefix}${filename}`;
 
       const uploadParams = {
@@ -87,17 +92,49 @@ export async function uploadFile(buffer: Buffer, customFileName: string, content
         ACL: 'public-read' as const,
       };
 
-      const command = new PutObjectCommand(uploadParams);
-      await s3Client.send(command);
+      try {
+        const command = new PutObjectCommand(uploadParams);
+        await s3Client.send(command);
 
-      // Generate public URL
-      const publicUrl = `https://${bucketName}.s3.${process.env.AWS_REGION || 'us-east-1'}.amazonaws.com/${key}`;
+        // Generate public URL
+        const publicUrl = `https://${bucketName}.s3.${process.env.AWS_REGION || 'us-east-1'}.amazonaws.com/${key}`;
 
-      return {
-        success: true,
-        cloudStoragePath: key,
-        publicUrl: publicUrl,
-      };
+        return {
+          success: true,
+          cloudStoragePath: key,
+          publicUrl,
+        };
+      } catch (err: any) {
+        const msg = String(err?.message || err || '');
+        const code = String(err?.name || err?.Code || '');
+        // If AWS credentials are invalid or unavailable, transparently write to local storage
+        if (/InvalidAccessKeyId|SignatureDoesNotMatch|AccessDenied|UnknownEndpoint|CredentialsError/i.test(msg + code)) {
+          try {
+            const uploadsDir = await getLocalBaseDir();
+
+            // Handle filename conflicts
+            let finalFilename = filename;
+            let counter = 1;
+            const nameWithoutExt = filename.replace(/\.[^/.]+$/, "");
+            const extension = filename.split('.').pop() || '';
+            while (existsSync(path.join(uploadsDir, finalFilename))) {
+              finalFilename = `${nameWithoutExt}-${counter}.${extension}`;
+              counter++;
+            }
+            const filePath = path.join(uploadsDir, finalFilename);
+            await writeFile(filePath, buffer);
+            return {
+              success: true,
+              cloudStoragePath: `uploads/${finalFilename}`,
+              publicUrl: `/api/files/uploads/${finalFilename}`,
+            };
+          } catch (localErr: any) {
+            return { success: false, cloudStoragePath: '', error: String(localErr?.message || localErr) };
+          }
+        }
+        // For other errors, bubble up
+        return { success: false, cloudStoragePath: '', error: msg || 'S3 upload failed' };
+      }
     }
   } catch (error) {
     console.error('File upload error:', error);
@@ -111,7 +148,7 @@ export async function uploadFile(buffer: Buffer, customFileName: string, content
 
 export async function downloadFile(key: string): Promise<string> {
   try {
-    if (useLocalFallback) {
+    if (shouldUseLocalFallback()) {
       // For local files, just return the API URL
       return `/api/files/${key}`;
     } else {
@@ -187,7 +224,7 @@ export async function renameFile(oldKey: string, newKey: string): Promise<boolea
 }
 
 export function getPublicUrl(key: string): string {
-  if (useLocalFallback) {
+  if (shouldUseLocalFallback()) {
     return `/api/files/${key}`;
   } else {
     return `https://${bucketName}.s3.${process.env.AWS_REGION || 'us-east-1'}.amazonaws.com/${key}`;
