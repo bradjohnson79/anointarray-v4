@@ -27,6 +27,15 @@ function shouldUseLocalFallback() {
 const useLocalFallback = shouldUseLocalFallback();
 
 async function getLocalBaseDir() {
+  // Prefer a repo-local uploads directory when writable (ideal for local/dev).
+  const repoUploads = path.join(process.cwd(), 'uploads');
+  try {
+    if (!existsSync(repoUploads)) await mkdir(repoUploads, { recursive: true });
+    return repoUploads;
+  } catch {
+    // read-only filesystem (e.g., Vercel); fall back below
+  }
+
   let writable = process.env.WRITABLE_DIR || '/tmp';
   try {
     const mod = await import('@/lib/app-config');
