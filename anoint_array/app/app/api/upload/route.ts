@@ -3,6 +3,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { uploadFile } from '@/lib/s3';
+import fs from 'fs/promises';
+import path from 'path';
 
 export const dynamic = 'force-dynamic';
 
@@ -103,31 +105,30 @@ export async function POST(request: NextRequest) {
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
-    // Upload to S3 with custom name if provided
-    const fileName = customName && customName.trim() !== '' ? customName : file.name;
-    const useLocalFallback = !process.env.AWS_ACCESS_KEY_ID || process.env.NODE_ENV === 'development';
-    const uploadResult = await uploadFile(buffer, fileName, file.type);
+    // Local-only write for product images (simple + predictable)
+    const extFromType = (file.type.split('/')[1] || '').toLowerCase();
+    const originalExt = (file.name.split('.').pop() || '').toLowerCase();
+    const ext = originalExt || extFromType || 'png';
+    const baseName = (customName && customName.trim() !== '' ? customName : file.name)
+      .replace(/\.[^/.]+$/, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9-_]/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-|-$/g, '');
+    const finalName = `${baseName}.${ext}`;
 
-    if (!uploadResult.success) {
-      console.error('Upload backend error:', uploadResult.error);
-      return NextResponse.json(
-        {
-          error: uploadResult.error || 'Failed to upload file',
-          code: 'UPLOAD_BACKEND_ERROR',
-          storageMode: useLocalFallback ? 'local' : 's3',
-          fileName,
-          contentType: file.type,
-        },
-        { status: 500 }
-      );
-    }
+    const productsDir = path.join(process.cwd(), 'assets', 'product-images');
+    const target = path.join(productsDir, finalName);
+    await fs.mkdir(path.dirname(target), { recursive: true });
+    await fs.writeFile(target, buffer);
 
     return NextResponse.json({
       success: true,
-      url: uploadResult.publicUrl,
-      cloudStoragePath: uploadResult.cloudStoragePath,
+      url: `/api/files/assets/product-images/${finalName}`,
+      cloudStoragePath: `assets/product-images/${finalName}`,
       size: file.size,
-      type: file.type
+      type: file.type,
+      storage: 'local-products'
     });
 
   } catch (error) {
