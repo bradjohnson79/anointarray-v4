@@ -22,6 +22,10 @@ function shouldUseLocalFallback() {
   );
 }
 
+// Backwards/compat constant for areas of this module that check a variable
+// rather than a function. Keeps TypeScript happy during builds.
+const useLocalFallback = shouldUseLocalFallback();
+
 async function getLocalBaseDir() {
   let writable = process.env.WRITABLE_DIR || '/tmp';
   try {
