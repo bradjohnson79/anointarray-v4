@@ -11,6 +11,52 @@ import { getPublicUrl } from '@/lib/s3';
 
 export const dynamic = 'force-dynamic';
 
+function shouldUseLocalFallback() {
+  return (
+    !process.env.AWS_ACCESS_KEY_ID ||
+    process.env.NODE_ENV === 'development' ||
+    process.env.FORCE_LOCAL_UPLOADS === '1'
+  );
+}
+
+async function listLocalImages() {
+  const writable = process.env.WRITABLE_DIR || '/tmp';
+  const candidates = [
+    path.join(writable, 'uploads'),
+    path.join(process.cwd(), 'uploads'),
+    path.join(process.cwd(), '..', 'Uploads'),
+    path.join(process.cwd(), '..', '..', 'Uploads'),
+  ];
+  const imageExtensions = new Set(['.jpg', '.jpeg', '.png']);
+  const fileMap = new Map<string, { size: number; mtime: Date }>();
+  for (const dir of candidates) {
+    try {
+      const files = await readdir(dir);
+      for (const f of files) {
+        const ext = path.extname(f).toLowerCase();
+        if (!imageExtensions.has(ext)) continue;
+        try {
+          const s = await stat(path.join(dir, f));
+          const prev = fileMap.get(f);
+          if (!prev || s.mtime > prev.mtime) fileMap.set(f, { size: s.size, mtime: s.mtime });
+        } catch {}
+      }
+    } catch {}
+  }
+  const imageFiles: Array<{ filename: string; originalName: string; url: string; size: number; uploadedAt: string }> = [];
+  for (const [file, meta] of fileMap) {
+    imageFiles.push({
+      filename: file,
+      originalName: file,
+      url: `/api/files/uploads/${file}`,
+      size: meta.size,
+      uploadedAt: meta.mtime.toISOString(),
+    });
+  }
+  imageFiles.sort((a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime());
+  return imageFiles;
+}
+
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
@@ -21,50 +67,11 @@ export async function GET(request: NextRequest) {
     }
 
     // Match storage mode with lib/s3.ts
-    const useLocalFallback = !process.env.AWS_ACCESS_KEY_ID || process.env.NODE_ENV === 'development';
+    const useLocalFallback = shouldUseLocalFallback();
 
     if (useLocalFallback) {
-      // Local filesystem mode (e.g., dev): read from multiple known locations
-      const writable = process.env.WRITABLE_DIR || '/tmp';
-      const candidates = [
-        path.join(writable, 'uploads'),
-        path.join(process.cwd(), 'uploads'),
-        path.join(process.cwd(), '..', 'Uploads'),
-        path.join(process.cwd(), '..', '..', 'Uploads'),
-      ];
-
       try {
-        // Aggregate images from all candidate directories (dedup by filename)
-        const imageExtensions = new Set(['.jpg', '.jpeg', '.png']);
-        const fileMap = new Map<string, { size: number; mtime: Date; srcDir: string }>();
-        for (const dir of candidates) {
-          try {
-            const files = await readdir(dir);
-            for (const f of files) {
-              const ext = path.extname(f).toLowerCase();
-              if (!imageExtensions.has(ext)) continue;
-              try {
-                const s = await stat(path.join(dir, f));
-                const prev = fileMap.get(f);
-                if (!prev || s.mtime > prev.mtime) fileMap.set(f, { size: s.size, mtime: s.mtime, srcDir: dir });
-              } catch {}
-            }
-          } catch {}
-        }
-
-        const imageFiles: Array<{ filename: string; originalName: string; url: string; size: number; uploadedAt: string }>= [];
-        for (const [file, meta] of fileMap) {
-          imageFiles.push({
-            filename: file,
-            originalName: file,
-            url: `/api/files/uploads/${file}`,
-            size: meta.size,
-            uploadedAt: meta.mtime.toISOString(),
-          });
-        }
-
-        imageFiles.sort((a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime());
-
+        const imageFiles = await listLocalImages();
         return NextResponse.json({ success: true, images: imageFiles, count: imageFiles.length });
       } catch (error) {
         console.error('Error reading uploads directory:', error);
@@ -111,8 +118,14 @@ export async function GET(request: NextRequest) {
 
         imageFiles.sort((a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime());
         return NextResponse.json({ success: true, images: imageFiles, count: imageFiles.length });
-      } catch (error) {
+      } catch (error: any) {
         console.error('S3 list error:', error);
+        // If S3 fails (credentials, access), fallback to local so UI stays in sync with upload fallback
+        const msg = String(error?.message || error || '');
+        if (/InvalidAccessKeyId|SignatureDoesNotMatch|AccessDenied|UnknownEndpoint|CredentialsError|ExpiredToken/i.test(msg)) {
+          const imageFiles = await listLocalImages();
+          return NextResponse.json({ success: true, images: imageFiles, count: imageFiles.length, fallback: 'local' });
+        }
         return NextResponse.json({ success: true, images: [], count: 0 });
       }
     }
