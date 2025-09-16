@@ -29,10 +29,12 @@ async function handler(request: NextRequest, { params }: RouteParams) {
     // Normalize helpful prefixes for local assets
     const cleanUploads = filename.replace(/^uploads\//, '');
     const cleanAssets = filename.replace(/^assets\/product-images\//, '');
+    const cleanTmp = filename.replace(/^tmp\//, '');
 
     const candidates = [
       // Direct resolution using provided key under writable dir
-      path.join(writableBase, filename),
+      // If URL starts with tmp/..., resolve under writable base without duplicating tmp
+      path.join(writableBase, cleanTmp),
       // Local uploads (repo)
       path.join(process.cwd(), 'uploads', cleanUploads),
       // Preferred product images location

@@ -105,7 +105,7 @@ export async function POST(request: NextRequest) {
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
-    // Local-only write for product images (simple + predictable)
+    // Local-only write to /tmp/uploads/product-images
     const extFromType = (file.type.split('/')[1] || '').toLowerCase();
     const originalExt = (file.name.split('.').pop() || '').toLowerCase();
     const ext = originalExt || extFromType || 'png';
@@ -117,18 +117,18 @@ export async function POST(request: NextRequest) {
       .replace(/^-|-$/g, '');
     const finalName = `${baseName}.${ext}`;
 
-    const productsDir = path.join(process.cwd(), 'assets', 'product-images');
+    const productsDir = path.join('/tmp', 'uploads', 'product-images');
     const target = path.join(productsDir, finalName);
     await fs.mkdir(path.dirname(target), { recursive: true });
     await fs.writeFile(target, buffer);
 
     return NextResponse.json({
       success: true,
-      url: `/api/files/assets/product-images/${finalName}`,
-      cloudStoragePath: `assets/product-images/${finalName}`,
+      url: `/api/files/tmp/uploads/product-images/${finalName}`,
+      cloudStoragePath: `tmp/uploads/product-images/${finalName}`,
       size: file.size,
       type: file.type,
-      storage: 'local-products'
+      storage: 'tmp-products'
     });
 
   } catch (error) {
