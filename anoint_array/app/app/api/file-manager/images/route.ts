@@ -20,15 +20,19 @@ function shouldUseLocalFallback() {
 }
 
 async function listLocalImages() {
+  const explicit = process.env.LOCAL_UPLOADS_DIR;
   const writable = process.env.WRITABLE_DIR || '/tmp';
+  const repoUploads = path.join(process.cwd(), 'uploads');
+  const repoProducts = path.join(process.cwd(), 'assets', 'product-images');
   const candidates = [
+    ...(explicit ? [explicit] : []),
     path.join(writable, 'uploads'),
-    path.join(process.cwd(), 'uploads'),
-    path.join(process.cwd(), '..', 'Uploads'),
-    path.join(process.cwd(), '..', '..', 'Uploads'),
+    repoUploads,
+    repoProducts,
   ];
   const imageExtensions = new Set(['.jpg', '.jpeg', '.png']);
-  const fileMap = new Map<string, { size: number; mtime: Date }>();
+  type Meta = { size: number; mtime: Date; key: string };
+  const fileMap = new Map<string, Meta>();
   for (const dir of candidates) {
     try {
       const files = await readdir(dir);
@@ -37,18 +41,28 @@ async function listLocalImages() {
         if (!imageExtensions.has(ext)) continue;
         try {
           const s = await stat(path.join(dir, f));
-          const prev = fileMap.get(f);
-          if (!prev || s.mtime > prev.mtime) fileMap.set(f, { size: s.size, mtime: s.mtime });
+          // Compute API key prefix per source
+          let prefix = '';
+          if (explicit && dir === explicit) {
+            // Prefer assets/product-images semantic key when explicit path points there
+            if (/assets\/(product-images|images)/.test(explicit)) prefix = 'assets/product-images';
+            else prefix = 'uploads';
+          } else if (dir === repoProducts) prefix = 'assets/product-images';
+          else if (dir === repoUploads || dir === path.join(writable, 'uploads')) prefix = 'uploads';
+          const key = prefix ? `${prefix}/${f}` : f;
+          const prev = fileMap.get(key);
+          if (!prev || s.mtime > prev.mtime) fileMap.set(key, { size: s.size, mtime: s.mtime, key });
         } catch {}
       }
     } catch {}
   }
   const imageFiles: Array<{ filename: string; originalName: string; url: string; size: number; uploadedAt: string }> = [];
-  for (const [file, meta] of fileMap) {
+  for (const [key, meta] of fileMap) {
+    const originalName = key.split('/').pop() || key;
     imageFiles.push({
-      filename: file,
-      originalName: file,
-      url: `/api/files/uploads/${file}`,
+      filename: key, // include prefix so deletes work
+      originalName,
+      url: `/api/files/${key}`,
       size: meta.size,
       uploadedAt: meta.mtime.toISOString(),
     });

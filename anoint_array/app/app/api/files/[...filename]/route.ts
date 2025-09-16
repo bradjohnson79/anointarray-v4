@@ -26,12 +26,22 @@ async function handler(request: NextRequest, { params }: RouteParams) {
     // Resolve against several known locations
     const cfg = await getConfig<any>('generator-config');
     const writableBase = process.env.WRITABLE_DIR || cfg?.system?.writableDir || '/tmp';
+    // Normalize helpful prefixes for local assets
+    const cleanUploads = filename.replace(/^uploads\//, '');
+    const cleanAssets = filename.replace(/^assets\/product-images\//, '');
+
     const candidates = [
-      path.join(writableBase, filename), // files written at runtime (serverless /tmp)
-      path.join(process.cwd(), 'uploads', filename), // app-local uploads
-      path.join(process.cwd(), '..', '..', 'Uploads', filename), // repo root 'Uploads' (capital U)
-      path.join(process.cwd(), '..', 'Uploads', filename), // fallback in case cwd differs
-      path.join(process.cwd(), 'public', filename), // allow serving baked-in public assets
+      // Direct resolution using provided key under writable dir
+      path.join(writableBase, filename),
+      // Local uploads (repo)
+      path.join(process.cwd(), 'uploads', cleanUploads),
+      // Preferred product images location
+      path.join(process.cwd(), 'assets', 'product-images', cleanAssets),
+      // Some historical/case variants
+      path.join(process.cwd(), '..', '..', 'Uploads', cleanUploads),
+      path.join(process.cwd(), '..', 'Uploads', cleanUploads),
+      // Public fallback
+      path.join(process.cwd(), 'public', filename),
     ];
   const filePath = candidates.find(p => existsSync(p));
   if (!filePath) throw new NotFoundError('File not found');

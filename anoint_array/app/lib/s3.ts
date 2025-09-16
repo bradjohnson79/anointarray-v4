@@ -27,6 +27,15 @@ function shouldUseLocalFallback() {
 const useLocalFallback = shouldUseLocalFallback();
 
 async function getLocalBaseDir() {
+  // If explicitly provided, honor a custom local uploads directory
+  const explicit = process.env.LOCAL_UPLOADS_DIR;
+  if (explicit) {
+    try {
+      if (!existsSync(explicit)) await mkdir(explicit, { recursive: true });
+      return explicit;
+    } catch {}
+  }
+
   // Prefer a repo-local uploads directory when writable (ideal for local/dev).
   const repoUploads = path.join(process.cwd(), 'uploads');
   try {
@@ -85,6 +94,8 @@ export async function uploadFile(buffer: Buffer, customFileName: string, content
       }
 
       const filePath = path.join(uploadsDir, finalFilename);
+      // Ensure nested directories exist (e.g., product-images/foo.jpg)
+      await mkdir(path.dirname(filePath), { recursive: true });
       await writeFile(filePath, buffer);
 
       return {
@@ -135,6 +146,7 @@ export async function uploadFile(buffer: Buffer, customFileName: string, content
               counter++;
             }
             const filePath = path.join(uploadsDir, finalFilename);
+            await mkdir(path.dirname(filePath), { recursive: true });
             await writeFile(filePath, buffer);
             return {
               success: true,
@@ -186,8 +198,16 @@ export async function deleteFile(key: string): Promise<boolean> {
     if (useLocalFallback) {
       // For local files, delete from filesystem
       const fs = await import('fs/promises');
-      const base = await getLocalBaseDir();
-      const filePath = path.join(base, key.replace(/^uploads\//, ''));
+      let filePath: string;
+      if (/^assets\//i.test(key)) {
+        filePath = path.join(process.cwd(), key);
+      } else if (/^uploads\//i.test(key)) {
+        const base = await getLocalBaseDir();
+        filePath = path.join(base, key.replace(/^uploads\//i, ''));
+      } else {
+        const base = await getLocalBaseDir();
+        filePath = path.join(base, key);
+      }
       await fs.unlink(filePath);
       return true;
     } else {
@@ -211,9 +231,16 @@ export async function renameFile(oldKey: string, newKey: string): Promise<boolea
     if (useLocalFallback) {
       // For local files, rename in filesystem
       const fs = await import('fs/promises');
-      const base = await getLocalBaseDir();
-      const oldPath = path.join(base, oldKey.replace(/^uploads\//, ''));
-      const newPath = path.join(base, newKey.replace(/^uploads\//, ''));
+      let oldPath: string;
+      let newPath: string;
+      if (/^assets\//i.test(oldKey) || /^assets\//i.test(newKey)) {
+        oldPath = path.join(process.cwd(), oldKey);
+        newPath = path.join(process.cwd(), newKey);
+      } else {
+        const base = await getLocalBaseDir();
+        oldPath = path.join(base, oldKey.replace(/^uploads\//i, ''));
+        newPath = path.join(base, newKey.replace(/^uploads\//i, ''));
+      }
       await fs.rename(oldPath, newPath);
       return true;
     } else {
