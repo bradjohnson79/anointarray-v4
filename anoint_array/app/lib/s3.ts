@@ -7,7 +7,9 @@ import { randomUUID } from 'crypto';
 import { writeFile, mkdir } from 'fs/promises';
 import { existsSync } from 'fs';
 import path from 'path';
-import { getConfig } from '@/lib/app-config';
+// Avoid hard dependency on database-backed config for simple file writes.
+// We will use WRITABLE_DIR when present, otherwise fall back to /tmp.
+// If database config is available at runtime, we read it dynamically.
 
 const s3Client = createS3Client();
 const { bucketName, folderPrefix } = getBucketConfig();
@@ -16,8 +18,16 @@ const { bucketName, folderPrefix } = getBucketConfig();
 const useLocalFallback = !process.env.AWS_ACCESS_KEY_ID || process.env.NODE_ENV === 'development';
 
 async function getLocalBaseDir() {
-  const cfg = await getConfig<any>('generator-config');
-  const writable = process.env.WRITABLE_DIR || cfg?.system?.writableDir || '/tmp';
+  let writable = process.env.WRITABLE_DIR || '/tmp';
+  try {
+    const mod = await import('@/lib/app-config');
+    if (typeof mod.getConfig === 'function') {
+      const cfg = await (mod.getConfig as any)('generator-config');
+      writable = process.env.WRITABLE_DIR || cfg?.system?.writableDir || '/tmp';
+    }
+  } catch {
+    // ignore — use env/default
+  }
   const base = path.join(writable, 'uploads');
   if (!existsSync(base)) await mkdir(base, { recursive: true });
   return base;

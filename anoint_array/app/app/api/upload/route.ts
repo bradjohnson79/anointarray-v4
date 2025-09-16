@@ -105,11 +105,19 @@ export async function POST(request: NextRequest) {
 
     // Upload to S3 with custom name if provided
     const fileName = customName && customName.trim() !== '' ? customName : file.name;
+    const useLocalFallback = !process.env.AWS_ACCESS_KEY_ID || process.env.NODE_ENV === 'development';
     const uploadResult = await uploadFile(buffer, fileName, file.type);
 
     if (!uploadResult.success) {
+      console.error('Upload backend error:', uploadResult.error);
       return NextResponse.json(
-        { error: uploadResult.error || 'Failed to upload file to S3' },
+        {
+          error: uploadResult.error || 'Failed to upload file',
+          code: 'UPLOAD_BACKEND_ERROR',
+          storageMode: useLocalFallback ? 'local' : 's3',
+          fileName,
+          contentType: file.type,
+        },
         { status: 500 }
       );
     }
@@ -125,7 +133,11 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Error uploading file:', error);
     return NextResponse.json(
-      { error: 'Failed to upload file' },
+      {
+        error: 'Failed to upload file',
+        code: 'UNEXPECTED_UPLOAD_ERROR',
+        message: error instanceof Error ? error.message : String(error),
+      },
       { status: 500 }
     );
   }

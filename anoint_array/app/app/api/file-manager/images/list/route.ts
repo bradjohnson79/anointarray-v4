@@ -4,7 +4,7 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { readdir, stat } from 'fs/promises';
 import path from 'path';
-import { getConfig } from '@/lib/app-config';
+// Avoid DB-backed config here; rely on env with sensible defaults.
 import { createS3Client, getBucketConfig } from '@/lib/aws-config';
 import { ListObjectsV2Command, ListObjectsV2CommandOutput } from '@aws-sdk/client-s3';
 import { getPublicUrl } from '@/lib/s3';
@@ -23,32 +23,45 @@ export async function GET(request: NextRequest) {
     const useLocalFallback = !process.env.AWS_ACCESS_KEY_ID || process.env.NODE_ENV === 'development';
 
     if (useLocalFallback) {
-      const cfg = await getConfig<any>('generator-config');
-      const writable = process.env.WRITABLE_DIR || cfg?.system?.writableDir || '/tmp';
-      const uploadsDir = path.join(writable, 'uploads');
-      
+      const writable = process.env.WRITABLE_DIR || '/tmp';
+      const candidates = [
+        path.join(writable, 'uploads'),
+        path.join(process.cwd(), 'uploads'),
+        path.join(process.cwd(), '..', 'Uploads'),
+        path.join(process.cwd(), '..', '..', 'Uploads'),
+      ];
+
       try {
-        const files = await readdir(uploadsDir);
-        const imageExtensions = ['.jpg', '.jpeg', '.png'];
+        const imageExtensions = new Set(['.jpg', '.jpeg', '.png']);
+        const fileMap = new Map<string, { size: number; mtime: Date }>();
+        for (const dir of candidates) {
+          try {
+            const files = await readdir(dir);
+            for (const f of files) {
+              const ext = path.extname(f).toLowerCase();
+              if (!imageExtensions.has(ext)) continue;
+              try {
+                const s = await stat(path.join(dir, f));
+                const prev = fileMap.get(f);
+                if (!prev || s.mtime > prev.mtime) fileMap.set(f, { size: s.size, mtime: s.mtime });
+              } catch {}
+            }
+          } catch {}
+        }
         const imageOptions: Array<{ value: string; label: string; filename: string; size: number; uploadedAt: string }>= [];
-        
-        for (const file of files) {
-          const ext = path.extname(file).toLowerCase();
-          if (!imageExtensions.includes(ext)) continue;
-          const filePath = path.join(uploadsDir, file);
-          const stats = await stat(filePath);
+        for (const [file, meta] of fileMap) {
           imageOptions.push({
             value: `/api/files/uploads/${file}`,
             label: file,
             filename: file,
-            size: stats.size,
-            uploadedAt: stats.mtime.toISOString(),
+            size: meta.size,
+            uploadedAt: meta.mtime.toISOString(),
           });
         }
         imageOptions.sort((a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime());
         return NextResponse.json({ success: true, options: imageOptions });
       } catch (error) {
-        console.error('Error reading uploads directory:', error);
+        console.error('Error reading uploads directories:', error);
         return NextResponse.json({ success: true, options: [] });
       }
     } else {
