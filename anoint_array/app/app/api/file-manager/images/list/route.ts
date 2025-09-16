@@ -5,6 +5,9 @@ import { authOptions } from '@/lib/auth';
 import { readdir, stat } from 'fs/promises';
 import path from 'path';
 import { getConfig } from '@/lib/app-config';
+import { createS3Client, getBucketConfig } from '@/lib/aws-config';
+import { ListObjectsV2Command, ListObjectsV2CommandOutput } from '@aws-sdk/client-s3';
+import { getPublicUrl } from '@/lib/s3';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,50 +20,76 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const cfg = await getConfig<any>('generator-config');
-    const writable = process.env.WRITABLE_DIR || cfg?.system?.writableDir || '/tmp';
-    const uploadsDir = path.join(writable, 'uploads');
-    
-    try {
-      const files = await readdir(uploadsDir);
+    const useLocalFallback = !process.env.AWS_ACCESS_KEY_ID || process.env.NODE_ENV === 'development';
+
+    if (useLocalFallback) {
+      const cfg = await getConfig<any>('generator-config');
+      const writable = process.env.WRITABLE_DIR || cfg?.system?.writableDir || '/tmp';
+      const uploadsDir = path.join(writable, 'uploads');
       
-      // Filter for image files and format for dropdown options
-      const imageExtensions = ['.jpg', '.jpeg', '.png'];
-      const imageOptions = [];
-      
-      for (const file of files) {
-        const ext = path.extname(file).toLowerCase();
-        if (imageExtensions.includes(ext)) {
+      try {
+        const files = await readdir(uploadsDir);
+        const imageExtensions = ['.jpg', '.jpeg', '.png'];
+        const imageOptions: Array<{ value: string; label: string; filename: string; size: number; uploadedAt: string }>= [];
+        
+        for (const file of files) {
+          const ext = path.extname(file).toLowerCase();
+          if (!imageExtensions.includes(ext)) continue;
           const filePath = path.join(uploadsDir, file);
           const stats = await stat(filePath);
-          
-          // Use the full filename as the display name
-          const displayName = file;
-          
           imageOptions.push({
             value: `/api/files/uploads/${file}`,
-            label: displayName,
+            label: file,
             filename: file,
             size: stats.size,
-            uploadedAt: stats.mtime.toISOString()
+            uploadedAt: stats.mtime.toISOString(),
           });
         }
+        imageOptions.sort((a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime());
+        return NextResponse.json({ success: true, options: imageOptions });
+      } catch (error) {
+        console.error('Error reading uploads directory:', error);
+        return NextResponse.json({ success: true, options: [] });
       }
-      
-      // Sort by upload date (newest first)
-      imageOptions.sort((a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime());
-      
-      return NextResponse.json({ 
-        success: true,
-        options: imageOptions
-      });
-      
-    } catch (error) {
-      console.error('Error reading uploads directory:', error);
-      return NextResponse.json({ 
-        success: true,
-        options: []
-      });
+    } else {
+      // S3 mode
+      const s3 = createS3Client();
+      const { bucketName, folderPrefix } = getBucketConfig();
+      try {
+        const imageExtensions = new Set(['.jpg', '.jpeg', '.png']);
+        const imageOptions: Array<{ value: string; label: string; filename: string; size: number; uploadedAt: string }>= [];
+        let ContinuationToken: string | undefined = undefined;
+        do {
+          const res: ListObjectsV2CommandOutput = await s3.send(
+            new ListObjectsV2Command({
+              Bucket: bucketName,
+              Prefix: folderPrefix,
+              ContinuationToken,
+            })
+          );
+          for (const obj of res.Contents || []) {
+            const key = obj.Key || '';
+            if (!key || !key.startsWith(folderPrefix)) continue;
+            const base = key.slice(folderPrefix.length);
+            if (!base) continue;
+            const ext = path.extname(base).toLowerCase();
+            if (!imageExtensions.has(ext)) continue;
+            imageOptions.push({
+              value: getPublicUrl(key),
+              label: base,
+              filename: base,
+              size: obj.Size || 0,
+              uploadedAt: obj.LastModified ? new Date(obj.LastModified).toISOString() : new Date(0).toISOString(),
+            });
+          }
+          ContinuationToken = res.IsTruncated ? res.NextContinuationToken : undefined;
+        } while (ContinuationToken);
+        imageOptions.sort((a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime());
+        return NextResponse.json({ success: true, options: imageOptions });
+      } catch (error) {
+        console.error('S3 list error:', error);
+        return NextResponse.json({ success: true, options: [] });
+      }
     }
 
   } catch (error) {

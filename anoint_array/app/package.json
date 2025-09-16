@@ -21,7 +21,8 @@
     "qa:sweep": "tsx scripts/qa-engineer.ts",
     "agent:fullstack": "tsx scripts/fullstack-scan.ts",
     "mcp:check": "tsx scripts/mcp-check.ts",
-    "admin:promote": "tsx scripts/promote-admin.ts"
+    "admin:promote": "tsx scripts/promote-admin.ts",
+    "admin:upsert": "tsx scripts/upsert-admins.ts"
   },
   "mcp": {
     "config": "../.codex/config.toml"

@@ -32,7 +32,9 @@ async function latestDeployment(target: Target) {
   const j: any = await res.json();
   const dep = (j.deployments && j.deployments[0]) || j[0];
   if (!dep) return null;
-  return dep as { id: string; url: string; state: string; created: number };
+  // Vercel v6 API returns `uid` for deployment id
+  const id = (dep.id || dep.uid) as string;
+  return { id, url: dep.url as string, state: dep.state as string, created: dep.created as number };
 }
 
 async function rebuild(deploymentId: string) {
@@ -70,4 +72,3 @@ async function rebuild(deploymentId: string) {
     process.exit(1);
   }
 })();
-

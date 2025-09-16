@@ -4,6 +4,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import fs from 'fs/promises';
 import path from 'path';
+import { getConfig } from '@/lib/app-config';
 
 const AI_CONFIG_PATH = path.join(process.cwd(), 'data', 'ai-config.json');
 
@@ -52,10 +53,9 @@ async function loadAIConfiguration(): Promise<AIConfiguration | null> {
   }
 }
 
-// getConfig already imported above
-
 async function getUploadedFiles() {
-  const cfg = await getConfig<any>('generator-config');
+  // Static config fallback — avoids compile-time deps and works on Vercel
+  const cfg = { system: { writableDir: process.env.WRITABLE_DIR || '/tmp' } } as any;
   const baseA = path.join(process.cwd(), 'data', 'ai-resources');
   const baseB = (process.env.WRITABLE_DIR || cfg?.system?.writableDir || '/tmp') + '/ai-resources';
   const CSV_DIRS = [path.join(baseB, 'csv'), path.join(baseA, 'csv')];
@@ -95,8 +95,9 @@ async function getUploadedFiles() {
       csvFiles: [],
       templateFiles: [],
       csvData: {},
-      csvDir: CSV_DIR,
-      templateDir: TEMPLATE_DIR
+      // default back to the prioritized directories even if listing failed
+      csvDir: CSV_DIRS?.[0] || path.join(process.cwd(), 'data', 'ai-resources', 'csv'),
+      templateDir: TEMPLATE_DIRS?.[0] || path.join(process.cwd(), 'data', 'ai-resources', 'templates')
     };
   }
 }
@@ -361,8 +362,7 @@ async function generateMockSealArray(
   const fileName = `seal_${userDetails.fullName.replace(/\s+/g, '_')}_${sealConfig.centralDesign}_${timestamp}.json`;
   
   // Save the generated seal data for the frontend to use
-  const cfg = await getConfig<any>('generator-config');
-  const writableBase = process.env.WRITABLE_DIR || cfg?.system?.writableDir || '/tmp';
+  const writableBase = process.env.WRITABLE_DIR || '/tmp';
   const recordsDir = path.join(writableBase, 'generated-seals');
   try {
     await fs.access(recordsDir);
@@ -573,8 +573,7 @@ export async function POST(request: NextRequest) {
       };
 
       // Save to file system for now (in production, you might use a database)
-      const cfg2 = await getConfig<any>('generator-config');
-      const writableBase = process.env.WRITABLE_DIR || cfg2?.system?.writableDir || '/tmp';
+      const writableBase = process.env.WRITABLE_DIR || '/tmp';
       const recordsDir = path.join(writableBase, 'seal-generations');
       try {
         await fs.access(recordsDir);

@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { deleteFile } from '@/lib/s3';
+import { getBucketConfig } from '@/lib/aws-config';
 
 export const dynamic = 'force-dynamic';
 
@@ -39,8 +40,13 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    // Delete the file using our S3 utility (which handles both local and S3 storage)
-    const success = await deleteFile(filename);
+    // Determine storage mode to build the correct key
+    const useLocalFallback = !process.env.AWS_ACCESS_KEY_ID || process.env.NODE_ENV === 'development';
+    const { folderPrefix } = getBucketConfig();
+    const key = useLocalFallback ? filename : `${folderPrefix}${filename}`;
+
+    // Delete the file using our S3 utility (handles local and S3 storage)
+    const success = await deleteFile(key);
     
     if (success) {
       return NextResponse.json({ 
