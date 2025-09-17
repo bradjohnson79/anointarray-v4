@@ -4,7 +4,7 @@ import { authOptions } from '@/lib/auth';
 import fs from 'fs/promises';
 import fsSync from 'fs';
 import path from 'path';
-import { list, put } from '@vercel/blob';
+import { createSupabaseServerClient, useSupabaseStorage, PRODUCT_IMAGES_BUCKET } from '@/lib/supabase-server';
 
 const FILE = path.join(process.cwd(), 'data', 'storefront-payments.json');
 
@@ -15,13 +15,18 @@ export async function GET() {
     let fileCfg: any = {};
     try { if (fsSync.existsSync(FILE)) fileCfg = JSON.parse(await fs.readFile(FILE, 'utf-8')); }
     catch {}
-    if (!fileCfg || !Object.keys(fileCfg).length) {
+    if ((!fileCfg || !Object.keys(fileCfg).length) && useSupabaseStorage()) {
       try {
-        const { blobs } = await list({ prefix: 'configs/storefront-payments.json' });
-        const b = blobs?.[0];
-        if (b?.url) {
-          const r = await fetch(b.url);
-          if (r.ok) fileCfg = await r.json();
+        const supabase = createSupabaseServerClient();
+        const bucket = process.env.SUPABASE_CONFIGS_BUCKET || PRODUCT_IMAGES_BUCKET || 'Storage';
+        const { data, error } = await supabase.storage.from(bucket).download('configs/storefront-payments.json');
+        if (!error && data) {
+          let text = '';
+          if (typeof (data as any).text === 'function') text = await (data as any).text();
+          else if (typeof (data as any).arrayBuffer === 'function') {
+            const buf = Buffer.from(await (data as any).arrayBuffer()); text = buf.toString('utf8');
+          }
+          fileCfg = JSON.parse(text || '{}');
         }
       } catch {}
     }
@@ -71,7 +76,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true, storage: 'file' });
     } catch (e: any) {
       try {
-        // Store a sanitized, non-secret snapshot in Blob (public readable) for read-only environments
+        if (!useSupabaseStorage()) throw new Error('Supabase storage not configured');
+        // Store sanitized snapshot (no secrets) in Supabase storage for UI reading in RO envs
         const safe: any = {
           stripe: { enabled: !!payload?.stripe?.enabled, testMode: !!payload?.stripe?.testMode },
           paypal: { enabled: !!payload?.paypal?.enabled, testMode: !!payload?.paypal?.testMode },
@@ -79,8 +85,12 @@ export async function POST(req: NextRequest) {
           pricing: { currency: String(payload?.pricing?.currency || 'USD').toUpperCase() },
           lastUpdated: new Date().toISOString(),
         };
-        const res = await put('configs/storefront-payments.json', JSON.stringify(safe), { contentType: 'application/json', addRandomSuffix: false });
-        return NextResponse.json({ ok: true, storage: 'blob', url: res.url });
+        const supabase = createSupabaseServerClient();
+        const bucket = process.env.SUPABASE_CONFIGS_BUCKET || PRODUCT_IMAGES_BUCKET || 'Storage';
+        const blob = new Blob([JSON.stringify(safe)], { type: 'application/json' });
+        const { error } = await supabase.storage.from(bucket).upload('configs/storefront-payments.json', blob, { upsert: true, contentType: 'application/json' });
+        if (error) throw error;
+        return NextResponse.json({ ok: true, storage: 'supabase' });
       } catch (be: any) {
         return NextResponse.json({ error: be?.message || e?.message || 'Failed to save configuration' }, { status: 500 });
       }

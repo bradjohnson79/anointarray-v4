@@ -3,7 +3,7 @@ import fs from 'fs/promises';
 import fsSync from 'fs';
 import path from 'path';
 import { getServerSession } from 'next-auth/next';
-import { list, put } from '@vercel/blob';
+import { createSupabaseServerClient, useSupabaseStorage, PRODUCT_IMAGES_BUCKET } from '@/lib/supabase-server';
 import { authOptions } from '@/lib/auth';
 
 type ServiceKey = 'basic' | 'full' | 'environmental';
@@ -28,14 +28,19 @@ async function readSettings(): Promise<ServiceSettings> {
       environmental: { price: Number(parsed?.environmental?.price ?? DEFAULTS.environmental.price), description: String(parsed?.environmental?.description ?? DEFAULTS.environmental.description) },
     };
   } catch {
-    // Try Vercel Blob fallback
+    // Try Supabase Storage fallback
     try {
-      const { blobs } = await list({ prefix: 'configs/service-settings.json' });
-      const b = blobs?.[0];
-      if (b && b.url) {
-        const r = await fetch(b.url);
-        if (r.ok) {
-          const parsed = await r.json();
+      if (useSupabaseStorage()) {
+        const supabase = createSupabaseServerClient();
+        const bucket = process.env.SUPABASE_CONFIGS_BUCKET || PRODUCT_IMAGES_BUCKET || 'Storage';
+        const { data, error } = await supabase.storage.from(bucket).download('configs/service-settings.json');
+        if (!error && data) {
+          let text: string = '';
+          if (typeof (data as any).text === 'function') text = await (data as any).text();
+          else if (typeof (data as any).arrayBuffer === 'function') {
+            const buf = Buffer.from(await (data as any).arrayBuffer()); text = buf.toString('utf8');
+          }
+          const parsed = JSON.parse(text || '{}');
           return {
             basic: { price: Number(parsed?.basic?.price ?? DEFAULTS.basic.price), description: String(parsed?.basic?.description ?? DEFAULTS.basic.description) },
             full: { price: Number(parsed?.full?.price ?? DEFAULTS.full.price), description: String(parsed?.full?.description ?? DEFAULTS.full.description) },
@@ -76,10 +81,15 @@ export async function POST(req: NextRequest) {
       await fs.writeFile(FILE, JSON.stringify(clean, null, 2), 'utf8');
       return NextResponse.json({ ok: true, saved: clean, storage: 'file' });
     } catch (e: any) {
-      // Fallback to Vercel Blob
+      // Fallback to Supabase Storage (private by default)
       try {
-        const res = await put('configs/service-settings.json', JSON.stringify(clean), { contentType: 'application/json', addRandomSuffix: false });
-        return NextResponse.json({ ok: true, saved: clean, storage: 'blob', url: res.url });
+        if (!useSupabaseStorage()) throw new Error('Supabase storage not configured');
+        const supabase = createSupabaseServerClient();
+        const bucket = process.env.SUPABASE_CONFIGS_BUCKET || PRODUCT_IMAGES_BUCKET || 'Storage';
+        const blob = new Blob([JSON.stringify(clean)], { type: 'application/json' });
+        const { error } = await supabase.storage.from(bucket).upload('configs/service-settings.json', blob, { upsert: true, contentType: 'application/json' });
+        if (error) throw error;
+        return NextResponse.json({ ok: true, saved: clean, storage: 'supabase' });
       } catch (be: any) {
         return NextResponse.json({ error: be?.message || e?.message || 'Failed to save' }, { status: 500 });
       }
