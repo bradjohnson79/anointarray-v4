@@ -14,6 +14,7 @@ import fs from 'fs/promises';
 import path from 'path';
 
 const TPL_PATH = path.join(process.cwd(), 'data', 'email-templates.json');
+const THEME_PATH = path.join(process.cwd(), 'data', 'email-theme.html');
 
 async function sendViaProvider(args: { from: string; to: string | string[]; subject: string; html: string; attachments?: Array<{ filename?: string; content?: string; contentType?: string }> }) {
   const provider = (process.env.EMAIL_PROVIDER || '').toLowerCase();
@@ -52,7 +53,7 @@ async function sendViaProvider(args: { from: string; to: string | string[]; subj
     return;
   }
   const resend = new Resend(resendKey);
-  await resend.emails.send({ from: args.from, to: args.to as any, subject: args.subject, html: args.html, attachments: args.attachments as any });
+  await resend.emails.send({ from: args.from, to: args.to as any, subject: args.subject, html: args.html, text: stripHtml(args.html), attachments: args.attachments as any });
 }
 
 export async function loadTemplates(): Promise<Templates> {
@@ -62,6 +63,36 @@ export async function loadTemplates(): Promise<Templates> {
   } catch {
     return getDefaultTemplates();
   }
+}
+
+async function loadThemeHtml(): Promise<string> {
+  try { return await fs.readFile(THEME_PATH, 'utf-8'); } catch {}
+  // Try Supabase configs bucket
+  try {
+    const { createSupabaseServerClient, useSupabaseStorage } = await import('@/lib/supabase-server');
+    if (useSupabaseStorage()) {
+      const supabase = createSupabaseServerClient();
+      const bucket = process.env.SUPABASE_CONFIGS_BUCKET || 'configs';
+      const { data, error } = await supabase.storage.from(bucket).download('configs/email-theme.html');
+      if (!error && data) {
+        if (typeof (data as any).text === 'function') return await (data as any).text();
+        if (typeof (data as any).arrayBuffer === 'function') {
+          const ab = await (data as any).arrayBuffer();
+          return Buffer.from(ab).toString('utf8');
+        }
+      }
+    }
+  } catch {}
+  // Fallback default
+  const year = new Date().getFullYear();
+  return `<!doctype html><html><head><meta charset="utf-8"/><title>{{title}}</title></head><body><div style="max-width:640px;margin:0 auto;border:1px solid #26304a;border-radius:12px;padding:18px;background:#0b0f1a;color:#e6e6f0;font-family:Arial,Helvetica,sans-serif"><h2 style="margin:0 0 12px;background:linear-gradient(90deg,#6d28d9,#22d3ee);color:#fff;padding:10px 14px;border-radius:8px">ANOINT ARRAY</h2><div>{{content}}</div><div style="margin-top:16px;font-size:12px;color:#a0a8c0">© ${year} ANOINT ARRAY</div></div></body></html>`;
+}
+
+function stripHtml(html: string): string { return String(html || '').replace(/<[^>]+>/g, '').replace(/\s+\n/g, '\n').trim(); }
+
+async function wrapHtml(content: string): Promise<string> {
+  const theme = await loadThemeHtml();
+  return theme.replace(/\{\{content\}\}/g, content).replace(/\{\{title\}\}/g, 'ANOINT ARRAY').replace(/\{\{year\}\}/g, String(new Date().getFullYear()));
 }
 
 export function getDefaultTemplates(): Templates {
@@ -131,7 +162,7 @@ export async function sendReceiptEmail(to: string, data: { customerName?: string
   };
 
   const subject = substitute(templates.receipt.subject, vars);
-  const html = substitute(templates.receipt.html, vars);
+  const html = await wrapHtml(substitute(templates.receipt.html, vars));
 
   try { await sendViaProvider({ from, to, subject, html }); } catch (e) { console.error('Failed to send receipt email:', e); }
 }
@@ -147,7 +178,7 @@ export async function sendAdminServiceOrderEmail(to: string | string[], data: {
   const from = process.env.EMAIL_FROM || 'noreply@anointarray.com';
 
   const sym = currencySymbol((data.currency || 'USD').toUpperCase());
-  const html = `
+  const inner = `
     <div style="font-family: Arial, sans-serif; color:#111">
       <h2>New Service Order (Pending Payment)</h2>
       <p><strong>Order ID:</strong> ${data.orderId}</p>
@@ -162,6 +193,7 @@ export async function sendAdminServiceOrderEmail(to: string | string[], data: {
       <p style="margin-top:16px">This is an automated notification so you can prepare scheduling. The payment provider will redirect the client to /success upon completion.</p>
     </div>
   `;
+  const html = await wrapHtml(inner);
 
   const attachments: any[] = [];
   try {
@@ -178,7 +210,7 @@ export async function sendAdminServiceOrderEmail(to: string | string[], data: {
 
 export async function sendPasswordResetEmail(to: string, args: { resetUrl: string }) {
   const from = process.env.EMAIL_FROM || 'noreply@anointarray.com';
-  const html = `
+  const inner = `
     <div style="font-family: Arial, sans-serif; color:#111">
       <h2>Password Reset Request</h2>
       <p>We received a request to reset your ANOINT Array password.</p>
@@ -187,6 +219,7 @@ export async function sendPasswordResetEmail(to: string, args: { resetUrl: strin
       <p>If you did not request this, you can safely ignore this email.</p>
     </div>
   `;
+  const html = await wrapHtml(inner);
   try { await sendViaProvider({ from, to, subject: 'Reset your ANOINT Array password', html }); }
   catch (e) { console.error('Failed to send password reset email:', e); }
 }
@@ -199,7 +232,7 @@ export async function sendSignupConfirmationEmail(to: string, args: { customerNa
     verifyUrl: args.verifyUrl || `${process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || ''}/auth/login`,
   } as any;
   const subject = substitute(templates.signup_confirmation.subject, vars);
-  const html = substitute(templates.signup_confirmation.html, vars);
+  const html = await wrapHtml(substitute(templates.signup_confirmation.html, vars));
   try { await sendViaProvider({ from, to, subject, html }); }
   catch (e) { console.error('Failed to send signup confirmation email:', e); }
 }
@@ -209,7 +242,7 @@ export async function sendNewsletterOptInEmail(to: string, args?: { customerName
   const templates = await loadTemplates();
   const vars = { customerName: args?.customerName || 'Friend' } as any;
   const subject = substitute(templates.newsletter_optin.subject, vars);
-  const html = substitute(templates.newsletter_optin.html, vars);
+  const html = await wrapHtml(substitute(templates.newsletter_optin.html, vars));
   try { await sendViaProvider({ from, to, subject, html }); }
   catch (e) { console.error('Failed to send newsletter opt-in email:', e); }
 }

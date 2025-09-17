@@ -672,6 +672,26 @@ function EmailTemplatesEditor() {
   );
 }
 
+function EmailThemeEditor() {
+  const [html, setHtml] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  useEffect(()=>{ (async()=>{ try { const r = await fetch('/api/admin/email/theme'); const j = await r.json(); if (r.ok) setHtml(j?.html || ''); } finally { setLoading(false); } })(); },[]);
+  const save = async () => { setSaving(true); try { const r = await fetch('/api/admin/email/theme', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ html }) }); const j = await r.json(); if (!r.ok) throw new Error(j?.error||'Save failed'); toast.success('Theme saved'); } catch(e:any){ toast.error(e?.message||'Save failed'); } finally { setSaving(false); } };
+  return (
+    <div className="bg-gray-800 rounded-lg p-6">
+      <h3 className="text-white font-semibold mb-2">Email Theme (HTML Wrapper)</h3>
+      <p className="text-gray-400 text-sm mb-3">HTML wrapper used for all emails. Use <code>{'{'}{'{'}content{'}'}{'}'}</code> placeholder where the email body should render.</p>
+      {loading ? <div className="text-gray-300">Loading theme…</div> : (
+        <>
+          <textarea rows={12} value={html} onChange={(e)=>setHtml(e.target.value)} className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white font-mono text-xs"/>
+          <div className="mt-3 flex justify-end"><button onClick={save} disabled={saving} className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded">{saving ? 'Saving…' : 'Save Theme'}</button></div>
+        </>
+      )}
+    </div>
+  );
+}
+
 function EmailStatusPanel() {
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState<any | null>(null);
