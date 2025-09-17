@@ -102,6 +102,23 @@ export default function FileManager() {
     }
   };
 
+  async function handleSyncGlyphs() {
+    try {
+      setSyncing(true);
+      const r = await fetch('/api/file-manager/supabase/sync-glyphs', { method: 'POST' });
+      const j = await r.json();
+      if (r.ok) {
+        toast.success(`Glyphs synced: ${j.uploaded} uploaded${j.failed?`, ${j.failed} failed`:''}`);
+      } else {
+        toast.error(j?.error || 'Glyph sync failed');
+      }
+    } catch (e) {
+      toast.error('Glyph sync failed');
+    } finally {
+      setSyncing(false);
+    }
+  }
+
   // One-time auto sync on first admin visit (per-browser) when Supabase is enabled
   useEffect(() => {
     const key = 'supabaseAutoSyncDone';
