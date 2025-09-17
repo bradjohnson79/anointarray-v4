@@ -358,6 +358,9 @@ export default function AdminSettingsPage() {
                             </ul>
                           </div>
                         )}
+                        {!s.ok && (
+                          <McpTokenEditor server={s} onSaved={()=>runMcpStatus()} />
+                        )}
                       </div>
                     ))}
                   </div>
@@ -841,6 +844,24 @@ function EmailProviderTests() {
         <button onClick={()=>send('receipt')} disabled={!!sending} className="px-3 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded text-sm">{sending==='receipt' ? 'Sending…' : 'Send Receipt Confirmation'}</button>
         <button onClick={()=>send('newsletter')} disabled={!!sending} className="px-3 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded text-sm">{sending==='newsletter' ? 'Sending…' : 'Send Newsletter Opt‑In'}</button>
       </div>
+    </div>
+  );
+}
+
+function McpTokenEditor({ server, onSaved }: { server: any; onSaved: () => void }) {
+  const [token, setToken] = useState('');
+  const [saving, setSaving] = useState(false);
+  const looksLikeMissing = Array.isArray(server?.issues) && server.issues.some((i: string) => /access token not set/i.test(i));
+  const looksInvalid = Array.isArray(server?.issues) && server.issues.some((i: string) => /may be invalid/i.test(i));
+  return (
+    <div className="mt-4 bg-gray-950 border border-gray-800 rounded p-3">
+      <div className="text-xs text-gray-400 mb-2">{looksLikeMissing ? 'Access token missing.' : looksInvalid ? 'Access token may be invalid.' : 'Provide/replace access token.'}</div>
+      <div className="flex items-center gap-2">
+        <input value={token} onChange={(e)=>setToken(e.target.value)} placeholder="Enter access token (e.g., sbp_..., vercel_pat_..., ghp_...)" className="flex-1 bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white text-sm"/>
+        <button disabled={saving || !token} onClick={async()=>{ setSaving(true); try { const r = await fetch('/api/admin/mcp/token', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: server.name, token }) }); const j = await r.json(); if (!r.ok) throw new Error(j?.error || 'Save failed'); toast.success('Token saved to config.toml'); setToken(''); onSaved(); } catch(e:any){ toast.error(e?.message || 'Save failed'); } finally { setSaving(false); } }} className="px-3 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded text-sm">{saving ? 'Saving…' : 'Save Token'}</button>
+        <button onClick={()=>onSaved()} className="px-3 py-2 bg-gray-800 hover:bg-gray-700 text-white rounded text-sm">Validate</button>
+      </div>
+      <div className="text-[11px] text-gray-500 mt-2">This writes the token into .codex/config.toml for the server [{server?.name}]. Restart your MCP host or Codex session to apply.</div>
     </div>
   );
 }
