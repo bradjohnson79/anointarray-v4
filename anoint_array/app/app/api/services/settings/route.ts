@@ -78,7 +78,7 @@ export async function POST(req: NextRequest) {
     } catch (e: any) {
       // Fallback to Vercel Blob
       try {
-        const res = await put('configs/service-settings.json', JSON.stringify(clean), { contentType: 'application/json', addRandomSuffix: false, access: 'private' });
+        const res = await put('configs/service-settings.json', JSON.stringify(clean), { contentType: 'application/json', addRandomSuffix: false });
         return NextResponse.json({ ok: true, saved: clean, storage: 'blob', url: res.url });
       } catch (be: any) {
         return NextResponse.json({ error: be?.message || e?.message || 'Failed to save' }, { status: 500 });

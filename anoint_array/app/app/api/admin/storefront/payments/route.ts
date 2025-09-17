@@ -71,7 +71,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true, storage: 'file' });
     } catch (e: any) {
       try {
-        const res = await put('configs/storefront-payments.json', JSON.stringify(payload), { contentType: 'application/json', addRandomSuffix: false, access: 'private' });
+        // Store a sanitized, non-secret snapshot in Blob (public readable) for read-only environments
+        const safe: any = {
+          stripe: { enabled: !!payload?.stripe?.enabled, testMode: !!payload?.stripe?.testMode },
+          paypal: { enabled: !!payload?.paypal?.enabled, testMode: !!payload?.paypal?.testMode },
+          nowPayments: { enabled: !!payload?.nowPayments?.enabled, testMode: !!payload?.nowPayments?.testMode },
+          pricing: { currency: String(payload?.pricing?.currency || 'USD').toUpperCase() },
+          lastUpdated: new Date().toISOString(),
+        };
+        const res = await put('configs/storefront-payments.json', JSON.stringify(safe), { contentType: 'application/json', addRandomSuffix: false });
         return NextResponse.json({ ok: true, storage: 'blob', url: res.url });
       } catch (be: any) {
         return NextResponse.json({ error: be?.message || e?.message || 'Failed to save configuration' }, { status: 500 });
