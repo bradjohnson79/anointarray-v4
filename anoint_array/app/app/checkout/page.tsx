@@ -118,10 +118,17 @@ export default function CheckoutPage() {
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
-      <h1 className="text-2xl font-bold text-white mb-6 flex items-center gap-2">
-        <ShoppingCart className="h-6 w-6 text-purple-400" />
-        Checkout
-      </h1>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-2xl font-bold text-white flex items-center gap-2">
+          <ShoppingCart className="h-6 w-6 text-purple-400" />
+          Checkout
+        </h1>
+        {session?.user?.email && (
+          <div className="text-xs md:text-sm text-gray-300 bg-gray-800 border border-gray-700 px-3 py-1 rounded">
+            Signed in as <span className="text-white font-medium">{session.user.email}</span>
+          </div>
+        )}
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left: Accordions */}

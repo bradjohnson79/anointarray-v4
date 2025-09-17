@@ -11,7 +11,10 @@ export async function POST(req: NextRequest) {
     if (!Array.isArray(items) || items.length === 0) return NextResponse.json({ error: 'No items' }, { status: 400 });
 
     const allPhysical = items.every((it: any) => it?.type === 'product' && !(it?.customData?.isDigital));
-    if (!allowGuest && !allPhysical) return NextResponse.json({ error: 'Guest checkout not allowed for digital items' }, { status: 400 });
+    const isLoggedIn = !!userId;
+    if (!allPhysical && !isLoggedIn && !allowGuest) {
+      return NextResponse.json({ error: 'Login required for digital items' }, { status: 400 });
+    }
 
     let subtotalUSD = items.reduce((s: number, it: any) => s + Number(it.price || 0) * Number(it.quantity || 1), 0);
     let taxUSD = 0;
@@ -81,4 +84,3 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: e?.message || 'Failed' }, { status: 500 });
   }
 }
-

@@ -18,7 +18,7 @@ export async function GET() {
     if ((!fileCfg || !Object.keys(fileCfg).length) && useSupabaseStorage()) {
       try {
         const supabase = createSupabaseServerClient();
-        const bucket = process.env.SUPABASE_CONFIGS_BUCKET || PRODUCT_IMAGES_BUCKET || 'Storage';
+        const bucket = process.env.SUPABASE_CONFIGS_BUCKET || 'configs' || PRODUCT_IMAGES_BUCKET || 'Storage';
         const { data, error } = await supabase.storage.from(bucket).download('configs/storefront-payments.json');
         if (!error && data) {
           let text = '';
@@ -86,7 +86,7 @@ export async function POST(req: NextRequest) {
           lastUpdated: new Date().toISOString(),
         };
         const supabase = createSupabaseServerClient();
-        const bucket = process.env.SUPABASE_CONFIGS_BUCKET || PRODUCT_IMAGES_BUCKET || 'Storage';
+        const bucket = process.env.SUPABASE_CONFIGS_BUCKET || 'configs' || PRODUCT_IMAGES_BUCKET || 'Storage';
         const blob = new Blob([JSON.stringify(safe)], { type: 'application/json' });
         const { error } = await supabase.storage.from(bucket).upload('configs/storefront-payments.json', blob, { upsert: true, contentType: 'application/json' });
         if (error) throw error;

@@ -32,7 +32,7 @@ async function readSettings(): Promise<ServiceSettings> {
     try {
       if (useSupabaseStorage()) {
         const supabase = createSupabaseServerClient();
-        const bucket = process.env.SUPABASE_CONFIGS_BUCKET || PRODUCT_IMAGES_BUCKET || 'Storage';
+        const bucket = process.env.SUPABASE_CONFIGS_BUCKET || 'configs' || PRODUCT_IMAGES_BUCKET || 'Storage';
         const { data, error } = await supabase.storage.from(bucket).download('configs/service-settings.json');
         if (!error && data) {
           let text: string = '';
@@ -85,7 +85,7 @@ export async function POST(req: NextRequest) {
       try {
         if (!useSupabaseStorage()) throw new Error('Supabase storage not configured');
         const supabase = createSupabaseServerClient();
-        const bucket = process.env.SUPABASE_CONFIGS_BUCKET || PRODUCT_IMAGES_BUCKET || 'Storage';
+        const bucket = process.env.SUPABASE_CONFIGS_BUCKET || 'configs' || PRODUCT_IMAGES_BUCKET || 'Storage';
         const blob = new Blob([JSON.stringify(clean)], { type: 'application/json' });
         const { error } = await supabase.storage.from(bucket).upload('configs/service-settings.json', blob, { upsert: true, contentType: 'application/json' });
         if (error) throw error;

@@ -15,4 +15,5 @@ export function createSupabaseServerClient(): SupabaseClient {
 }
 
 export const PRODUCT_IMAGES_BUCKET = process.env.SUPABASE_PRODUCT_IMAGES_BUCKET || 'product-images';
-
+export const CONFIGS_BUCKET = process.env.SUPABASE_CONFIGS_BUCKET || 'configs';
+export const GLYPHS_BUCKET = process.env.SUPABASE_GLYPHS_BUCKET || 'glyphs';

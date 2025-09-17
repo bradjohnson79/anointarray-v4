@@ -1,5 +1,6 @@
 import path from 'path';
 import fs from 'fs/promises';
+import { createSupabaseServerClient, useSupabaseStorage } from '@/lib/supabase-server';
 import { createCanvas, loadImage, Image, Canvas } from '@napi-rs/canvas';
 
 interface RingElement {
@@ -139,12 +140,33 @@ export class SealRendererServer {
     for (const filename of glyphFilenames) {
       if (!filename || this.glyphImages[filename]) continue;
       const p = await resolveGlyphPath(filename);
-      if (!p) continue;
-      try {
-        const img = await loadImage(p);
-        this.glyphImages[filename] = img as unknown as Image;
-      } catch {
-        // skip
+      if (p) {
+        try { const img = await loadImage(p); this.glyphImages[filename] = img as unknown as Image; continue; } catch {}
+      }
+      if (useSupabaseStorage()) {
+        try {
+          const supabase = createSupabaseServerClient();
+          const bucket = process.env.SUPABASE_GLYPHS_BUCKET || 'glyphs';
+          const candidates = [filename, `glyphs/${filename}`];
+          for (const key of candidates) {
+            const { data, error } = await supabase.storage.from(bucket).download(key);
+            if (!error && data) {
+              let buf: Buffer | null = null;
+              if (typeof (data as any).arrayBuffer === 'function') {
+                const ab = await (data as any).arrayBuffer();
+                buf = Buffer.from(ab);
+              } else if (typeof (data as any).text === 'function') {
+                const text = await (data as any).text();
+                buf = Buffer.from(text, 'utf8');
+              }
+              if (buf) {
+                const img = await loadImage(buf);
+                this.glyphImages[filename] = img as unknown as Image;
+                break;
+              }
+            }
+          }
+        } catch {}
       }
     }
   }

@@ -204,12 +204,24 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     if (Array.isArray(variants)) {
       await prisma.$transaction([
         prisma.productVariant.deleteMany({ where: { productId: params.id } }),
-        prisma.productVariant.createMany({
-          data: variants
+        (async () => {
+          function genSku(n: string, s?: string) {
+            const base = (n || 'SKU').toUpperCase().replace(/[^A-Z0-9]+/g, '').slice(0, 8);
+            const sty = (s || 'DEFAULT').toUpperCase().replace(/[^A-Z0-9]+/g, '').slice(0, 6);
+            const rand = Math.random().toString(36).toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4);
+            return [base, sty, rand].filter(Boolean).join('-');
+          }
+          const data = variants
             .filter((v: any) => v && v.style && v.price != null)
-            .map((v: any) => ({ productId: params.id, style: String(v.style), price: v.price, quantity: Number(v.quantity || 0), sku: v.sku || null })),
-          skipDuplicates: true,
-        }),
+            .map((v: any) => ({
+              productId: params.id,
+              style: String(v.style),
+              price: v.price,
+              quantity: Number(v.quantity || 0),
+              sku: (v.sku && String(v.sku).trim()) ? String(v.sku).trim() : genSku(name || '' , v.style),
+            }));
+          return prisma.productVariant.createMany({ data, skipDuplicates: true });
+        })(),
       ]);
     }
 

@@ -1,6 +1,7 @@
 
 import { Suspense } from 'react';
 import ProductGrid from './product-grid';
+import ProductCarousel from './product-carousel';
 import EnergyRibbons from './energy-ribbons';
 
 export default async function ProductsSection() {
@@ -33,7 +34,12 @@ export default async function ProductsSection() {
             ))}
           </div>
         }>
-          <ProductGrid />
+          <div className="hidden lg:block">
+            <ProductCarousel />
+          </div>
+          <div className="lg:hidden">
+            <ProductGrid />
+          </div>
         </Suspense>
       </div>
     </section>

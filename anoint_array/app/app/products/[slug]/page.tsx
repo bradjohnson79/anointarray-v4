@@ -71,6 +71,8 @@ export default function ProductDetailPage() {
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [quantity, setQuantity] = useState(1);
   const [variantId, setVariantId] = useState<string | null>(null);
+  const [multiOpen, setMultiOpen] = useState<boolean>(false);
+  const [multiQty, setMultiQty] = useState<Record<string, number>>({});
 
   useEffect(() => {
     if (params.slug) {
@@ -121,6 +123,26 @@ export default function ProductDetailPage() {
     });
 
     toast.success(`Added ${quantity} ${selectedVariant ? selectedVariant.style + ' — ' : ''}${product.name} to cart`);
+  };
+
+  const handleAddMultiple = () => {
+    if (!product || !Array.isArray(product.variants) || product.variants.length === 0) return;
+    const items = product.variants
+      .map(v => ({ v, q: Number(multiQty[v.id] || 0) }))
+      .filter(x => x.q > 0)
+      .map(x => ({
+        id: `${product.id}:${x.v.id}`,
+        name: `${product.name} — ${x.v.style}`,
+        price: x.v.price,
+        quantity: Math.min(x.q, x.v.quantity ?? x.q),
+        type: 'product' as const,
+        imageUrl: product.imageUrl,
+        category: product.category,
+        customData: { isPhysical: product.isPhysical, isDigital: product.isDigital, variantId: x.v.id, variantStyle: x.v.style },
+      }));
+    if (items.length === 0) { toast.error('Select quantities for one or more variants'); return; }
+    // @ts-ignore
+    (usePayment() as any)?.addManyToCart(items);
   };
 
   const getCategoryColor = (category: string) => {
@@ -519,6 +541,34 @@ export default function ProductDetailPage() {
                         </select>
                         {variantId && (
                           <div className="text-xs text-gray-400 mt-1">In stock: {available}</div>
+                        )}
+                      </div>
+                    )}
+                    {/* Variant Selector (single and multi) */}
+                    {Array.isArray(product.variants) && product.variants.length > 0 && (
+                      <div className="space-y-2">
+                        <label className="block text-gray-300 font-medium">Choose an option:</label>
+                        <select value={variantId || ''} onChange={(e)=>{ setVariantId(e.target.value || null); setQuantity(1); }} className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white">
+                          <option value="">Select a variant…</option>
+                          {product.variants.map(v => (
+                            <option key={v.id} value={v.id}>{v.style} — ${v.price.toFixed(2)} ({v.quantity} in stock)</option>
+                          ))}
+                        </select>
+                        <button onClick={()=>setMultiOpen((s)=>!s)} className="text-xs text-purple-300 underline">{multiOpen ? 'Hide' : 'Select multiple variants'}</button>
+                        {multiOpen && (
+                          <div className="mt-2 border border-gray-700 rounded p-2 max-h-60 overflow-auto">
+                            {product.variants.map(v => (
+                              <div key={v.id} className="flex items-center justify-between py-1">
+                                <div className="text-sm text-gray-200">{v.style} — ${v.price.toFixed(2)} <span className="text-xs text-gray-400">({v.quantity} in stock)</span></div>
+                                <div className="flex items-center border border-gray-600 rounded">
+                                  <button onClick={()=>setMultiQty(q=>({ ...q, [v.id]: Math.max(0, (q[v.id]||0)-1) }))} className="px-2 text-gray-400 hover:text-white">-</button>
+                                  <span className="px-3 text-white">{multiQty[v.id]||0}</span>
+                                  <button onClick={()=>setMultiQty(q=>({ ...q, [v.id]: Math.min((v.quantity ?? Infinity), (q[v.id]||0)+1) }))} className="px-2 text-gray-400 hover:text-white">+</button>
+                                </div>
+                              </div>
+                            ))}
+                            <button onClick={handleAddMultiple} className="mt-2 px-3 py-2 rounded bg-gray-800 hover:bg-gray-700 text-white text-sm">Add Selected Variants</button>
+                          </div>
                         )}
                       </div>
                     )}

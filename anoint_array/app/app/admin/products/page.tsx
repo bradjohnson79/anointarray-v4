@@ -76,6 +76,7 @@ export default function ProductManagementPage() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [skuFixing, setSkuFixing] = useState(false);
 
   const categories = ['ALL', 'healing-cards', 'crystals', 'jewelry', 'technology', 'meditation', 'oils', 'clothing'];
 
@@ -177,9 +178,22 @@ export default function ProductManagementPage() {
 
   const handlePreviewProduct = (product: Product) => {
     // Open product in a new window for preview
-    const previewUrl = `/products/${product.slug || product.id}`;
+      const previewUrl = `/products/${product.slug || product.id}`;
     window.open(previewUrl, '_blank', 'width=1200,height=800,scrollbars=yes,resizable=yes');
   };
+
+  async function fixSkus() {
+    setSkuFixing(true);
+    try {
+      const r = await fetch('/api/admin/products/sku/repair', { method: 'POST' });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j?.error || 'SKU repair failed');
+      toast.success(`SKUs updated: ${j?.updated || 0}`);
+      await fetchProducts();
+    } catch (e: any) {
+      toast.error(e?.message || 'SKU repair failed');
+    } finally { setSkuFixing(false); }
+  }
 
   const handleSaveProduct = async (productData: Partial<Product>) => {
     if (!editingProduct) return;
@@ -552,11 +566,30 @@ export default function ProductManagementPage() {
               <div className="text-sm text-gray-400">
                 Total Products: <span className="text-white font-semibold">{products.length}</span>
               </div>
-              {products.some(p => ['Harmonic Seal – Vitality', 'Clarity Seal – Insight', 'Guardian Array – Protection'].includes(p.name)) && (
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={removeSampleProducts}
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={async()=>{ try { const r = await fetch('/api/admin/products/sort/normalize', { method: 'POST' }); const j = await r.json(); if (!r.ok) throw new Error(j?.error || 'Resequence failed'); toast.success(`Order set for ${j?.count || 0} products`); await fetchProducts(); } catch(e:any){ toast.error(e?.message || 'Resequence failed'); } }}
+                className="flex items-center space-x-2 bg-gray-800 text-gray-200 border border-gray-700 px-3 py-2 rounded-lg hover:bg-gray-700"
+              >
+                <RefreshCw className="h-4 w-4" />
+                <span>Resequence Order</span>
+              </motion.button>
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={fixSkus}
+              disabled={skuFixing}
+              className="flex items-center space-x-2 bg-gray-800 text-gray-200 border border-gray-700 px-3 py-2 rounded-lg hover:bg-gray-700 disabled:opacity-60"
+            >
+              <RefreshCw className={`h-4 w-4 ${skuFixing ? 'animate-spin' : ''}`} />
+              <span>{skuFixing ? 'Fixing SKUs…' : 'Generate/Fix SKUs'}</span>
+            </motion.button>
+            {products.some(p => ['Harmonic Seal – Vitality', 'Clarity Seal – Insight', 'Guardian Array – Protection'].includes(p.name)) && (
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={removeSampleProducts}
                   className="flex items-center space-x-2 bg-red-700/30 text-red-300 border border-red-600/30 px-3 py-2 rounded-lg hover:bg-red-700/40"
                 >
                   <Trash2 className="h-4 w-4" />

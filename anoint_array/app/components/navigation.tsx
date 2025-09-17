@@ -42,8 +42,21 @@ export default function Navigation() {
     const element = document.querySelector(href);
     if (element) {
       element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } else {
+      window.location.href = '/' + href;
     }
   };
+
+  // Set a simple login cookie for UX features (not auth)
+  useEffect(() => {
+    try {
+      if (session?.user?.id) {
+        document.cookie = `aa_logged_in=1; path=/; SameSite=Lax; max-age=${60*60*24*30}`;
+      } else {
+        document.cookie = 'aa_logged_in=; path=/; SameSite=Lax; max-age=0';
+      }
+    } catch {}
+  }, [session?.user?.id]);
 
   const handleSignOut = async () => {
     setIsUserMenuOpen(false);

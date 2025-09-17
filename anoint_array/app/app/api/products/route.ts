@@ -248,21 +248,28 @@ async function postHandler(request: NextRequest) {
     if (dcv != null && toNumber(dcv) !== undefined) (productData as any).defaultCustomsValueCad = toNumber(dcv);
     if (mgrams != null && toNumber(mgrams) !== undefined) (productData as any).massGrams = toNumber(mgrams);
 
+    function genSku(name: string, style?: string) {
+      const base = (name || 'SKU').toUpperCase().replace(/[^A-Z0-9]+/g, '').slice(0, 8);
+      const sty = (style || 'DEFAULT').toUpperCase().replace(/[^A-Z0-9]+/g, '').slice(0, 6);
+      const rand = Math.random().toString(36).toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4);
+      return [base, sty, rand].filter(Boolean).join('-');
+    }
+
+    const createVariants = Array.isArray(variants) && variants.length > 0
+      ? variants
+          .filter((v: any) => v && String(v.style || '').trim() && toNumber(v.price) !== undefined)
+          .map((v: any) => ({
+            style: String(v.style).trim(),
+            price: toNumber(v.price),
+            quantity: Number.isFinite(Number(v.quantity)) ? parseInt(String(v.quantity), 10) : 0,
+            sku: v.sku && String(v.sku).trim() ? String(v.sku).trim() : genSku(name, v.style),
+          }))
+      : [{ style: 'Default', price: toNumber(price), quantity: toNumber(inventory) ?? 0, sku: genSku(name, 'DEFAULT') }];
+
     const product = await prisma.product.create({
       data: {
         ...productData,
-        ...(Array.isArray(variants) && variants.length > 0 ? {
-          variants: {
-            create: variants
-              .filter((v: any) => v && String(v.style || '').trim() && toNumber(v.price) !== undefined)
-              .map((v: any) => ({
-                style: String(v.style).trim(),
-                price: toNumber(v.price),
-                quantity: Number.isFinite(Number(v.quantity)) ? parseInt(String(v.quantity), 10) : 0,
-                sku: v.sku && String(v.sku).trim() ? String(v.sku).trim() : null,
-              }))
-          }
-        } : {}),
+        variants: { create: createVariants },
       },
       select: {
         id: true,

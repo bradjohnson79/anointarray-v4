@@ -165,6 +165,7 @@ const PaymentContext = createContext<{
   setShippingAddress: (address: AddressInfo) => void;
   setBillingAddress: (address: AddressInfo) => void;
   setBillingSameAsShipping: (value: boolean) => void;
+  addManyToCart: (items: CartItem[]) => void;
 } | null>(null);
 
 export function PaymentProvider({ children }: { children: React.ReactNode }) {
@@ -228,6 +229,14 @@ export function PaymentProvider({ children }: { children: React.ReactNode }) {
     toast.success(`${item.name} added to cart!`);
   };
 
+  const addManyToCart = (items: CartItem[]) => {
+    const valid = (items || []).filter((it) => it && it.quantity > 0);
+    if (valid.length === 0) return;
+    valid.forEach((it) => dispatch({ type: 'ADD_TO_CART', item: it }));
+    const count = valid.reduce((s, it) => s + (it.quantity || 0), 0);
+    toast.success(`Added ${count} item(s) to cart`);
+  };
+
   const removeFromCart = (id: string) => {
     const item = state.cart.find(item => item.id === id);
     dispatch({ type: 'REMOVE_FROM_CART', id });
@@ -285,6 +294,7 @@ export function PaymentProvider({ children }: { children: React.ReactNode }) {
     <PaymentContext.Provider value={{
       state,
       addToCart,
+      addManyToCart,
       removeFromCart,
       updateQuantity,
       clearCart,

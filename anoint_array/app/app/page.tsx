@@ -11,6 +11,7 @@ import TestimonialsSection from '@/components/testimonials-section';
 import ContactSection from '@/components/contact-section';
 import Footer from '@/components/footer';
 import ChatbotWidget from '@/components/chatbot-widget';
+import CookieBanner from '@/components/cookie-banner';
 
 export default function HomePage() {
   return (
@@ -30,6 +31,7 @@ export default function HomePage() {
       
       <Footer />
       <ChatbotWidget />
+      <CookieBanner />
     </main>
   );
 }

@@ -540,8 +540,17 @@ export default function FileManager() {
           )}
         </div>
 
-        {/* Image Gallery */}
-        <div className="bg-gray-800 rounded-lg p-6">
+      {/* Glyphs */}
+      <div className="bg-gray-800 rounded-lg p-6">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-xl font-semibold text-white flex items-center"><Folder className="h-5 w-5 mr-2"/>Glyphs</h2>
+          <button onClick={handleSyncGlyphs} disabled={syncing} className="bg-green-700 hover:bg-green-600 disabled:opacity-50 text-white px-3 py-2 rounded-lg transition-colors duration-200">{syncing ? 'Syncing…' : 'Sync Glyphs to Supabase'}</button>
+        </div>
+        <p className="text-sm text-gray-300">Uploads local glyph images from <code>uploads/glyphs</code>, <code>public/glyphs</code>, or <code>data/ai-resources/glyphs</code> to your Supabase bucket.</p>
+      </div>
+
+      {/* Image Gallery */}
+      <div className="bg-gray-800 rounded-lg p-6">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-xl font-semibold text-white flex items-center">
               <Folder className="h-5 w-5 mr-2" />
