@@ -7,6 +7,7 @@ type Templates = {
   newsletter_optin: Template;
   vip_waitlist: Template;
   support_reply: Template;
+  signup_confirmation: Template;
 };
 
 import fs from 'fs/promises';
@@ -79,6 +80,16 @@ export function getDefaultTemplates(): Templates {
           <p>We appreciate your support of ANOINT Array.</p>
         </div>
       `
+    },
+    signup_confirmation: {
+      subject: 'Welcome to ANOINT Array — Confirm your email',
+      html: `<div style="font-family: Arial, sans-serif; color:#111">
+        <h2>Welcome{customerName ? `, {customerName}` : ''}!</h2>
+        <p>Thanks for creating an account at ANOINT Array.</p>
+        <p style="margin:18px 0">Please confirm your email to activate your account.</p>
+        <p style="margin:20px 0"><a href="{verifyUrl}" style="background:#6d28d9;color:#fff;padding:10px 16px;border-radius:8px;text-decoration:none">Confirm Email</a></p>
+        <p>If the button doesn’t work, copy and paste this URL into your browser:<br/>{verifyUrl}</p>
+      </div>`
     },
     newsletter_optin: {
       subject: 'Welcome to ANOINT Array Updates',
@@ -178,4 +189,27 @@ export async function sendPasswordResetEmail(to: string, args: { resetUrl: strin
   `;
   try { await sendViaProvider({ from, to, subject: 'Reset your ANOINT Array password', html }); }
   catch (e) { console.error('Failed to send password reset email:', e); }
+}
+
+export async function sendSignupConfirmationEmail(to: string, args: { customerName?: string; verifyUrl?: string }) {
+  const from = process.env.EMAIL_FROM || 'noreply@anointarray.com';
+  const templates = await loadTemplates();
+  const vars = {
+    customerName: args.customerName || 'Friend',
+    verifyUrl: args.verifyUrl || `${process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || ''}/auth/login`,
+  } as any;
+  const subject = substitute(templates.signup_confirmation.subject, vars);
+  const html = substitute(templates.signup_confirmation.html, vars);
+  try { await sendViaProvider({ from, to, subject, html }); }
+  catch (e) { console.error('Failed to send signup confirmation email:', e); }
+}
+
+export async function sendNewsletterOptInEmail(to: string, args?: { customerName?: string }) {
+  const from = process.env.EMAIL_FROM || 'noreply@anointarray.com';
+  const templates = await loadTemplates();
+  const vars = { customerName: args?.customerName || 'Friend' } as any;
+  const subject = substitute(templates.newsletter_optin.subject, vars);
+  const html = substitute(templates.newsletter_optin.html, vars);
+  try { await sendViaProvider({ from, to, subject, html }); }
+  catch (e) { console.error('Failed to send newsletter opt-in email:', e); }
 }

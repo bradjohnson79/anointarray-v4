@@ -617,6 +617,7 @@ export default function AdminSettingsPage() {
           </TabsContent>
           <TabsContent value="emails" className="mt-4 space-y-4">
             <EmailStatusPanel />
+            <EmailProviderTests />
             <EmailTemplatesEditor />
           </TabsContent>
         </Tabs>
@@ -803,6 +804,43 @@ function EmailStatusPanel() {
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+function EmailProviderTests() {
+  const [sending, setSending] = useState<string | null>(null);
+  const [to, setTo] = useState('info@anoint.me');
+  const send = async (type: 'signup' | 'receipt' | 'newsletter') => {
+    setSending(type);
+    try {
+      const r = await fetch('/api/admin/email/test', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ to, type }) });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j?.error || 'Send failed');
+      toast.success(`Test (${type}) sent to ${j?.to || to}`);
+    } catch (e: any) {
+      toast.error(e?.message || 'Send failed');
+    } finally {
+      setSending(null);
+    }
+  };
+  return (
+    <div className="mystical-card p-6 rounded-lg">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-xl font-semibold text-white">Email Tests (Postmark)</h3>
+      </div>
+      <div className="grid md:grid-cols-3 gap-3">
+        <div className="md:col-span-2">
+          <label className="block text-sm text-gray-300 mb-1">Recipient</label>
+          <input value={to} onChange={(e)=>setTo(e.target.value)} className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white" placeholder="info@anoint.me"/>
+          <p className="text-xs text-gray-500 mt-1">Use a verified sender/recipient while Postmark approves your account.</p>
+        </div>
+      </div>
+      <div className="mt-4 flex flex-wrap gap-2">
+        <button onClick={()=>send('signup')} disabled={!!sending} className="px-3 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded text-sm">{sending==='signup' ? 'Sending…' : 'Send Signup Confirmation'}</button>
+        <button onClick={()=>send('receipt')} disabled={!!sending} className="px-3 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded text-sm">{sending==='receipt' ? 'Sending…' : 'Send Receipt Confirmation'}</button>
+        <button onClick={()=>send('newsletter')} disabled={!!sending} className="px-3 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded text-sm">{sending==='newsletter' ? 'Sending…' : 'Send Newsletter Opt‑In'}</button>
+      </div>
     </div>
   );
 }
