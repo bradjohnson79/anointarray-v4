@@ -138,6 +138,22 @@ export async function POST(request: Request) {
               shippingAddress,
             }));
           });
+          // Copy these two recipients for service orders
+          try {
+            const productType = String((session.metadata as any)?.product_type || '').toLowerCase();
+            if (productType === 'service') {
+              ['bradjohnson79@gmail.com','info@anoint.me'].forEach((addr)=>{
+                sends.push(sendReceiptEmail(addr, {
+                  customerName: session.customer_details?.name || 'Customer',
+                  orderNumber: `STRIPE_${session.id}`,
+                  items,
+                  total,
+                  currency,
+                  shippingAddress,
+                }));
+              });
+            }
+          } catch {}
           await Promise.allSettled(sends);
         } catch (e) {
           console.warn('Receipt email failed (stripe):', e);

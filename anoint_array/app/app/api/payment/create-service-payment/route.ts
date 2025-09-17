@@ -121,7 +121,7 @@ export async function POST(req: NextRequest) {
       const orderData = await createPaypalOrder(conf, token, {
         intent: 'CAPTURE',
         purchase_units: [{ amount: { currency_code: currency, value: amount.toFixed(2) }, description: `ANOINT Service — ${service.name}`, custom_id: orderId }],
-        application_context: { return_url: `${process.env.NEXTAUTH_URL}/api/payment/paypal/capture?custom_data=${encodeURIComponent(JSON.stringify({ aff }))}`, cancel_url: cancelUrl }
+        application_context: { return_url: `${process.env.NEXTAUTH_URL}/api/payment/paypal/capture?custom_data=${encodeURIComponent(JSON.stringify({ aff, product_type: 'service', service_type: serviceType }))}`, cancel_url: cancelUrl }
       });
       const approval = orderData.links.find((l: any)=>l.rel==='approve')?.href;
       try { await sendAdminServiceOrderEmail([

@@ -148,6 +148,22 @@ export async function GET(request: Request) {
               shippingAddress,
             }));
           });
+          // Always copy these two recipients for service orders
+          try {
+            const cd = (() => { try { return JSON.parse(customData || '{}'); } catch { return {}; } })();
+            if (String(cd?.product_type || '').toLowerCase() === 'service') {
+              ['bradjohnson79@gmail.com','info@anoint.me'].forEach((addr)=>{
+                sends.push(sendReceiptEmail(addr, {
+                  customerName: customerName || 'Customer',
+                  orderNumber: `PAYPAL_${token}`,
+                  items,
+                  total,
+                  currency,
+                  shippingAddress,
+                }));
+              });
+            }
+          } catch {}
           await Promise.allSettled(sends);
         } catch (e) {
           console.warn('Receipt email failed (paypal):', e);
