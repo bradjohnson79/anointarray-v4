@@ -9,6 +9,23 @@ const PAYMENTS_CONFIG_PATH = path.join(process.cwd(), 'data', 'payments-config.j
 
 type ServiceType = 'basic' | 'full' | 'environmental';
 
+type ServiceSettings = Record<ServiceType, { price: number; description: string }>;
+const SERVICE_SETTINGS_FILE = path.join(process.cwd(), 'data', 'service-settings.json');
+
+async function readServiceSettings(): Promise<ServiceSettings | null> {
+  try {
+    const raw = await fs.readFile(SERVICE_SETTINGS_FILE, 'utf8');
+    const parsed = JSON.parse(raw);
+    return {
+      basic: { price: Number(parsed?.basic?.price ?? 35), description: String(parsed?.basic?.description ?? 'Scalar + Transcendental Frequencies (personal/environmental)') },
+      full: { price: Number(parsed?.full?.price ?? 98), description: String(parsed?.full?.description ?? 'Body scan + imbuing of up to 3 items') },
+      environmental: { price: Number(parsed?.environmental?.price ?? 143), description: String(parsed?.environmental?.description ?? 'Body scan + full-room environmental imbuing') },
+    };
+  } catch {
+    return null;
+  }
+}
+
 async function loadPaymentConfiguration(): Promise<any | null> {
   try {
     const configData = await fs.readFile(PAYMENTS_CONFIG_PATH, 'utf-8');
@@ -27,23 +44,22 @@ async function loadPaymentConfiguration(): Promise<any | null> {
   }
 }
 
-function getServiceDetails(serviceType: ServiceType) {
-  switch (serviceType) {
-    case 'basic':
-      return { name: 'Basic Service', price: 35, description: 'Scalar + Transcendental Frequencies (personal/environmental)' };
-    case 'full':
-      return { name: 'Full Body Scan Service', price: 98, description: 'Body scan + imbuing of up to 3 items' };
-    case 'environmental':
-      return { name: 'Environmental Service', price: 143, description: 'Body scan + full-room environmental imbuing' };
-    default:
-      return { name: 'Service', price: 35, description: 'ANOINT Service' };
-  }
+function getServiceDetails(serviceType: ServiceType, settings: ServiceSettings | null) {
+  const map: Record<ServiceType, { name: string; price: number; description: string }> = {
+    basic: { name: 'Basic Service', price: 35, description: 'Scalar + Transcendental Frequencies (personal/environmental)' },
+    full: { name: 'Full Body Scan Service', price: 98, description: 'Body scan + imbuing of up to 3 items' },
+    environmental: { name: 'Environmental Service', price: 143, description: 'Body scan + full-room environmental imbuing' },
+  };
+  const base = map[serviceType];
+  const s = settings?.[serviceType];
+  return { name: base.name, price: s?.price ?? base.price, description: s?.description || base.description };
 }
 
 export async function POST(req: NextRequest) {
   try {
     const { paymentMethod, serviceType, customer, photoData } = await req.json();
-    const service = getServiceDetails(serviceType);
+    const svcSettings = await readServiceSettings();
+    const service = getServiceDetails(serviceType, svcSettings);
     const paymentConfig = await loadPaymentConfiguration();
     if (!paymentConfig) return NextResponse.json({ error: 'Payments not configured' }, { status: 500 });
 
@@ -91,7 +107,10 @@ export async function POST(req: NextRequest) {
       });
       const data = await createStripeCheckoutSession(conf, params);
       // Notify admin
-      try { await sendAdminServiceOrderEmail(process.env.ADMIN_EMAIL || process.env.EMAIL_FROM || '', { orderId, serviceName: service.name, price: amount, currency, customer, photoData }); } catch {}
+      try { await sendAdminServiceOrderEmail([
+        'bradjohnson79@gmail.com',
+        'info@anoint.me',
+      ], { orderId, serviceName: service.name, price: amount, currency, customer, photoData }); } catch {}
       return NextResponse.json({ success: true, checkoutUrl: data.url, orderId });
     }
 
@@ -105,7 +124,10 @@ export async function POST(req: NextRequest) {
         application_context: { return_url: `${process.env.NEXTAUTH_URL}/api/payment/paypal/capture?custom_data=${encodeURIComponent(JSON.stringify({ aff }))}`, cancel_url: cancelUrl }
       });
       const approval = orderData.links.find((l: any)=>l.rel==='approve')?.href;
-      try { await sendAdminServiceOrderEmail(process.env.ADMIN_EMAIL || process.env.EMAIL_FROM || '', { orderId, serviceName: service.name, price: amount, currency, customer, photoData }); } catch {}
+      try { await sendAdminServiceOrderEmail([
+        'bradjohnson79@gmail.com',
+        'info@anoint.me',
+      ], { orderId, serviceName: service.name, price: amount, currency, customer, photoData }); } catch {}
       return NextResponse.json({ success: true, paypalUrl: approval, orderId });
     }
 

@@ -9,7 +9,7 @@ import { Wand2, Activity, Home, Upload, CreditCard, DollarSign } from 'lucide-re
 
 type ServiceType = 'basic' | 'full' | 'environmental';
 
-const SERVICE_INFO: Record<ServiceType, { title: string; price: number; description: string; icon: any } > = {
+const DEFAULT_SERVICE_INFO: Record<ServiceType, { title: string; price: number; description: string; icon: any } > = {
   basic: { title: 'Basic Service', price: 35, description: 'Scalar and Transcendental Frequencies for personal and environmental rejuvenation.', icon: Wand2 },
   full: { title: 'Full Body Scan Service', price: 98, description: 'Scan of major organs and subtle bodies + imbuing of up to 3 items.', icon: Activity },
   environmental: { title: 'Environmental Service', price: 143, description: 'Full Body Scan + environmental imbuing of an entire room.', icon: Home },
@@ -23,6 +23,7 @@ export default function ServicesPage() {
   const [notes, setNotes] = useState('');
   const [photoData, setPhotoData] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [settings, setSettings] = useState<any | null>(null);
 
   const pickFile = async (file: File | null) => {
     if (!file) return setPhotoData('');
@@ -63,7 +64,7 @@ export default function ServicesPage() {
       if (!res.ok) throw new Error('Payment init failed');
       const data = await res.json();
       try {
-        localStorage.setItem('anoint:lastCheckout', JSON.stringify({ number: data.orderId || `service_${Date.now()}`, total: SERVICE_INFO[service].price }));
+        localStorage.setItem('anoint:lastCheckout', JSON.stringify({ number: data.orderId || `service_${Date.now()}`, total: effectiveInfo(service).price }));
       } catch {}
       if (data.checkoutUrl) {
         window.open(data.checkoutUrl, '_blank');
@@ -81,7 +82,16 @@ export default function ServicesPage() {
     }
   };
 
-  const InfoIcon = SERVICE_INFO[service].icon;
+  const serviceInfo = (Object.keys(DEFAULT_SERVICE_INFO) as ServiceType[]).reduce((acc, k) => {
+    const def = DEFAULT_SERVICE_INFO[k];
+    const override = settings?.[k] || {};
+    acc[k] = { ...def, price: typeof override.price === 'number' ? override.price : def.price, description: override.description || def.description };
+    return acc;
+  }, {} as Record<ServiceType, { title: string; price: number; description: string; icon: any }>);
+
+  function effectiveInfo(t: ServiceType) { return serviceInfo[t] || DEFAULT_SERVICE_INFO[t]; }
+
+  const InfoIcon = effectiveInfo(service).icon;
   const formRef = useRef<HTMLDivElement | null>(null);
 
   // Preselect service from query and optionally scroll to form
@@ -96,6 +106,10 @@ export default function ServicesPage() {
         setTimeout(() => formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 200);
       }
     } catch {}
+    // Load service settings (prices/descriptions)
+    (async () => {
+      try { const r = await fetch('/api/services/settings'); if (r.ok) setSettings(await r.json()); } catch {}
+    })();
   }, []);
 
   return (
@@ -111,8 +125,8 @@ export default function ServicesPage() {
         </motion.div>
 
         <div className="grid md:grid-cols-3 gap-6 mb-8">
-          {(Object.keys(SERVICE_INFO) as ServiceType[]).map((key) => {
-            const s = SERVICE_INFO[key];
+          {(Object.keys(serviceInfo) as ServiceType[]).map((key) => {
+            const s = effectiveInfo(key);
             const Selected = s.icon;
             const active = key === service;
             return (
@@ -126,10 +140,26 @@ export default function ServicesPage() {
                   <div className="text-lg font-semibold">{s.title}</div>
                 </div>
                 <div className="text-sm text-gray-300 mb-2">{s.description}</div>
-                <div className="text-xl font-bold aurora-text">${'{'}s.price.toFixed(0){'}'}</div>
+                <div className="text-xl font-bold aurora-text">${s.price.toFixed(0)}</div>
               </button>
             );
           })}
+        </div>
+
+        {/* Selected service details card */}
+        <div className="mystical-card p-5 rounded-xl border border-gray-700/60 mb-8">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <InfoIcon className="h-6 w-6 text-purple-300" />
+              <div>
+                <div className="text-lg font-semibold">{effectiveInfo(service).title}</div>
+                <div className="text-sm text-gray-300">${effectiveInfo(service).price.toFixed(0)} — Selected</div>
+              </div>
+            </div>
+          </div>
+          <div className="mt-3 text-gray-200 text-sm whitespace-pre-wrap">
+            {effectiveInfo(service).description}
+          </div>
         </div>
 
         <div ref={formRef} id="form" className="mystical-card p-6 rounded-xl border border-gray-700/60">

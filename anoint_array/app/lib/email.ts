@@ -95,7 +95,7 @@ export async function sendReceiptEmail(to: string, data: { customerName?: string
   }
 }
 
-export async function sendAdminServiceOrderEmail(to: string, data: {
+export async function sendAdminServiceOrderEmail(to: string | string[], data: {
   orderId: string;
   serviceName: string;
   price: number;
