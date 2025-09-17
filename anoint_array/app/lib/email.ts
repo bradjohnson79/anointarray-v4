@@ -14,6 +14,46 @@ import path from 'path';
 
 const TPL_PATH = path.join(process.cwd(), 'data', 'email-templates.json');
 
+async function sendViaProvider(args: { from: string; to: string | string[]; subject: string; html: string; attachments?: Array<{ filename?: string; content?: string; contentType?: string }> }) {
+  const provider = (process.env.EMAIL_PROVIDER || '').toLowerCase();
+  const resendKey = process.env.RESEND_API_KEY || '';
+  const postmarkToken = process.env.POSTMARK_SERVER_TOKEN || '';
+  const stream = process.env.POSTMARK_MESSAGE_STREAM || 'outbound';
+
+  // Prefer explicit provider; otherwise fallback to available credentials
+  if (provider === 'postmark' || (!resendKey && postmarkToken)) {
+    const pmAttachments = (args.attachments || []).map((a) => ({
+      Name: a.filename || 'attachment',
+      Content: (a.content || ''),
+      ContentType: a.contentType || 'application/octet-stream',
+    }));
+    const resp = await fetch('https://api.postmarkapp.com/email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Postmark-Server-Token': postmarkToken },
+      body: JSON.stringify({
+        From: args.from,
+        To: Array.isArray(args.to) ? args.to.join(',') : args.to,
+        Subject: args.subject,
+        HtmlBody: args.html,
+        MessageStream: stream,
+        Attachments: pmAttachments.length ? pmAttachments : undefined,
+      }),
+    });
+    if (!resp.ok) {
+      const t = await resp.text();
+      console.error('Postmark send failed:', t);
+    }
+    return;
+  }
+
+  if (!resendKey) {
+    console.warn('No email provider configured: set RESEND_API_KEY or POSTMARK_SERVER_TOKEN');
+    return;
+  }
+  const resend = new Resend(resendKey);
+  await resend.emails.send({ from: args.from, to: args.to as any, subject: args.subject, html: args.html, attachments: args.attachments as any });
+}
+
 export async function loadTemplates(): Promise<Templates> {
   try {
     const raw = await fs.readFile(TPL_PATH, 'utf-8');
@@ -60,13 +100,7 @@ function substitute(template: string, data: Record<string, any>) {
 }
 
 export async function sendReceiptEmail(to: string, data: { customerName?: string; orderNumber: string; items?: Array<{ name: string; quantity: number; price: number }>; total: number; currency?: string; shippingAddress?: any }) {
-  const apiKey = process.env.RESEND_API_KEY;
   const from = process.env.EMAIL_FROM || 'noreply@anointarray.com';
-  if (!apiKey) {
-    console.warn('RESEND_API_KEY not set; skipping email send');
-    return;
-  }
-  const resend = new Resend(apiKey);
   const templates = await loadTemplates();
 
   const sym = currencySymbol((data.currency || 'USD').toUpperCase());
@@ -88,11 +122,7 @@ export async function sendReceiptEmail(to: string, data: { customerName?: string
   const subject = substitute(templates.receipt.subject, vars);
   const html = substitute(templates.receipt.html, vars);
 
-  try {
-    await resend.emails.send({ from, to, subject, html });
-  } catch (e) {
-    console.error('Failed to send receipt email:', e);
-  }
+  try { await sendViaProvider({ from, to, subject, html }); } catch (e) { console.error('Failed to send receipt email:', e); }
 }
 
 export async function sendAdminServiceOrderEmail(to: string | string[], data: {
@@ -103,10 +133,7 @@ export async function sendAdminServiceOrderEmail(to: string | string[], data: {
   customer?: { fullName?: string; email?: string; phone?: string; notes?: string };
   photoData?: string;
 }) {
-  const apiKey = process.env.RESEND_API_KEY;
   const from = process.env.EMAIL_FROM || 'noreply@anointarray.com';
-  if (!apiKey) { console.warn('RESEND_API_KEY not set; skipping admin email'); return; }
-  const resend = new Resend(apiKey);
 
   const sym = currencySymbol((data.currency || 'USD').toUpperCase());
   const html = `
@@ -134,18 +161,12 @@ export async function sendAdminServiceOrderEmail(to: string | string[], data: {
     }
   } catch {}
 
-  try {
-    await resend.emails.send({ from, to, subject: `New Service Order — ${data.serviceName} (${data.orderId})`, html, attachments: attachments.length ? attachments : undefined });
-  } catch (e) {
-    console.error('Failed to send admin service email:', e);
-  }
+  try { await sendViaProvider({ from, to, subject: `New Service Order — ${data.serviceName} (${data.orderId})`, html, attachments }); }
+  catch (e) { console.error('Failed to send admin service email:', e); }
 }
 
 export async function sendPasswordResetEmail(to: string, args: { resetUrl: string }) {
-  const apiKey = process.env.RESEND_API_KEY;
   const from = process.env.EMAIL_FROM || 'noreply@anointarray.com';
-  if (!apiKey) { console.warn('RESEND_API_KEY not set; skipping password reset email'); return; }
-  const resend = new Resend(apiKey);
   const html = `
     <div style="font-family: Arial, sans-serif; color:#111">
       <h2>Password Reset Request</h2>
@@ -155,9 +176,6 @@ export async function sendPasswordResetEmail(to: string, args: { resetUrl: strin
       <p>If you did not request this, you can safely ignore this email.</p>
     </div>
   `;
-  try {
-    await resend.emails.send({ from, to, subject: 'Reset your ANOINT Array password', html });
-  } catch (e) {
-    console.error('Failed to send password reset email:', e);
-  }
+  try { await sendViaProvider({ from, to, subject: 'Reset your ANOINT Array password', html }); }
+  catch (e) { console.error('Failed to send password reset email:', e); }
 }
