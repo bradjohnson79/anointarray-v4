@@ -1,20 +1,32 @@
 import { NextResponse } from 'next/server';
+import Stripe from 'stripe';
+import { resolvePaypalConfig, getPaypalAccessToken } from '@/lib/paypal';
+import { resolveStripeConfig } from '@/lib/stripe';
 
 export const dynamic = 'force-dynamic';
-export const runtime = 'nodejs';
 
 export async function GET() {
+  const out: any = {};
+  // Stripe
   try {
-    const stripePub = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || process.env.STRIPE_PUBLISHABLE_KEY || '';
-    const stripeSec = process.env.STRIPE_SECRET_KEY || process.env.STRIPE_SECRET_TEST_KEY || '';
-    const paypalId = process.env.PAYPAL_CLIENT_ID_SANDBOX || process.env.PAYPAL_CLIENT_ID_LIVE || '';
-    const paypalSecret = process.env.PAYPAL_CLIENT_SECRET_SANDBOX || process.env.PAYPAL_SECRET_LIVE || '';
-    const direct = process.env.DIRECT_URL || '';
-    const database = process.env.DATABASE_URL || '';
-    const ok = !!(stripePub && stripeSec && paypalId && paypalSecret && (direct || database));
-    return NextResponse.json({ ok, stripePub: !!stripePub, stripeSec: !!stripeSec, paypalId: !!paypalId, paypalSecret: !!paypalSecret, direct: !!direct || !!database });
+    const conf = await resolveStripeConfig();
+    if (!conf.secretKey) throw new Error('Missing Stripe secret key');
+    const s = new Stripe(conf.secretKey);
+    const acct = await s.accounts.retrieve();
+    out.stripe = { ok: true, message: `Account ${acct.id} (${acct?.email || 'n/a'})` };
   } catch (e: any) {
-    return NextResponse.json({ ok: false, error: String(e?.message || e) }, { status: 500 });
+    out.stripe = { ok: false, message: e?.message || 'Stripe ping failed' };
   }
+
+  // PayPal
+  try {
+    const conf = await resolvePaypalConfig();
+    const token = await getPaypalAccessToken(conf);
+    out.paypal = { ok: !!token, message: token ? `Token acquired (${conf.useSandbox ? 'SANDBOX' : 'LIVE'})` : 'No token' };
+  } catch (e: any) {
+    out.paypal = { ok: false, message: e?.message || 'PayPal ping failed' };
+  }
+
+  return NextResponse.json(out);
 }
 

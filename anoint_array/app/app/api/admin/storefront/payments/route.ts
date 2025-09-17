@@ -1,126 +1,63 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
+import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
-import { getConfig, setConfig } from '@/lib/app-config';
+import fs from 'fs/promises';
+import fsSync from 'fs';
+import path from 'path';
 
-interface PaymentGatewayConfiguration {
-  stripe: { enabled: boolean; testMode: boolean; publishableKey: string; secretKey: string; webhookSecret: string; testPublishableKey: string; testSecretKey: string; testWebhookSecret: string };
-  paypal: { enabled: boolean; testMode: boolean; clientId: string; clientSecret: string; testClientId: string; testClientSecret: string };
-  nowPayments: { enabled: boolean; testMode: boolean; apiKey: string; publicKey: string; testApiKey: string; testPublicKey: string };
-  pricing?: { currency: string };
-  isConfigured: boolean;
-  lastUpdated?: string;
-}
+const FILE = path.join(process.cwd(), 'data', 'storefront-payments.json');
 
-async function ensureDataDir() { /* no-op when using DB */ }
+function bool(v: any) { return v === true || String(v || '').toLowerCase() === 'true'; }
 
 export async function GET() {
   try {
-    await ensureDataDir();
-    try {
-      const cfg = await getConfig<any>('storefront-payments');
-      // Compute configured using environment fallbacks so UI can show accurate status
-      const hasStripeLive = !!(process.env.STRIPE_PUBLISHABLE_KEY && process.env.STRIPE_SECRET_KEY);
-      const hasStripeTest = !!(process.env.STRIPE_PUBLISHABLE_TEST_KEY && process.env.STRIPE_SECRET_TEST_KEY);
-      const stripeConfigured = !!cfg?.stripe?.enabled && (
-        (cfg?.stripe?.testMode && hasStripeTest) || (!cfg?.stripe?.testMode && hasStripeLive)
-      );
-      const hasPaypalLive = !!(process.env.PAYPAL_CLIENT_ID_LIVE && process.env.PAYPAL_SECRET_LIVE);
-      const hasPaypalSandbox = !!(process.env.PAYPAL_CLIENT_ID_SANDBOX && process.env.PAYPAL_CLIENT_SECRET_SANDBOX);
-      const paypalConfigured = !!cfg?.paypal?.enabled && (
-        (cfg?.paypal?.testMode && hasPaypalSandbox) || (!cfg?.paypal?.testMode && hasPaypalLive)
-      );
-      const hasNow = !!(process.env.NOWPAYMENTS_API_KEY && process.env.NOWPAYMENTS_PUBLIC_KEY);
-      const nowConfigured = !!cfg?.nowPayments?.enabled && hasNow;
+    let fileCfg: any = {};
+    try { if (fsSync.existsSync(FILE)) fileCfg = JSON.parse(await fs.readFile(FILE, 'utf-8')); } catch {}
 
-      const isConfigured = !!(stripeConfigured || paypalConfigured || nowConfigured);
+    const stripeTest = bool(fileCfg?.stripe?.testMode) || !!process.env.STRIPE_SECRET_TEST_KEY;
+    const stripe = {
+      enabled: bool(fileCfg?.stripe?.enabled ?? true),
+      testMode: stripeTest,
+      publishableKey: fileCfg?.stripe?.publishableKey || (stripeTest ? (process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_TEST_KEY || '') : (process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || '')),
+      secretKey: fileCfg?.stripe?.secretKey || (stripeTest ? (process.env.STRIPE_SECRET_TEST_KEY || '') : (process.env.STRIPE_SECRET_KEY || '')),
+      webhookSecret: fileCfg?.stripe?.webhookSecret || (process.env.STRIPE_WEBHOOK_SECRET || process.env.STRIPE_WEBHOOK_TEST_SECRET || ''),
+      testPublishableKey: fileCfg?.stripe?.testPublishableKey || (process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_TEST_KEY || ''),
+      testSecretKey: fileCfg?.stripe?.testSecretKey || (process.env.STRIPE_SECRET_TEST_KEY || ''),
+      testWebhookSecret: fileCfg?.stripe?.testWebhookSecret || (process.env.STRIPE_WEBHOOK_TEST_SECRET || ''),
+    };
 
-      // Mask sensitive fields before returning
-      const masked = {
-        ...cfg,
-        isConfigured,
-        stripe: {
-          ...cfg?.stripe,
-          secretKey: cfg?.stripe?.secretKey ? '***' : '',
-          webhookSecret: cfg?.stripe?.webhookSecret ? '***' : '',
-          testSecretKey: cfg?.stripe?.testSecretKey ? '***' : '',
-          testWebhookSecret: cfg?.stripe?.testWebhookSecret ? '***' : '',
-        },
-        paypal: {
-          ...cfg?.paypal,
-          clientSecret: cfg?.paypal?.clientSecret ? '***' : '',
-          testClientSecret: cfg?.paypal?.testClientSecret ? '***' : '',
-        },
-        nowPayments: {
-          ...cfg?.nowPayments,
-          apiKey: cfg?.nowPayments?.apiKey ? '***' : '',
-          testApiKey: cfg?.nowPayments?.testApiKey ? '***' : '',
-        },
-      };
-      return NextResponse.json(masked);
-    } catch {
-      // default config (pull from env if available)
-      const cfg: PaymentGatewayConfiguration = {
-        stripe: {
-          enabled: !!(process.env.STRIPE_SECRET_KEY && process.env.STRIPE_PUBLISHABLE_KEY),
-          testMode: true,
-          publishableKey: process.env.STRIPE_PUBLISHABLE_KEY || '',
-          secretKey: process.env.STRIPE_SECRET_KEY ? '***' : '',
-          webhookSecret: process.env.STRIPE_WEBHOOK_SECRET ? '***' : '',
-          testPublishableKey: process.env.STRIPE_PUBLISHABLE_TEST_KEY || '',
-          testSecretKey: process.env.STRIPE_SECRET_TEST_KEY ? '***' : '',
-          testWebhookSecret: process.env.STRIPE_WEBHOOK_TEST_SECRET ? '***' : '',
-        },
-        paypal: {
-          enabled: !!(process.env.PAYPAL_CLIENT_ID_LIVE && process.env.PAYPAL_SECRET_LIVE),
-          testMode: true,
-          clientId: process.env.PAYPAL_CLIENT_ID_LIVE || '',
-          clientSecret: process.env.PAYPAL_SECRET_LIVE ? '***' : '',
-          testClientId: process.env.PAYPAL_CLIENT_ID_SANDBOX || '',
-          testClientSecret: process.env.PAYPAL_CLIENT_SECRET_SANDBOX ? '***' : '',
-        },
-        nowPayments: {
-          enabled: !!(process.env.NOWPAYMENTS_API_KEY && process.env.NOWPAYMENTS_PUBLIC_KEY),
-          testMode: false,
-          apiKey: process.env.NOWPAYMENTS_API_KEY ? '***' : '',
-          publicKey: process.env.NOWPAYMENTS_PUBLIC_KEY || '',
-          testApiKey: process.env.NOWPAYMENTS_API_KEY ? '***' : '',
-          testPublicKey: process.env.NOWPAYMENTS_PUBLIC_KEY || '',
-        },
-        pricing: { currency: 'USD' },
-        isConfigured: !!(
-          (process.env.STRIPE_PUBLISHABLE_KEY && process.env.STRIPE_SECRET_KEY) ||
-          (process.env.STRIPE_PUBLISHABLE_TEST_KEY && process.env.STRIPE_SECRET_TEST_KEY) ||
-          (process.env.PAYPAL_CLIENT_ID_LIVE && process.env.PAYPAL_SECRET_LIVE) ||
-          (process.env.PAYPAL_CLIENT_ID_SANDBOX && process.env.PAYPAL_CLIENT_SECRET_SANDBOX) ||
-          (process.env.NOWPAYMENTS_API_KEY && process.env.NOWPAYMENTS_PUBLIC_KEY)
-        ),
-      };
-      return NextResponse.json(cfg);
-    }
-  } catch (e) {
-    console.error('Storefront payments GET error:', e);
-    return NextResponse.json({ error: 'Failed to load payments config' }, { status: 500 });
+    const paypalSandbox = bool(fileCfg?.paypal?.testMode) || true; // default sandbox if unset
+    const paypal = {
+      enabled: bool(fileCfg?.paypal?.enabled ?? true),
+      testMode: paypalSandbox,
+      clientId: fileCfg?.paypal?.clientId || (paypalSandbox ? (process.env.PAYPAL_CLIENT_ID_SANDBOX || '') : (process.env.PAYPAL_CLIENT_ID_LIVE || '')),
+      clientSecret: fileCfg?.paypal?.clientSecret || (paypalSandbox ? (process.env.PAYPAL_CLIENT_SECRET_SANDBOX || '') : (process.env.PAYPAL_SECRET_LIVE || '')),
+      testClientId: fileCfg?.paypal?.testClientId || (process.env.PAYPAL_CLIENT_ID_SANDBOX || ''),
+      testClientSecret: fileCfg?.paypal?.testClientSecret || (process.env.PAYPAL_CLIENT_SECRET_SANDBOX || ''),
+    };
+
+    const nowPayments = fileCfg?.nowPayments || { enabled: false, testMode: true, apiKey: '', publicKey: '', testApiKey: '', testPublicKey: '' };
+    const pricing = { currency: (fileCfg?.pricing?.currency || 'USD').toUpperCase() };
+
+    const isConfigured = !!((stripe.secretKey || stripe.testSecretKey) && (stripe.publishableKey || stripe.testPublishableKey)) || !!(paypal.clientId || paypal.testClientId);
+
+    return NextResponse.json({ stripe, paypal, nowPayments, pricing, isConfigured, lastUpdated: fileCfg?.lastUpdated });
+  } catch (e: any) {
+    return NextResponse.json({ error: e?.message || 'Failed to read configuration' }, { status: 500 });
   }
 }
 
-export async function POST(request: NextRequest) {
+export async function POST(req: NextRequest) {
+  const session = await getServerSession(authOptions);
+  if (!session || session.user?.role !== 'ADMIN') return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   try {
-    const session = await getServerSession(authOptions);
-    if (!session || session.user?.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-    const cfg = (await request.json()) as PaymentGatewayConfiguration;
-    cfg.lastUpdated = new Date().toISOString();
-    cfg.isConfigured = !!(
-      (cfg.stripe.enabled && ((cfg.stripe.testMode && cfg.stripe.testSecretKey) || (!cfg.stripe.testMode && cfg.stripe.secretKey))) ||
-      (cfg.paypal.enabled && ((cfg.paypal.testMode && cfg.paypal.testClientId) || (!cfg.paypal.testMode && cfg.paypal.clientId))) ||
-      (cfg.nowPayments.enabled && (cfg.nowPayments.apiKey || cfg.nowPayments.testApiKey))
-    );
-    await setConfig('storefront-payments', cfg);
-    return NextResponse.json({ success: true, isConfigured: cfg.isConfigured });
-  } catch (e) {
-    console.error('Storefront payments POST error:', e);
-    return NextResponse.json({ error: 'Failed to save payments config' }, { status: 500 });
+    const body = await req.json();
+    const payload = { ...body, lastUpdated: new Date().toISOString() };
+    await fs.mkdir(path.dirname(FILE), { recursive: true });
+    await fs.writeFile(FILE, JSON.stringify(payload, null, 2), 'utf8');
+    return NextResponse.json({ ok: true });
+  } catch (e: any) {
+    return NextResponse.json({ error: e?.message || 'Failed to save configuration' }, { status: 500 });
   }
 }
+
