@@ -84,7 +84,7 @@ export function getDefaultTemplates(): Templates {
     signup_confirmation: {
       subject: 'Welcome to ANOINT Array — Confirm your email',
       html: `<div style="font-family: Arial, sans-serif; color:#111">
-        <h2>Welcome{customerName ? `, {customerName}` : ''}!</h2>
+        <h2>Welcome, {customerName}!</h2>
         <p>Thanks for creating an account at ANOINT Array.</p>
         <p style="margin:18px 0">Please confirm your email to activate your account.</p>
         <p style="margin:20px 0"><a href="{verifyUrl}" style="background:#6d28d9;color:#fff;padding:10px 16px;border-radius:8px;text-decoration:none">Confirm Email</a></p>
