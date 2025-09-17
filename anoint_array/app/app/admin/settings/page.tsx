@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import AdminLayout from '@/components/admin/admin-layout';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Shield, CreditCard, Bot, RefreshCw, Save, Upload, FileText, File, Truck, Check, AlertTriangle, Mail } from 'lucide-react';
+import { Shield, CreditCard, Bot, RefreshCw, Save, Upload, FileText, File, Truck, Check, AlertTriangle, Mail, Server, Copy } from 'lucide-react';
 import { toast } from 'sonner';
 
 type StorefrontPayments = {
@@ -28,6 +28,9 @@ export default function AdminSettingsPage() {
   const [kbUploading, setKbUploading] = useState(false);
   const [kbSelected, setKbSelected] = useState<FileList | null>(null);
   const [kbUpdateProgress, setKbUpdateProgress] = useState(0);
+  // MCP status
+  const [mcpLoading, setMcpLoading] = useState(false);
+  const [mcpStatus, setMcpStatus] = useState<{ ok: boolean; configPath: string; servers: Array<{ name: string; command: string; args: string[]; ok: boolean; issues: string[] }>; issues: string[] } | null>(null);
   // Shipping config state
   type ShippingConfig = {
     origin?: { name?: string; company?: string; street1?: string; city?: string; state?: string; zip?: string; country?: string; phone?: string };
@@ -73,6 +76,7 @@ export default function AdminSettingsPage() {
         }
         const shipCfg = await fetch('/api/admin/shipping/config');
         if (shipCfg.ok) setShipping(await shipCfg.json());
+        await runMcpStatus(false);
       } catch (e) {
         console.error(e);
       } finally {
@@ -81,6 +85,28 @@ export default function AdminSettingsPage() {
     };
     load();
   }, []);
+
+  const runMcpStatus = async (notify = true) => {
+    setMcpLoading(true);
+    try {
+      const r = await fetch('/api/admin/mcp/status');
+      const j = await r.json();
+      if (!r.ok) throw new Error(j?.error || 'Failed to load MCP status');
+      setMcpStatus(j);
+      if (notify) {
+        if (j.ok) toast.success('MCP servers look good');
+        else {
+          const count = (Array.isArray(j.servers) ? j.servers.filter((s:any)=>!s.ok).length : 0) + (Array.isArray(j.issues) ? j.issues.length : 0);
+          toast.error(`MCP issues detected (${count}). See details below.`);
+        }
+      }
+    } catch (e: any) {
+      setMcpStatus(null);
+      if (notify) toast.error(e?.message || 'Failed to load MCP status');
+    } finally {
+      setMcpLoading(false);
+    }
+  };
 
   const savePayments = async () => {
     if (!payments) return;
@@ -202,6 +228,7 @@ export default function AdminSettingsPage() {
             <TabsTrigger value="currency" className="text-white"><span className="mr-2">$</span>Currency</TabsTrigger>
             <TabsTrigger value="shipping" className="text-white"><Truck className="h-4 w-4 mr-2"/>Shipping</TabsTrigger>
             <TabsTrigger value="admin-passwords" className="text-white"><Shield className="h-4 w-4 mr-2"/>Admin Passwords</TabsTrigger>
+            <TabsTrigger value="mcp" className="text-white"><Server className="h-4 w-4 mr-2"/>MCP Servers</TabsTrigger>
           </TabsList>
 
           <TabsContent value="payments" className="mt-4">
@@ -275,6 +302,68 @@ export default function AdminSettingsPage() {
                       Save Settings
                       </button>
                     </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </TabsContent>
+
+          {/* MCP Servers */}
+          <TabsContent value="mcp" className="mt-4">
+            <div className="bg-gray-800 rounded-lg p-6 space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-white font-semibold">MCP Servers</h3>
+                  <div className="text-xs text-gray-400 mt-1">Reads `.codex/config.toml` and validates basic setup.</div>
+                </div>
+                <button onClick={()=>runMcpStatus()} disabled={mcpLoading} className="px-3 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-md flex items-center text-sm">
+                  {mcpLoading ? <RefreshCw className="h-4 w-4 mr-2 animate-spin"/> : <RefreshCw className="h-4 w-4 mr-2"/>}
+                  Refresh
+                </button>
+              </div>
+
+              {!mcpStatus ? (
+                <div className="text-gray-400">{mcpLoading ? 'Loading MCP status…' : 'No status available.'}</div>
+              ) : (
+                <div className="space-y-4">
+                  <div className={`p-3 rounded border text-sm ${mcpStatus.ok ? 'border-green-600 text-green-300 bg-green-600/5' : 'border-yellow-600 text-yellow-300 bg-yellow-600/5'}`}>
+                    <div><span className="font-semibold">Config:</span> <span className="text-gray-300">{mcpStatus.configPath}</span></div>
+                    <div className="mt-1"><span className="font-semibold">Overall:</span> {mcpStatus.ok ? 'OK' : 'Has issues'}</div>
+                    {Array.isArray(mcpStatus.issues) && mcpStatus.issues.length > 0 && (
+                      <div className="mt-2">
+                        <div className="font-semibold">Config Issues</div>
+                        <ul className="list-disc list-inside text-gray-300">
+                          {mcpStatus.issues.map((it, idx)=>(<li key={idx}>{it}</li>))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="grid md:grid-cols-2 gap-4">
+                    {(mcpStatus.servers || []).map((s:any) => (
+                      <div key={s.name} className={`rounded border p-4 ${s.ok ? 'border-gray-700 bg-gray-900' : 'border-yellow-700 bg-gray-900'}`}>
+                        <div className="flex items-center justify-between">
+                          <div className="text-white font-semibold">{s.name}</div>
+                          <div className={`text-xs px-2 py-0.5 rounded ${s.ok ? 'bg-green-600/10 text-green-300 border border-green-500/30' : 'bg-yellow-600/10 text-yellow-300 border border-yellow-500/30'}`}>{s.ok ? 'OK' : 'Needs attention'}</div>
+                        </div>
+                        <div className="mt-2 text-xs text-gray-400 break-words">
+                          <div><span className="text-gray-500">command:</span> <span className="text-gray-300">{s.command || '—'}</span></div>
+                          <div className="mt-1"><span className="text-gray-500">args:</span> <span className="text-gray-300">{Array.isArray(s.args) ? s.args.join(' ') : '—'}</span></div>
+                        </div>
+                        {!s.ok && Array.isArray(s.issues) && s.issues.length > 0 && (
+                          <div className="mt-3 text-sm">
+                            <div className="text-yellow-300 font-medium flex items-center gap-2"><AlertTriangle className="h-4 w-4"/> Issues</div>
+                            <ul className="list-disc list-inside text-gray-300 mt-1">
+                              {s.issues.map((it: string, idx: number) => (<li key={idx}>{it}</li>))}
+                            </ul>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="text-xs text-gray-400">
+                    Notes: This checker validates presence of the command (e.g., pnpm) and that access tokens appear set. It doesn’t start servers. Use your MCP CLI to confirm: <code>mcp list-tools</code>.
                   </div>
                 </div>
               )}
@@ -600,6 +689,9 @@ function EmailStatusPanel() {
   useEffect(() => { load(); }, []);
 
   const ok = !!status?.ok;
+  const verifiedDomains = Array.isArray(status?.domains) ? status!.domains.filter((d: any)=> String(d.status).toLowerCase() === 'verified') : [];
+  const notInList = !!status?.from && !status?.matchedDomain;
+  const notVerified = !!status?.from && !!status?.matchedDomain && !status?.verifiedFromDomain;
 
   return (
     <div className="mystical-card p-6 rounded-lg">
@@ -630,6 +722,34 @@ function EmailStatusPanel() {
               <div className={`font-medium ${status?.verifiedFromDomain ? 'text-green-300' : 'text-yellow-300'}`}>{status?.verifiedFromDomain ? 'Yes' : 'No'}</div>
             </div>
           </div>
+          {!!status?.fromDomain && (
+            <div className="text-xs text-gray-400">From domain: <span className="text-gray-300">{status.fromDomain}</span>{status?.matchedDomain ? <> → matched <span className="text-gray-300">{status.matchedDomain}</span></> : null}</div>
+          )}
+
+          {(notInList || notVerified) && (
+            <div className="rounded border border-yellow-600 bg-yellow-600/10 p-3 text-sm text-yellow-200">
+              <div className="flex items-center gap-2 font-medium"><AlertTriangle className="h-4 w-4"/>{notInList ? 'From domain not found in Resend.' : 'From domain is not verified yet.'}</div>
+              {verifiedDomains.length > 0 ? (
+                <div className="mt-2 text-gray-200">
+                  <div className="text-xs text-gray-300 mb-1">Use a verified domain for EMAIL_FROM. Quick suggestions:</div>
+                  <div className="flex flex-wrap gap-2">
+                    {verifiedDomains.map((d: any) => {
+                      const local = (String(status?.from || '').split('@')[0] || 'info').trim() || 'info';
+                      const suggestion = `${local}@${d.name}`;
+                      return (
+                        <button key={d.name} onClick={async()=>{ try { await navigator.clipboard.writeText(suggestion); toast.success(`Copied ${suggestion}`);} catch { toast.error('Copy failed'); } }} className="px-2 py-1 rounded bg-gray-900 border border-gray-700 text-gray-200 text-xs flex items-center gap-1">
+                          <Copy className="h-3 w-3"/>{suggestion}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div className="text-xs text-gray-400 mt-2">Set this in your environment as EMAIL_FROM and redeploy.</div>
+                </div>
+              ) : (
+                <div className="mt-2 text-xs text-gray-300">No verified domains found in Resend. Verify a domain in Resend, then set EMAIL_FROM to an address on that domain.</div>
+              )}
+            </div>
+          )}
           <div className="bg-gray-900 p-3 rounded border border-gray-700">
             <div className="text-gray-300 font-medium mb-2">Domains</div>
             {(status?.domains || []).length === 0 ? (

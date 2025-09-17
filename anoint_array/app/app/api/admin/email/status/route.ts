@@ -13,8 +13,8 @@ export async function GET(_req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const apiKey = serverEnv.RESEND_API_KEY;
-    const from = serverEnv.EMAIL_FROM || '';
+    const apiKey = (serverEnv.RESEND_API_KEY || '').trim();
+    const from = (serverEnv.EMAIL_FROM || '').trim();
     const data: any = {
       hasKey: !!apiKey,
       from,
@@ -37,10 +37,16 @@ export async function GET(_req: NextRequest) {
 
     // Verify FROM domain is in verified list (if set)
     if (from && domains.length) {
-      const fromDomain = String(from.split('@')[1] || '').toLowerCase();
-      const match = domains.find((d) => String(d.name).toLowerCase() === fromDomain);
+      const fromDomainRaw = String(from).replace(/^mailto:/i, '').split('@')[1] || '';
+      const fromDomain = fromDomainRaw.trim().toLowerCase();
+      // Accept exact domain or subdomain of a verified domain
+      const match = domains.find((d) => {
+        const name = String(d.name || '').trim().toLowerCase();
+        return fromDomain === name || fromDomain.endsWith('.' + name);
+      });
       data.fromDomain = fromDomain;
-      data.verifiedFromDomain = !!match && match.status === 'verified';
+      data.matchedDomain = match?.name || null;
+      data.verifiedFromDomain = !!match && String(match.status).toLowerCase() === 'verified';
     }
 
     // Try to pull recent activity if endpoint exists; ignore failures gracefully
@@ -54,10 +60,9 @@ export async function GET(_req: NextRequest) {
       }
     } catch {}
 
-    data.ok = data.hasKey && ((data.domains || []).some((d: any) => d.status === 'verified')) && (from ? !!data.verifiedFromDomain : true);
+    data.ok = data.hasKey && ((data.domains || []).some((d: any) => String(d.status).toLowerCase() === 'verified')) && (from ? !!data.verifiedFromDomain : true);
     return NextResponse.json(data);
   } catch (e: any) {
     return NextResponse.json({ error: e?.message || 'Failed to load status' }, { status: 500 });
   }
 }
-

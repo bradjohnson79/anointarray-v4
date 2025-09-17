@@ -51,6 +51,7 @@ export default function FileManager() {
   const [syncing, setSyncing] = useState(false);
   const [storageMode, setStorageMode] = useState<string>('');
   const [autoSyncAttempted, setAutoSyncAttempted] = useState(false);
+  const [fmError, setFmError] = useState<string>('');
 
   // Load existing images
   const fetchImages = useCallback(async () => {
@@ -60,14 +61,15 @@ export default function FileManager() {
         const data = await response.json();
         setImages(data.images || []);
         if (data.mode) setStorageMode(data.mode);
-        if (data.error) {
-          toast.error(`File Manager error: ${data.error}`);
-        }
+        if (data.error) setFmError(data.error); else setFmError('');
+        if (data.error) toast.error(`File Manager error: ${data.error}`);
       } else {
         try {
           const j = await response.json();
+          setFmError(j?.error || 'Failed to fetch images');
           toast.error(j?.error || 'Failed to fetch images');
         } catch {
+          setFmError('Failed to fetch images');
           toast.error('Failed to fetch images');
         }
       }
@@ -363,6 +365,20 @@ export default function FileManager() {
           <p className="text-gray-400">
             Upload and manage product images. Upload up to 10 images at once (JPG/PNG only, max 5MB each).
           </p>
+          {/* Supabase status indicator */}
+          <div className="mt-3">
+            {storageMode === 'supabase' && !fmError ? (
+              <div className="inline-flex items-center px-3 py-1 rounded bg-emerald-700/30 border border-emerald-600 text-emerald-300 text-xs">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 mr-2"></span>
+                Supabase Connected (bucket: product-images)
+              </div>
+            ) : (
+              <div className="inline-flex items-center px-3 py-1 rounded bg-red-700/30 border border-red-600 text-red-300 text-xs">
+                <span className="w-2 h-2 rounded-full bg-red-400 mr-2"></span>
+                {fmError ? `File Manager error: ${fmError}` : 'Supabase not configured'}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Upload Section */}
