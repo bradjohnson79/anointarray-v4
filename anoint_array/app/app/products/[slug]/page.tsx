@@ -29,6 +29,7 @@ import { toast } from 'sonner';
 import { usePayment } from '@/contexts/payment-context';
 import EnergyRibbons from '@/components/energy-ribbons';
 
+interface Variant { id: string; style: string; price: number; quantity: number; sku?: string }
 interface Product {
   id: string;
   name: string;
@@ -58,6 +59,7 @@ interface Product {
   massGrams?: number;
   createdAt: string;
   updatedAt: string;
+  variants?: Variant[];
 }
 
 export default function ProductDetailPage() {
@@ -68,6 +70,7 @@ export default function ProductDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [quantity, setQuantity] = useState(1);
+  const [variantId, setVariantId] = useState<string | null>(null);
 
   useEffect(() => {
     if (params.slug) {
@@ -97,21 +100,27 @@ export default function ProductDetailPage() {
     }
   };
 
+  const selectedVariant = (product?.variants || []).find(v => v.id === variantId) || null;
+  const effectivePrice = selectedVariant ? selectedVariant.price : (product?.price || 0);
+  const available = selectedVariant ? selectedVariant.quantity : (product?.inventory ?? 999999);
+
   const handleAddToCart = () => {
     if (!product) return;
+    if (quantity < 1) { toast.error('Quantity must be at least 1'); return; }
+    if (available != null && quantity > available) { toast.error(`Only ${available} available`); return; }
 
     addToCart({
-      id: product.id,
-      name: product.name,
-      price: product.price,
+      id: selectedVariant ? `${product.id}:${selectedVariant.id}` : product.id,
+      name: selectedVariant ? `${product.name} — ${selectedVariant.style}` : product.name,
+      price: effectivePrice,
       quantity: quantity,
       type: 'product',
       imageUrl: product.imageUrl,
       category: product.category,
-      customData: { isPhysical: product.isPhysical, isDigital: product.isDigital }
+      customData: { isPhysical: product.isPhysical, isDigital: product.isDigital, variantId: selectedVariant?.id, variantStyle: selectedVariant?.style }
     });
 
-    toast.success(`Added ${quantity} ${product.name} to cart`);
+    toast.success(`Added ${quantity} ${selectedVariant ? selectedVariant.style + ' — ' : ''}${product.name} to cart`);
   };
 
   const getCategoryColor = (category: string) => {
@@ -498,6 +507,21 @@ export default function ProductDetailPage() {
 
                 {product.inStock && !product.comingSoon ? (
                   <div className="space-y-4">
+                    {/* Variant Selector (if any) */}
+                    {Array.isArray(product.variants) && product.variants.length > 0 && (
+                      <div>
+                        <label className="block text-gray-300 font-medium mb-2">Choose an option:</label>
+                        <select value={variantId || ''} onChange={(e)=>{ setVariantId(e.target.value || null); setQuantity(1); }} className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white">
+                          <option value="">Select a variant…</option>
+                          {product.variants.map(v => (
+                            <option key={v.id} value={v.id}>{v.style} — ${v.price.toFixed(2)} ({v.quantity} in stock)</option>
+                          ))}
+                        </select>
+                        {variantId && (
+                          <div className="text-xs text-gray-400 mt-1">In stock: {available}</div>
+                        )}
+                      </div>
+                    )}
                     {/* Quantity Selector */}
                     <div className="flex items-center space-x-4">
                       <label className="text-gray-300 font-medium">Quantity:</label>
@@ -510,7 +534,7 @@ export default function ProductDetailPage() {
                         </button>
                         <span className="px-4 py-2 text-white font-medium">{quantity}</span>
                         <button
-                          onClick={() => setQuantity(quantity + 1)}
+                          onClick={() => setQuantity(Math.min(available ?? Infinity, quantity + 1))}
                           className="px-3 py-2 text-gray-400 hover:text-white transition-colors duration-200"
                         >
                           +
@@ -523,10 +547,11 @@ export default function ProductDetailPage() {
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
                       onClick={handleAddToCart}
+                      disabled={(product.variants && product.variants.length>0 && !variantId) || (available!=null && available<=0)}
                       className="w-full aurora-gradient text-white py-4 rounded-lg font-semibold text-lg hover:shadow-lg transition-all duration-300 flex items-center justify-center"
                     >
                       <ShoppingCart className="h-5 w-5 mr-2" />
-                      Add to Cart - {formatPrice(product.price * quantity)}
+                      Add to Cart - {formatPrice(effectivePrice * quantity)}
                     </motion.button>
 
                     {/* VIP Notice */}

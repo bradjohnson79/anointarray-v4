@@ -1,73 +1,33 @@
-
-
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
-interface RouteParams {
-  params: {
-    slug: string;
-  };
-}
-
-export async function GET(request: NextRequest, { params }: RouteParams) {
+export async function GET(_req: NextRequest, { params }: { params: { slug: string } }) {
   try {
-    const product = await prisma.product.findUnique({
-      where: { slug: params.slug },
+    const slug = decodeURIComponent(params.slug);
+    const p = await prisma.product.findUnique({
+      where: { slug },
       select: {
-        id: true,
-        name: true,
-        slug: true,
-        teaserDescription: true,
-        fullDescription: true,
-        price: true,
-        category: true,
-        isVip: true,
-        inStock: true,
-        isPhysical: true,
-        isDigital: true,
-        imageUrl: true,
-        imageGallery: true,
-        featured: true,
-        comingSoon: true,
-        inventory: true,
-        weight: true,
-        dimensions: true,
-        digitalFileUrl: true,
-        instructionManualUrl: true,
-        videoEmbedCode: true,
-        hsCode: true,
-        countryOfOrigin: true,
-        customsDescription: true,
-        defaultCustomsValueCad: true,
-        massGrams: true,
-        createdAt: true,
-        updatedAt: true,
-      },
+        id: true, name: true, slug: true, teaserDescription: true, fullDescription: true,
+        price: true, category: true, isVip: true, inStock: true, isPhysical: true, isDigital: true,
+        featured: true, comingSoon: true, imageUrl: true, imageGallery: true, videoEmbedCode: true,
+        inventory: true, weight: true, dimensions: true, digitalFileUrl: true, instructionManualUrl: true,
+        createdAt: true, updatedAt: true,
+        variants: { select: { id: true, style: true, price: true, quantity: true, sku: true } },
+      }
     });
-
-    if (!product) {
-      return NextResponse.json({ error: 'Product not found' }, { status: 404 });
-    }
-
-    // Convert Decimal fields to numbers for JSON serialization
-    const serializedProduct = {
-      ...product,
-      price: Number(product.price),
-      weight: product.weight ? Number(product.weight) : null,
-      defaultCustomsValueCad: product.defaultCustomsValueCad ? Number(product.defaultCustomsValueCad) : null,
-      youtubeUrl: null, // Add this field for frontend compatibility
+    if (!p) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    const data: any = {
+      ...p,
+      price: Number(p.price || 0),
+      weight: p.weight ? Number(p.weight) : null,
+      variants: Array.isArray((p as any).variants) ? (p as any).variants.map((v: any) => ({ ...v, price: Number(v.price) })) : [],
     };
-
-    return NextResponse.json(serializedProduct);
-
-  } catch (error) {
-    console.error('Error fetching product by slug:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch product' },
-      { status: 500 }
-    );
+    return NextResponse.json(data);
+  } catch (e: any) {
+    return NextResponse.json({ error: e?.message || 'Failed' }, { status: 500 });
   }
 }
 
