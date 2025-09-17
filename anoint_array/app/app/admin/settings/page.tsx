@@ -735,7 +735,7 @@ function EmailStatusPanel() {
             <div className="text-xs text-gray-400">From domain: <span className="text-gray-300">{status.fromDomain}</span>{status?.matchedDomain ? <> → matched <span className="text-gray-300">{status.matchedDomain}</span></> : null}</div>
           )}
 
-          {(notInList || notVerified) && (
+          {provider === 'resend' && (notInList || notVerified) && (
             <div className="rounded border border-yellow-600 bg-yellow-600/10 p-3 text-sm text-yellow-200">
               <div className="flex items-center gap-2 font-medium"><AlertTriangle className="h-4 w-4"/>{notInList ? 'From domain not found in Resend.' : 'From domain is not verified yet.'}</div>
               {verifiedDomains.length > 0 ? (
