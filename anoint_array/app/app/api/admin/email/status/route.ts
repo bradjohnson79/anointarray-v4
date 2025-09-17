@@ -13,9 +13,43 @@ export async function GET(_req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const apiKey = (serverEnv.RESEND_API_KEY || '').trim();
     const from = (serverEnv.EMAIL_FROM || '').trim();
+    const provider = ((process.env.EMAIL_PROVIDER || '').trim().toLowerCase()) || (serverEnv.RESEND_API_KEY ? 'resend' : (process.env.POSTMARK_SERVER_TOKEN ? 'postmark' : 'none'));
+
+    if (provider === 'postmark') {
+      const token = (process.env.POSTMARK_SERVER_TOKEN || '').trim();
+      const data: any = {
+        provider: 'postmark',
+        hasKey: !!token,
+        from,
+        ok: false,
+      };
+      if (!token) return NextResponse.json(data);
+      // Verify token by listing message streams
+      try {
+        const resp = await fetch('https://api.postmarkapp.com/message-streams', { headers: { 'X-Postmark-Server-Token': token } });
+        if (resp.ok) {
+          const j: any = await resp.json();
+          data.streams = Array.isArray(j?.MessageStreams) ? j.MessageStreams.map((s: any) => ({ id: s?.ID, name: s?.Name, description: s?.Description })) : [];
+          data.ok = data.hasKey && Array.isArray(data.streams);
+        } else {
+          data.streamsError = await resp.text();
+        }
+      } catch (e: any) {
+        data.streamsError = e?.message || 'Failed to query Postmark';
+      }
+      // Provide inbound webhook hint
+      try {
+        const base = process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || '';
+        if (base) data.inboundWebhook = base.replace(/\/$/, '') + '/api/email/inbound/postmark';
+      } catch {}
+      return NextResponse.json(data);
+    }
+
+    // Default: Resend
+    const apiKey = (serverEnv.RESEND_API_KEY || '').trim();
     const data: any = {
+      provider: 'resend',
       hasKey: !!apiKey,
       from,
       ok: false,

@@ -689,6 +689,7 @@ function EmailStatusPanel() {
   useEffect(() => { load(); }, []);
 
   const ok = !!status?.ok;
+  const provider = (status?.provider || 'resend').toLowerCase();
   const verifiedDomains = Array.isArray(status?.domains) ? status!.domains.filter((d: any)=> String(d.status).toLowerCase() === 'verified') : [];
   const notInList = !!status?.from && !status?.matchedDomain;
   const notVerified = !!status?.from && !!status?.matchedDomain && !status?.verifiedFromDomain;
@@ -705,7 +706,7 @@ function EmailStatusPanel() {
       ) : (
         <div className="space-y-4">
           <div className={`p-3 rounded-lg flex items-center justify-between ${ok ? 'bg-green-600/10 border border-green-500/30' : 'bg-yellow-600/10 border border-yellow-500/30'}`}>
-            <div className="text-white font-medium">Resend Connectivity</div>
+            <div className="text-white font-medium">Provider: {provider === 'postmark' ? 'Postmark' : 'Resend'}</div>
             {ok ? <span className="flex items-center gap-2 text-green-300 text-sm"><Check className="h-4 w-4"/>OK</span> : <span className="flex items-center gap-2 text-yellow-300 text-sm"><AlertTriangle className="h-4 w-4"/>Check configuration</span>}
           </div>
           <div className="grid md:grid-cols-3 gap-3">
@@ -717,10 +718,17 @@ function EmailStatusPanel() {
               <div className="text-gray-400 text-sm">From Address</div>
               <div className="text-white font-medium">{status?.from || '—'}</div>
             </div>
-            <div className="bg-gray-900 p-3 rounded border border-gray-700">
-              <div className="text-gray-400 text-sm">From Domain Verified</div>
-              <div className={`font-medium ${status?.verifiedFromDomain ? 'text-green-300' : 'text-yellow-300'}`}>{status?.verifiedFromDomain ? 'Yes' : 'No'}</div>
-            </div>
+            {provider === 'resend' ? (
+              <div className="bg-gray-900 p-3 rounded border border-gray-700">
+                <div className="text-gray-400 text-sm">From Domain Verified</div>
+                <div className={`font-medium ${status?.verifiedFromDomain ? 'text-green-300' : 'text-yellow-300'}`}>{status?.verifiedFromDomain ? 'Yes' : 'No'}</div>
+              </div>
+            ) : (
+              <div className="bg-gray-900 p-3 rounded border border-gray-700">
+                <div className="text-gray-400 text-sm">From Domain Verified</div>
+                <div className="font-medium text-gray-300">N/A (manage in Postmark)</div>
+              </div>
+            )}
           </div>
           {!!status?.fromDomain && (
             <div className="text-xs text-gray-400">From domain: <span className="text-gray-300">{status.fromDomain}</span>{status?.matchedDomain ? <> → matched <span className="text-gray-300">{status.matchedDomain}</span></> : null}</div>
@@ -750,18 +758,36 @@ function EmailStatusPanel() {
               )}
             </div>
           )}
-          <div className="bg-gray-900 p-3 rounded border border-gray-700">
-            <div className="text-gray-300 font-medium mb-2">Domains</div>
-            {(status?.domains || []).length === 0 ? (
-              <div className="text-gray-400 text-sm">No domains found.</div>
-            ) : (
-              <div className="flex flex-wrap gap-2">
-                {status.domains.map((d: any) => (
-                  <span key={d.name} className={`px-2 py-1 rounded text-xs ${d.status === 'verified' ? 'bg-green-600/10 text-green-300 border border-green-500/30' : 'bg-yellow-600/10 text-yellow-300 border border-yellow-500/30'}`}>{d.name} — {d.status}</span>
-                ))}
-              </div>
-            )}
-          </div>
+          {provider === 'resend' ? (
+            <div className="bg-gray-900 p-3 rounded border border-gray-700">
+              <div className="text-gray-300 font-medium mb-2">Domains</div>
+              {(status?.domains || []).length === 0 ? (
+                <div className="text-gray-400 text-sm">No domains found.</div>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {status.domains.map((d: any) => (
+                    <span key={d.name} className={`px-2 py-1 rounded text-xs ${d.status === 'verified' ? 'bg-green-600/10 text-green-300 border border-green-500/30' : 'bg-yellow-600/10 text-yellow-300 border border-yellow-500/30'}`}>{d.name} — {d.status}</span>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="bg-gray-900 p-3 rounded border border-gray-700">
+              <div className="text-gray-300 font-medium mb-2">Postmark Streams</div>
+              {(status?.streams || []).length === 0 ? (
+                <div className="text-gray-400 text-sm">No streams or cannot list. Token may be invalid.</div>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {status.streams.map((s: any) => (
+                    <span key={s.id || s.ID} className="px-2 py-1 rounded text-xs bg-gray-800/60 text-gray-200 border border-gray-700">{s.name || s.Name || s.id}</span>
+                  ))}
+                </div>
+              )}
+              {status?.inboundWebhook && (
+                <div className="text-xs text-gray-400 mt-2">Inbound webhook: <span className="text-gray-300">{status.inboundWebhook}</span></div>
+              )}
+            </div>
+          )}
           {Array.isArray(status?.recent) && (
             <div className="bg-gray-900 p-3 rounded border border-gray-700">
               <div className="text-gray-300 font-medium mb-2">Recent Activity</div>
