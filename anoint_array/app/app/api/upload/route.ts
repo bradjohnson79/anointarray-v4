@@ -5,6 +5,7 @@ import { authOptions } from '@/lib/auth';
 import { uploadFile } from '@/lib/s3';
 import fs from 'fs/promises';
 import path from 'path';
+import { createSupabaseServerClient, useSupabaseStorage, PRODUCT_IMAGES_BUCKET } from '@/lib/supabase-server';
 
 export const dynamic = 'force-dynamic';
 
@@ -105,7 +106,7 @@ export async function POST(request: NextRequest) {
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
-    // Local-only write to /tmp/uploads/product-images
+    // Sanitize filename
     const extFromType = (file.type.split('/')[1] || '').toLowerCase();
     const originalExt = (file.name.split('.').pop() || '').toLowerCase();
     const ext = originalExt || extFromType || 'png';
@@ -117,19 +118,37 @@ export async function POST(request: NextRequest) {
       .replace(/^-|-$/g, '');
     const finalName = `${baseName}.${ext}`;
 
-    const productsDir = path.join('/tmp', 'uploads', 'product-images');
-    const target = path.join(productsDir, finalName);
-    await fs.mkdir(path.dirname(target), { recursive: true });
-    await fs.writeFile(target, buffer);
+    if (useSupabaseStorage()) {
+      try {
+        const supabase = createSupabaseServerClient();
+        const objectPath = `${finalName}`; // root of bucket
+        const { error } = await supabase.storage.from(PRODUCT_IMAGES_BUCKET).upload(objectPath, buffer, {
+          upsert: true,
+          contentType: file.type || 'application/octet-stream',
+        });
+        if (error) throw error;
 
-    return NextResponse.json({
-      success: true,
-      url: `/api/files/tmp/uploads/product-images/${finalName}`,
-      cloudStoragePath: `tmp/uploads/product-images/${finalName}`,
-      size: file.size,
-      type: file.type,
-      storage: 'tmp-products'
-    });
+        // Try a signed URL (works even if bucket not public)
+        const signed = await supabase.storage.from(PRODUCT_IMAGES_BUCKET).createSignedUrl(objectPath, 3600);
+        const publicResult = supabase.storage.from(PRODUCT_IMAGES_BUCKET).getPublicUrl(objectPath);
+        const url = (signed.data?.signedUrl) || publicResult.data.publicUrl;
+
+        return NextResponse.json({
+          success: true,
+          url,
+          cloudStoragePath: objectPath,
+          size: file.size,
+          type: file.type,
+          storage: 'supabase',
+          bucket: PRODUCT_IMAGES_BUCKET,
+        });
+      } catch (e: any) {
+        console.error('Supabase upload failed:', e);
+        return NextResponse.json({ error: 'Supabase upload failed', code: 'SUPABASE_UPLOAD_FAILED', message: String(e?.message || e) }, { status: 500 });
+      }
+    }
+
+    return NextResponse.json({ error: 'Supabase storage not configured', code: 'SUPABASE_NOT_CONFIGURED' }, { status: 400 });
 
   } catch (error) {
     console.error('Error uploading file:', error);

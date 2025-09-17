@@ -48,6 +48,9 @@ export default function FileManager() {
   const [isUploading, setIsUploading] = useState(false);
   const [selectedImage, setSelectedImage] = useState<UploadedImage | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [storageMode, setStorageMode] = useState<string>('');
+  const [autoSyncAttempted, setAutoSyncAttempted] = useState(false);
 
   // Load existing images
   const fetchImages = useCallback(async () => {
@@ -56,8 +59,17 @@ export default function FileManager() {
       if (response.ok) {
         const data = await response.json();
         setImages(data.images || []);
+        if (data.mode) setStorageMode(data.mode);
+        if (data.error) {
+          toast.error(`File Manager error: ${data.error}`);
+        }
       } else {
-        console.error('Failed to fetch images');
+        try {
+          const j = await response.json();
+          toast.error(j?.error || 'Failed to fetch images');
+        } catch {
+          toast.error('Failed to fetch images');
+        }
       }
     } catch (error) {
       console.error('Error fetching images:', error);
@@ -69,6 +81,53 @@ export default function FileManager() {
   useEffect(() => {
     fetchImages();
   }, [fetchImages]);
+
+  const handleSyncSupabase = async () => {
+    try {
+      setSyncing(true);
+      const r = await fetch('/api/file-manager/supabase/sync', { method: 'POST' });
+      const j = await r.json();
+      if (r.ok) {
+        toast.success(`Synced ${j.uploaded} image(s) to Supabase${j.failed?`, ${j.failed} failed`:''}`);
+        await fetchImages();
+      } else {
+        toast.error(j?.error || 'Sync failed');
+      }
+    } catch (e) {
+      toast.error('Sync failed');
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  // One-time auto sync on first admin visit (per-browser) when Supabase is enabled
+  useEffect(() => {
+    const key = 'supabaseAutoSyncDone';
+    if (typeof window === 'undefined') return;
+    if (autoSyncAttempted) return;
+    const done = window.localStorage.getItem(key);
+    if (done === '1') return;
+    // Attempt sync; if Supabase not configured, API returns 400; we show error once.
+    (async () => {
+      try {
+        setAutoSyncAttempted(true);
+        const r = await fetch('/api/file-manager/supabase/sync', { method: 'POST' });
+        const j = await r.json().catch(()=>({}));
+        if (r.ok) {
+          window.localStorage.setItem(key, '1');
+          if (typeof j?.uploaded === 'number') {
+            toast.success(`Synced ${j.uploaded} image(s) to Supabase${j.failed?`, ${j.failed} failed`:''}`);
+            await fetchImages();
+          }
+        } else if (j?.error) {
+          // Surface once; user can configure and retry via the button
+          toast.error(j.error);
+        }
+      } catch {
+        // ignore
+      }
+    })();
+  }, [autoSyncAttempted, fetchImages]);
 
   // Handle file selection
   const handleFileSelect = (files: FileList | File[]) => {
@@ -201,6 +260,19 @@ export default function FileManager() {
             idx === i ? { ...p, status: 'success' as const, progress: 100 } : p
           ));
           
+          // Optimistic update: add the uploaded image to the gallery immediately if URL present
+          if (data?.url && data?.storage === 'supabase') {
+            setImages(prev => [
+              {
+                filename: data.cloudStoragePath || fileWithName.customName,
+                originalName: fileWithName.customName,
+                url: data.url,
+                size: fileWithName.file.size,
+                uploadedAt: new Date().toISOString(),
+              },
+              ...prev,
+            ]);
+          }
           successCount++;
         } else {
           const error = await response.json();
@@ -214,6 +286,7 @@ export default function FileManager() {
               error: error.error || 'Upload failed' 
             } : p
           ));
+          if (error?.code) toast.error(`${error.code}: ${error.error || 'Upload failed'}`);
           
           errorCount++;
         }
@@ -458,13 +531,23 @@ export default function FileManager() {
               <Folder className="h-5 w-5 mr-2" />
               Image Gallery ({images.length})
             </h2>
-            <button
-              onClick={() => fetchImages()}
-              className="bg-gray-700 hover:bg-gray-600 text-white px-3 py-2 rounded-lg transition-colors duration-200 flex items-center"
-            >
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Refresh
-            </button>
+            <div className="flex items-center space-x-2">
+              {storageMode && (
+                <span className="text-xs px-2 py-1 rounded bg-gray-700 border border-gray-600 text-gray-300">{storageMode}</span>
+              )}
+              <button
+                onClick={() => fetchImages()}
+                className="bg-gray-700 hover:bg-gray-600 text-white px-3 py-2 rounded-lg transition-colors duration-200 flex items-center"
+              >
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Refresh
+              </button>
+              <button
+                onClick={handleSyncSupabase}
+                disabled={syncing}
+                className="bg-green-700 hover:bg-green-600 disabled:opacity-50 text-white px-3 py-2 rounded-lg transition-colors duration-200"
+              >{syncing ? 'Syncing...' : 'Sync to Supabase'}</button>
+            </div>
           </div>
 
           {isLoading ? (

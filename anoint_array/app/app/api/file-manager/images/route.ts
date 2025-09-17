@@ -4,31 +4,27 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { readdir, stat } from 'fs/promises';
 import path from 'path';
-// Avoid DB-backed config here; rely on env with sensible defaults.
-import { createS3Client, getBucketConfig } from '@/lib/aws-config';
-import { ListObjectsV2Command, ListObjectsV2CommandOutput } from '@aws-sdk/client-s3';
-import { getPublicUrl } from '@/lib/s3';
+import { createSupabaseServerClient, useSupabaseStorage, PRODUCT_IMAGES_BUCKET } from '@/lib/supabase-server';
 
 export const dynamic = 'force-dynamic';
 
-function shouldUseLocalFallback() {
-  return (
-    !process.env.AWS_ACCESS_KEY_ID ||
-    process.env.NODE_ENV === 'development' ||
-    process.env.FORCE_LOCAL_UPLOADS === '1'
-  );
-}
+function shouldUseLocalFallback() { return true; }
 
 async function listLocalImages() {
   const explicit = process.env.LOCAL_UPLOADS_DIR;
   const writable = process.env.WRITABLE_DIR || '/tmp';
   const repoUploads = path.join(process.cwd(), 'uploads');
   const repoProducts = path.join(process.cwd(), 'assets', 'product-images');
+  const repoUploadsProducts = path.join(process.cwd(), 'uploads', 'product-images');
+  const writableUploads = path.join(writable, 'uploads');
+  const writableProducts = path.join(writable, 'uploads', 'product-images');
   const candidates = [
     ...(explicit ? [explicit] : []),
-    path.join(writable, 'uploads'),
+    writableUploads,
+    writableProducts,
     repoUploads,
     repoProducts,
+    repoUploadsProducts,
   ];
   const imageExtensions = new Set(['.jpg', '.jpeg', '.png']);
   type Meta = { size: number; mtime: Date; key: string };
@@ -47,8 +43,11 @@ async function listLocalImages() {
             // Prefer assets/product-images semantic key when explicit path points there
             if (/assets\/(product-images|images)/.test(explicit)) prefix = 'assets/product-images';
             else prefix = 'uploads';
-          } else if (dir === repoProducts) prefix = 'assets/product-images';
-          else if (dir === repoUploads || dir === path.join(writable, 'uploads')) prefix = 'uploads';
+          } else if (dir === writableProducts) prefix = 'tmp/uploads/product-images';
+          else if (dir === writableUploads) prefix = 'tmp/uploads';
+          else if (dir === repoProducts) prefix = 'assets/product-images';
+          else if (dir === repoUploadsProducts) prefix = 'uploads/product-images';
+          else if (dir === repoUploads) prefix = 'uploads';
           const key = prefix ? `${prefix}/${f}` : f;
           const prev = fileMap.get(key);
           if (!prev || s.mtime > prev.mtime) fileMap.set(key, { size: s.size, mtime: s.mtime, key });
@@ -80,66 +79,38 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Match storage mode with lib/s3.ts
-    const useLocalFallback = shouldUseLocalFallback();
+    // Strict Supabase-only mode
+    const useSupabase = useSupabaseStorage();
+    const useLocalFallback = false;
 
-    if (useLocalFallback) {
-      try {
-        const imageFiles = await listLocalImages();
-        return NextResponse.json({ success: true, images: imageFiles, count: imageFiles.length });
-      } catch (error) {
-        console.error('Error reading uploads directory:', error);
-        return NextResponse.json({ success: true, images: [], count: 0 });
-      }
+    if (!useSupabase) {
+      return NextResponse.json({ success: true, images: [], count: 0, error: 'SUPABASE_NOT_CONFIGURED' });
     } else {
-      // S3 mode (e.g., production): list bucket objects under folderPrefix
-      const s3 = createS3Client();
-      const { bucketName, folderPrefix } = getBucketConfig();
-
+      // Supabase mode
       try {
+        const supabase = createSupabaseServerClient();
+        const { data, error } = await supabase.storage.from(PRODUCT_IMAGES_BUCKET).list('', { limit: 1000, sortBy: { column: 'updated_at', order: 'desc' } });
+        if (error) throw error;
         const imageExtensions = new Set(['.jpg', '.jpeg', '.png']);
-        const imageFiles: Array<{ filename: string; originalName: string; url: string; size: number; uploadedAt: string }>= [];
-
-        let ContinuationToken: string | undefined = undefined;
-        do {
-          const res: ListObjectsV2CommandOutput = await s3.send(
-            new ListObjectsV2Command({
-              Bucket: bucketName,
-              Prefix: folderPrefix,
-              ContinuationToken,
-            })
-          );
-
-          for (const obj of res.Contents || []) {
-            const key = obj.Key || '';
-            if (!key || !key.startsWith(folderPrefix)) continue;
-            const base = key.slice(folderPrefix.length);
-            if (!base) continue;
-            const ext = path.extname(base).toLowerCase();
-            if (!imageExtensions.has(ext)) continue;
-
-            imageFiles.push({
-              filename: base,
-              originalName: base,
-              url: getPublicUrl(key),
-              size: obj.Size || 0,
-              uploadedAt: obj.LastModified ? new Date(obj.LastModified).toISOString() : new Date(0).toISOString(),
-            });
-          }
-
-          ContinuationToken = res.IsTruncated ? res.NextContinuationToken : undefined;
-        } while (ContinuationToken);
-
-        imageFiles.sort((a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime());
-        return NextResponse.json({ success: true, images: imageFiles, count: imageFiles.length });
-      } catch (error: any) {
-        console.error('S3 list error:', error);
-        // If S3 fails (credentials, access), fallback to local so UI stays in sync with upload fallback
-        const msg = String(error?.message || error || '');
-        if (/InvalidAccessKeyId|SignatureDoesNotMatch|AccessDenied|UnknownEndpoint|CredentialsError|ExpiredToken/i.test(msg)) {
-          const imageFiles = await listLocalImages();
-          return NextResponse.json({ success: true, images: imageFiles, count: imageFiles.length, fallback: 'local' });
+        const out: Array<{ filename: string; originalName: string; url: string; size: number; uploadedAt: string }>= [];
+        for (const obj of data || []) {
+          const ext = path.extname(obj.name).toLowerCase();
+          if (!imageExtensions.has(ext)) continue;
+          const originalName = obj.name;
+          const signed = await supabase.storage.from(PRODUCT_IMAGES_BUCKET).createSignedUrl(obj.name, 3600);
+          const publicUrl = supabase.storage.from(PRODUCT_IMAGES_BUCKET).getPublicUrl(obj.name).data.publicUrl;
+          const url = signed.data?.signedUrl || publicUrl;
+          out.push({
+            filename: obj.name,
+            originalName,
+            url,
+            size: (obj as any).metadata?.size || 0,
+            uploadedAt: obj.updated_at ? new Date(obj.updated_at).toISOString() : new Date().toISOString(),
+          });
         }
+        return NextResponse.json({ success: true, images: out, count: out.length, mode: 'supabase' });
+      } catch (e) {
+        console.error('Supabase list error:', e);
         return NextResponse.json({ success: true, images: [], count: 0 });
       }
     }

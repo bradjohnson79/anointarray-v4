@@ -22,6 +22,8 @@ const nextConfig = {
     unoptimized: true,
     remotePatterns: [
       { protocol: 'https', hostname: '**.amazonaws.com' },
+      { protocol: 'https', hostname: '**.supabase.co' },
+      { protocol: 'https', hostname: '**.vercel-storage.com' },
     ],
   },
   webpack: (config, { isServer }) => {

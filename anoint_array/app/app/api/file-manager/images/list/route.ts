@@ -2,143 +2,46 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
-import { readdir, stat } from 'fs/promises';
+import { createSupabaseServerClient, useSupabaseStorage, PRODUCT_IMAGES_BUCKET } from '@/lib/supabase-server';
 import path from 'path';
-// Avoid DB-backed config here; rely on env with sensible defaults.
-import { createS3Client, getBucketConfig } from '@/lib/aws-config';
-import { ListObjectsV2Command, ListObjectsV2CommandOutput } from '@aws-sdk/client-s3';
-import { getPublicUrl } from '@/lib/s3';
 
 export const dynamic = 'force-dynamic';
-
-function shouldUseLocalFallback() {
-  return (
-    !process.env.AWS_ACCESS_KEY_ID ||
-    process.env.NODE_ENV === 'development' ||
-    process.env.FORCE_LOCAL_UPLOADS === '1'
-  );
-}
-
-async function listLocalOptions() {
-  const explicit = process.env.LOCAL_UPLOADS_DIR;
-  const writable = process.env.WRITABLE_DIR || '/tmp';
-  const repoUploads = path.join(process.cwd(), 'uploads');
-  const repoProducts = path.join(process.cwd(), 'assets', 'product-images');
-  const candidates = [
-    ...(explicit ? [explicit] : []),
-    path.join(writable, 'uploads'),
-    repoUploads,
-    repoProducts,
-  ];
-  const imageExtensions = new Set(['.jpg', '.jpeg', '.png']);
-  type Meta = { size: number; mtime: Date; key: string };
-  const fileMap = new Map<string, Meta>();
-  for (const dir of candidates) {
-    try {
-      const files = await readdir(dir);
-      for (const f of files) {
-        const ext = path.extname(f).toLowerCase();
-        if (!imageExtensions.has(ext)) continue;
-        try {
-          const s = await stat(path.join(dir, f));
-          let prefix = '';
-          if (explicit && dir === explicit) {
-            if (/assets\/(product-images|images)/.test(explicit)) prefix = 'assets/product-images';
-            else prefix = 'uploads';
-          } else if (dir === repoProducts) prefix = 'assets/product-images';
-          else if (dir === repoUploads || dir === path.join(writable, 'uploads')) prefix = 'uploads';
-          const key = prefix ? `${prefix}/${f}` : f;
-          const prev = fileMap.get(key);
-          if (!prev || s.mtime > prev.mtime) fileMap.set(key, { size: s.size, mtime: s.mtime, key });
-        } catch {}
-      }
-    } catch {}
-  }
-  const imageOptions: Array<{ value: string; label: string; filename: string; size: number; uploadedAt: string }> = [];
-  for (const [key, meta] of fileMap) {
-    const label = key.split('/').pop() || key;
-    imageOptions.push({
-      value: `/api/files/${key}`,
-      label,
-      filename: key,
-      size: meta.size,
-      uploadedAt: meta.mtime.toISOString(),
-    });
-  }
-  imageOptions.sort((a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime());
-  return imageOptions;
-}
 
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    
-    // Only authenticated admins can access file manager
     if (!session || session.user?.role !== 'ADMIN') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const useLocalFallback = shouldUseLocalFallback();
-
-    if (useLocalFallback) {
-      try {
-        const imageOptions = await listLocalOptions();
-        return NextResponse.json({ success: true, options: imageOptions });
-      } catch (error) {
-        console.error('Error reading uploads directories:', error);
-        return NextResponse.json({ success: true, options: [] });
-      }
-    } else {
-      // S3 mode
-      const s3 = createS3Client();
-      const { bucketName, folderPrefix } = getBucketConfig();
-      try {
-        const imageExtensions = new Set(['.jpg', '.jpeg', '.png']);
-        const imageOptions: Array<{ value: string; label: string; filename: string; size: number; uploadedAt: string }>= [];
-        let ContinuationToken: string | undefined = undefined;
-        do {
-          const res: ListObjectsV2CommandOutput = await s3.send(
-            new ListObjectsV2Command({
-              Bucket: bucketName,
-              Prefix: folderPrefix,
-              ContinuationToken,
-            })
-          );
-          for (const obj of res.Contents || []) {
-            const key = obj.Key || '';
-            if (!key || !key.startsWith(folderPrefix)) continue;
-            const base = key.slice(folderPrefix.length);
-            if (!base) continue;
-            const ext = path.extname(base).toLowerCase();
-            if (!imageExtensions.has(ext)) continue;
-            imageOptions.push({
-              value: getPublicUrl(key),
-              label: base,
-              filename: base,
-              size: obj.Size || 0,
-              uploadedAt: obj.LastModified ? new Date(obj.LastModified).toISOString() : new Date(0).toISOString(),
-            });
-          }
-          ContinuationToken = res.IsTruncated ? res.NextContinuationToken : undefined;
-        } while (ContinuationToken);
-        imageOptions.sort((a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime());
-        return NextResponse.json({ success: true, options: imageOptions });
-      } catch (error: any) {
-        console.error('S3 list error:', error);
-        const msg = String(error?.message || error || '');
-        if (/InvalidAccessKeyId|SignatureDoesNotMatch|AccessDenied|UnknownEndpoint|CredentialsError|ExpiredToken/i.test(msg)) {
-          const imageOptions = await listLocalOptions();
-          return NextResponse.json({ success: true, options: imageOptions, fallback: 'local' });
-        }
-        return NextResponse.json({ success: true, options: [] });
-      }
+    if (!useSupabaseStorage()) {
+      return NextResponse.json({ success: true, options: [], error: 'SUPABASE_NOT_CONFIGURED' });
     }
 
+    const supabase = createSupabaseServerClient();
+    const { data, error } = await supabase.storage.from(PRODUCT_IMAGES_BUCKET).list('', { limit: 1000, sortBy: { column: 'updated_at', order: 'desc' } });
+    if (error) throw error;
+
+    const imageExtensions = new Set(['.jpg', '.jpeg', '.png']);
+    const options: Array<{ value: string; label: string; filename: string; size: number; uploadedAt: string }>= [];
+    for (const obj of (data || [])) {
+      const ext = path.extname(obj.name).toLowerCase();
+      if (!imageExtensions.has(ext)) continue;
+      const label = obj.name;
+      const signed = await supabase.storage.from(PRODUCT_IMAGES_BUCKET).createSignedUrl(obj.name, 3600);
+      const publicUrl = supabase.storage.from(PRODUCT_IMAGES_BUCKET).getPublicUrl(obj.name).data.publicUrl;
+      const url = signed.data?.signedUrl || publicUrl;
+      options.push({
+        value: url,
+        label,
+        filename: obj.name,
+        size: (obj as any).metadata?.size || 0,
+        uploadedAt: obj.updated_at ? new Date(obj.updated_at).toISOString() : new Date().toISOString(),
+      });
+    }
+    return NextResponse.json({ success: true, options, mode: 'supabase' });
   } catch (error) {
     console.error('Error fetching image options:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch image options' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Failed to fetch image options' }, { status: 500 });
   }
 }
