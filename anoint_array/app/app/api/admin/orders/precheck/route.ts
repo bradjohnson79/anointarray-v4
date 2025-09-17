@@ -155,9 +155,12 @@ export async function GET(request: NextRequest) {
     );
     checks.push({ key: 'canadapost', label: 'Canada Post API (Direct)', status: cpCreds ? 'ok' : 'warn' });
 
-    // Emails
-    const resend = !!process.env.RESEND_API_KEY;
-    checks.push({ key: 'email', label: 'Email (Resend)', status: resend ? 'ok' : 'warn' });
+    // Emails (Provider)
+    const emailProvider = (process.env.EMAIL_PROVIDER || '').toLowerCase();
+    const hasResend = !!process.env.RESEND_API_KEY;
+    const hasPostmark = !!process.env.POSTMARK_SERVER_TOKEN;
+    const emailOk = emailProvider === 'postmark' ? hasPostmark : (emailProvider === 'resend' ? hasResend : (hasPostmark || hasResend));
+    checks.push({ key: 'email', label: 'Email (Provider)', status: emailOk ? 'ok' : 'warn', details: { provider: emailProvider || (hasPostmark ? 'postmark' : (hasResend ? 'resend' : 'none')) } });
 
     // Support AI
     const openai = !!process.env.OPENAI_API_KEY;
