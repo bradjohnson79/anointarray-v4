@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth';
 import fs from 'fs/promises';
 import fsSync from 'fs';
 import path from 'path';
+import { list, put } from '@vercel/blob';
 
 const FILE = path.join(process.cwd(), 'data', 'storefront-payments.json');
 
@@ -12,7 +13,18 @@ function bool(v: any) { return v === true || String(v || '').toLowerCase() === '
 export async function GET() {
   try {
     let fileCfg: any = {};
-    try { if (fsSync.existsSync(FILE)) fileCfg = JSON.parse(await fs.readFile(FILE, 'utf-8')); } catch {}
+    try { if (fsSync.existsSync(FILE)) fileCfg = JSON.parse(await fs.readFile(FILE, 'utf-8')); }
+    catch {}
+    if (!fileCfg || !Object.keys(fileCfg).length) {
+      try {
+        const { blobs } = await list({ prefix: 'configs/storefront-payments.json' });
+        const b = blobs?.[0];
+        if (b?.url) {
+          const r = await fetch(b.url);
+          if (r.ok) fileCfg = await r.json();
+        }
+      } catch {}
+    }
 
     const stripeTest = bool(fileCfg?.stripe?.testMode) || !!process.env.STRIPE_SECRET_TEST_KEY;
     const stripe = {
@@ -53,11 +65,19 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const payload = { ...body, lastUpdated: new Date().toISOString() };
-    await fs.mkdir(path.dirname(FILE), { recursive: true });
-    await fs.writeFile(FILE, JSON.stringify(payload, null, 2), 'utf8');
-    return NextResponse.json({ ok: true });
+    try {
+      await fs.mkdir(path.dirname(FILE), { recursive: true });
+      await fs.writeFile(FILE, JSON.stringify(payload, null, 2), 'utf8');
+      return NextResponse.json({ ok: true, storage: 'file' });
+    } catch (e: any) {
+      try {
+        const res = await put('configs/storefront-payments.json', JSON.stringify(payload), { contentType: 'application/json', addRandomSuffix: false, access: 'private' });
+        return NextResponse.json({ ok: true, storage: 'blob', url: res.url });
+      } catch (be: any) {
+        return NextResponse.json({ error: be?.message || e?.message || 'Failed to save configuration' }, { status: 500 });
+      }
+    }
   } catch (e: any) {
     return NextResponse.json({ error: e?.message || 'Failed to save configuration' }, { status: 500 });
   }
 }
-
