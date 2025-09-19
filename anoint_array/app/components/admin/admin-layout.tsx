@@ -113,17 +113,15 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                     <li key={link.href}>
                       <Link
                         href={link.href}
-                        target={link?.external ? '_blank' : undefined}
-                        rel={link?.external ? 'noopener noreferrer' : undefined}
                         onClick={() => setIsSidebarOpen(false)}
                         className={`flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors duration-200 ${
-                          isActive && !link?.external
+                          isActive
                             ? 'bg-purple-600/30 text-purple-300 border border-purple-500/50'
                             : 'text-gray-300 hover:text-white hover:bg-purple-500/20'
                         }`}
                       >
                         <link.icon className="h-5 w-5" />
-                        <span>{link.label}{link?.external ? ' ↗' : ''}</span>
+                        <span>{link.label}</span>
                       </Link>
                     </li>
                   );
