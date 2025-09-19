@@ -39,8 +39,7 @@ const adminNavLinks = [
   { href: '/admin/contacts', label: 'Contact Messages', icon: Mail },
   { href: '/admin/analytics', label: 'Analytics', icon: BarChart3 },
   { href: '/admin/settings', label: 'Settings', icon: Settings },
-  // Tools
-  { href: '/api/admin/products/backup', label: 'Backup Products', icon: Download, external: true },
+  { href: '/admin/backups', label: 'Backups', icon: Download },
 ];
 
 interface AdminLayoutProps {

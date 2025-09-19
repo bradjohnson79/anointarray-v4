@@ -18,12 +18,14 @@ function nowStamp() {
   );
 }
 
-export async function GET(_req: NextRequest) {
+export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session || session.user?.role !== 'ADMIN') {
     return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
   }
   try {
+    const { searchParams } = new URL(req.url);
+    const dry = searchParams.get('dry') === '1' || searchParams.get('check') === '1';
     const { createSupabaseServerClient } = await import('@/lib/supabase-server');
     const supabase = createSupabaseServerClient();
 
@@ -53,6 +55,11 @@ export async function GET(_req: NextRequest) {
       products: (products || []).map((p: any) => ({ ...p, variants: byProduct[p.id] || [] })),
     };
 
+    // In dry mode, just return counts to test permissions
+    if (dry) {
+      return NextResponse.json({ ok: true, count: snapshot.count });
+    }
+
     // Persist to Supabase Storage (configs/backups)
     const { CONFIGS_BUCKET } = await import('@/lib/supabase-server');
     const bucket = CONFIGS_BUCKET || process.env.SUPABASE_CONFIGS_BUCKET || 'configs';
@@ -73,4 +80,3 @@ export async function GET(_req: NextRequest) {
     return NextResponse.json({ error: e?.message || 'Backup failed' }, { status: 500 });
   }
 }
-
