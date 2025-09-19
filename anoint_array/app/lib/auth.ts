@@ -57,10 +57,19 @@ export const authOptions: NextAuthOptions = {
       return token;
     },
     async session({ session, token }) {
-      if (session?.user) {
-        session.user.id = token.sub as string;
-        session.user.role = token.role as string;
-      }
+      try {
+        if (session?.user) {
+          session.user.id = token.sub as string;
+          session.user.role = (token as any).role as string;
+          if (!session.user.name || !session.user.email) {
+            const u = await prisma.user.findUnique({ where: { id: token.sub as string }, select: { name: true, email: true } });
+            if (u) {
+              session.user.name = u.name || session.user.name || '';
+              session.user.email = u.email || session.user.email || '';
+            }
+          }
+        }
+      } catch {}
       return session;
     },
   },

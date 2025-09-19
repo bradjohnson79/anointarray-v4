@@ -9,6 +9,18 @@ import { notifyGoAffProConversion } from '@/lib/affiliates';
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
+// Health probe for browsers and uptime checks
+export async function GET() {
+  return NextResponse.json({
+    ok: true,
+    note: 'Stripe webhook endpoint is alive. Stripe sends POST requests here.'
+  });
+}
+
+export async function HEAD() {
+  return new NextResponse(null, { status: 200 });
+}
+
 function getStripe(): Stripe {
   const key = process.env.STRIPE_SECRET_KEY || process.env.STRIPE_SECRET_TEST_KEY;
   if (!key) {
@@ -64,16 +76,29 @@ export async function POST(request: Request) {
         const billingAddress = orderData?.billingSameAsShipping ? (shippingAddress || orderData?.billingAddress || null) : (orderData?.billingAddress || shippingAddress || null);
         
         // Create order in database
-        await prisma.order.create({
+        // Resolve customer email with robust fallbacks
+        const emailFromMeta = (session.metadata as any)?.user_email || undefined;
+        const customerEmail = session.customer_email || emailFromMeta || undefined;
+
+        // Attempt to resolve userId by email if not supplied
+        let resolvedUserId: string | undefined = ((session.metadata as any)?.user_id as string) || undefined;
+        try {
+          if (!resolvedUserId && customerEmail) {
+            const u = await prisma.user.findUnique({ where: { email: customerEmail.toLowerCase() }, select: { id: true } });
+            if (u) resolvedUserId = u.id;
+          }
+        } catch {}
+
+        const created = await prisma.order.create({
           data: {
             orderNumber: `STRIPE_${session.id}`,
-            userId: session.client_reference_id || undefined,
+            userId: resolvedUserId,
             status: 'processing',
             totalAmount: session.amount_total! / 100, // Convert from cents
             paymentStatus: 'paid',
             paymentMethod: 'stripe',
             stripePaymentId: session.payment_intent as string || session.id,
-            customerEmail: session.customer_email!,
+            customerEmail: customerEmail || 'unknown@example.com',
             customerName: session.customer_details?.name || 'Unknown',
             shippingAddress: shippingAddress || undefined,
             billingAddress: billingAddress || undefined,
@@ -96,6 +121,29 @@ export async function POST(request: Request) {
           }
         });
 
+        // Create order items if provided in metadata
+        try {
+          const od = JSON.parse(session.metadata?.orderData || '{}');
+          const items = Array.isArray(od?.items) ? od.items : [];
+          const rows: any[] = [];
+          for (const it of items) {
+            try {
+              let pid = String(it.id || '') || undefined;
+              // Support composite ids like "productId:variantId"
+              if (pid && pid.includes(':')) pid = pid.split(':')[0];
+              const qty = Number(it.q || it.quantity || 1) || 1;
+              const price = Number(it.p || it.price || 0) || 0;
+              if (pid) {
+                const product = await prisma.product.findUnique({ where: { id: pid }, select: { id: true, isDigital: true, hsCode: true, countryOfOrigin: true, customsDescription: true } });
+                if (product) {
+                  rows.push({ orderId: created.id, productId: product.id, quantity: qty, price, isDigital: !!product.isDigital, hsCode: product.hsCode || undefined, countryOfOrigin: product.countryOfOrigin || undefined, customsDescription: product.customsDescription || undefined });
+                }
+              }
+            } catch {}
+          }
+          if (rows.length) await prisma.orderItem.createMany({ data: rows, skipDuplicates: true });
+        } catch {}
+
         // Send receipt email to customer and all admins (best effort)
         try {
           const orderData = JSON.parse(session.metadata?.orderData || '{}');
@@ -113,8 +161,8 @@ export async function POST(request: Request) {
 
           const sends: Promise<any>[] = [];
           // Customer receipt
-          if (session.customer_email) {
-            sends.push(sendReceiptEmail(session.customer_email, {
+          if (customerEmail) {
+            sends.push(sendReceiptEmail(customerEmail, {
               customerName: session.customer_details?.name || undefined,
               orderNumber: `STRIPE_${session.id}`,
               items,
@@ -138,22 +186,17 @@ export async function POST(request: Request) {
               shippingAddress,
             }));
           });
-          // Copy these two recipients for service orders
-          try {
-            const productType = String((session.metadata as any)?.product_type || '').toLowerCase();
-            if (productType === 'service') {
-              ['bradjohnson79@gmail.com','info@anoint.me'].forEach((addr)=>{
-                sends.push(sendReceiptEmail(addr, {
-                  customerName: session.customer_details?.name || 'Customer',
-                  orderNumber: `STRIPE_${session.id}`,
-                  items,
-                  total,
-                  currency,
-                  shippingAddress,
-                }));
-              });
-            }
-          } catch {}
+          // Always CC these admin addresses for visibility
+          ;['bradjohnson79@gmail.com','info@anoint.me'].forEach((addr)=>{
+            sends.push(sendReceiptEmail(addr, {
+              customerName: session.customer_details?.name || 'Customer',
+              orderNumber: `STRIPE_${session.id}`,
+              items,
+              total,
+              currency,
+              shippingAddress,
+            }));
+          });
           await Promise.allSettled(sends);
         } catch (e) {
           console.warn('Receipt email failed (stripe):', e);

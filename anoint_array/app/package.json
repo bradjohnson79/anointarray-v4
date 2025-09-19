@@ -22,10 +22,14 @@
     "agent:fullstack": "tsx scripts/fullstack-scan.ts",
     "mcp:check": "tsx scripts/mcp-check.ts",
     "admin:promote": "tsx scripts/promote-admin.ts",
-    "admin:upsert": "tsx scripts/upsert-admins.ts"
+    "admin:upsert": "tsx scripts/upsert-admins.ts",
+    "stripe:login": "stripe login",
+    "stripe:listen:test": "stripe listen --events checkout.session.completed --forward-to http://localhost:3002/api/payment/stripe/webhook --latest",
+    "stripe:listen:all": "stripe listen --forward-to http://localhost:3002/api/payment/stripe/webhook",
+    "stripe:trigger": "stripe trigger checkout.session.completed"
   },
   "mcp": {
-    "config": "../.codex/config.toml"
+    "config": ".codex/config.toml"
   },
   "prisma": {
     "seed": "tsx --require dotenv/config scripts/seed.ts"

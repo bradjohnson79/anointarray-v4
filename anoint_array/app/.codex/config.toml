@@ -1,0 +1,38 @@
+# MCP server configuration (deployed under app/.codex)
+
+[meta]
+version = 1
+description = "MCP servers used by the project (Supabase, Vercel, GitHub, PayPal, Prisma)"
+
+# Supabase MCP
+[mcpServers.supabase]
+command = "pnpm"
+args = ["dlx", "@supabase/mcp-server-supabase@latest"]
+env.SUPABASE_ACCESS_TOKEN = "${SUPABASE_ACCESS_TOKEN}"
+env.SUPABASE_PROJECT_REF = "${SUPABASE_PROJECT_REF}"
+
+# Vercel MCP
+[mcpServers.vercel]
+command = "pnpm"
+args = ["dlx", "@vercel/mcp-server-vercel@latest"]
+env.VERCEL_API_TOKEN = "${VERCEL_PERSONAL_ACCESS_TOKEN}"
+
+# GitHub MCP
+[mcpServers.github]
+command = "pnpm"
+args = ["dlx", "@github/mcp-server-github@latest"]
+env.GITHUB_TOKEN = "${GIT_PERSONAL_ACCESS_TOKEN}"
+
+# PayPal MCP disabled (use Vercel MCP without PayPal interference)
+# [mcpServers.paypal]
+# command = "pnpm"
+# args = ["dlx", "@paypal/mcp@latest", "--tools=all"]
+# env.PAYPAL_ACCESS_TOKEN = "${PAYPAL_ACCESS_TOKEN}"
+# env.PAYPAL_ENVIRONMENT = "${PAYPAL_ENVIRONMENT}"
+
+# Prisma MCP (placeholder)
+# If you have a Prisma MCP implementation, adjust args accordingly.
+# This entry allows the admin UI to register and manage it.
+[mcpServers.prisma]
+command = "pnpm"
+args = ["dlx", "@prisma/mcp-server@latest"]

@@ -6,7 +6,7 @@ import { prisma } from '@/lib/prisma';
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
-function genSku(name: string, style?: string) {
+function genSku(name: string, style?: string | null) {
   const base = (name || 'SKU').toUpperCase().replace(/[^A-Z0-9]+/g, '').slice(0, 8);
   const sty = (style || '').toUpperCase().replace(/[^A-Z0-9]+/g, '').slice(0, 6);
   const rand = Math.random().toString(36).toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4);
@@ -20,13 +20,22 @@ export async function POST() {
   }
   const actions: any[] = [];
   try {
-    const products = await prisma.product.findMany({
+    type Variant = { id: string; style: string | null; price: any; quantity: number | null; sku: string | null };
+    type ProductWithVariants = { id: string; name: string; price: any; inventory: number | null; variants?: Variant[] };
+
+    const products: ProductWithVariants[] = await prisma.product.findMany({
       select: { id: true, name: true, price: true, inventory: true, variants: { select: { id: true, style: true, price: true, quantity: true, sku: true } } },
       orderBy: { createdAt: 'asc' },
     });
-    const existingSkus = new Set<string>(
-      products.flatMap(p => (p.variants || []).map(v => v.sku).filter(Boolean) as string[])
-    );
+    // Build a deterministic SKU set without relying on array callbacks that can trip TS strict rules
+    const skuList: string[] = [];
+    for (const p of products as ProductWithVariants[]) {
+      const vars = (p.variants ?? []) as Variant[];
+      for (const v of vars) {
+        if (v.sku && typeof v.sku === 'string') skuList.push(v.sku);
+      }
+    }
+    const existingSkus = new Set<string>(skuList);
 
     for (const p of products) {
       if (!p.variants || p.variants.length === 0) {
@@ -54,4 +63,3 @@ export async function POST() {
     return NextResponse.json({ error: e?.message || 'Failed to repair SKUs' }, { status: 500 });
   }
 }
-

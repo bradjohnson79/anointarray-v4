@@ -88,7 +88,7 @@ export async function GET(request: Request) {
         // Create order in database
         const capture = captureData.purchase_units[0].payments.captures[0];
         
-        await prisma.order.create({
+        const created = await prisma.order.create({
           data: {
             orderNumber: `PAYPAL_${token}`,
             userId: orderInfo.userId || undefined,
@@ -109,6 +109,25 @@ export async function GET(request: Request) {
             taxBreakdown: orderInfo?.taxBreakdown || {},
           }
         });
+
+        // Create order items from custom_data if product ids were provided
+        try {
+          const items = Array.isArray(orderInfo?.items) ? orderInfo.items : [];
+          const rows: any[] = [];
+          for (const it of items) {
+            try {
+              let pid = String(it.id || '') || undefined;
+              if (pid && pid.includes(':')) pid = pid.split(':')[0];
+              const qty = Number(it.q || it.quantity || 1) || 1;
+              const price = Number(it.p || it.price || 0) || 0;
+              if (pid) {
+                const product = await prisma.product.findUnique({ where: { id: pid }, select: { id: true, isDigital: true, hsCode: true, countryOfOrigin: true, customsDescription: true } });
+                if (product) rows.push({ orderId: created.id, productId: product.id, quantity: qty, price, isDigital: !!product.isDigital, hsCode: product.hsCode || undefined, countryOfOrigin: product.countryOfOrigin || undefined, customsDescription: product.customsDescription || undefined });
+              }
+            } catch {}
+          }
+          if (rows.length) await prisma.orderItem.createMany({ data: rows, skipDuplicates: true });
+        } catch {}
 
         // Send receipt email to customer and all admins (best effort)
         try {

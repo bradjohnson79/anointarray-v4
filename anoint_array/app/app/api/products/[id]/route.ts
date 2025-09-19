@@ -13,6 +13,19 @@ interface RouteParams {
   };
 }
 
+function normalizeSupabasePublicUrl(url: any): any {
+  if (!url || typeof url !== 'string') return url;
+  try {
+    const u = new URL(url);
+    if (u.hostname.includes('.supabase.co') && u.pathname.includes('/storage/v1/object/')) {
+      u.pathname = u.pathname.replace('/storage/v1/object/sign/', '/storage/v1/object/public/');
+      u.search = '';
+      return u.toString();
+    }
+  } catch {}
+  return url;
+}
+
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
     const { searchParams } = new URL(request.url);
@@ -78,6 +91,10 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     // Convert Decimal fields to numbers for JSON serialization
     const serializedProduct = {
       ...product,
+      imageUrl: normalizeSupabasePublicUrl((product as any)?.imageUrl),
+      imageGallery: Array.isArray((product as any)?.imageGallery)
+        ? (product as any).imageGallery.map((u: string) => normalizeSupabasePublicUrl(u))
+        : [],
       price: Number(product.price),
       weight: product.weight ? Number(product.weight) : null,
       sortOrder: Number((product as any).sortOrder ?? 9999),
@@ -179,7 +196,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     if (isDigital !== undefined) updateData.isDigital = isDigital;
     if (featured !== undefined) updateData.featured = featured;
     if (comingSoon !== undefined) updateData.comingSoon = comingSoon;
-    if (imageUrl !== undefined) updateData.imageUrl = imageUrl;
+    if (imageUrl !== undefined) updateData.imageUrl = normalizeSupabasePublicUrl(imageUrl);
     if (sortOrder !== undefined) updateData.sortOrder = Number(sortOrder);
     if (inventory !== undefined) updateData.inventory = inventory;
     if (weight !== undefined) updateData.weight = weight;
@@ -196,7 +213,9 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     
     // Process imageGallery
     if (imageGallery !== undefined && Array.isArray(imageGallery)) {
-      const cleanedGallery = imageGallery.filter(url => url && typeof url === 'string' && url.trim() !== '');
+      const cleanedGallery = imageGallery
+        .filter(url => url && typeof url === 'string' && url.trim() !== '')
+        .map((u: string) => normalizeSupabasePublicUrl(u));
       updateData.imageGallery = cleanedGallery;
     }
 

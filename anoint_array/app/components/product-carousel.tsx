@@ -15,6 +15,7 @@ type Product = {
   price: number;
   category: string;
   imageUrl?: string;
+  imageGallery?: string[];
   featured?: boolean;
   inStock?: boolean;
   isPhysical?: boolean;
@@ -34,7 +35,11 @@ export default function ProductCarousel() {
         const r = await fetch("/api/products?featured=true", { cache: "no-store" });
         const j = await r.json();
         const arr: Product[] = Array.isArray(j) ? j : j?.products || [];
-        setProducts(arr.filter((p) => !/VIP|Bio-Scalar/i.test(p?.name || "")));
+        const normalized = arr.map((p) => ({
+          ...p,
+          imageUrl: p.imageUrl || (p.imageGallery && p.imageGallery[0]) || p.imageUrl,
+        }));
+        setProducts(normalized.filter((p) => !/VIP|Bio-Scalar/i.test(p?.name || "")));
       } catch (e) {
         console.error("Failed to load featured products", e);
       } finally {
@@ -151,4 +156,3 @@ export default function ProductCarousel() {
     </div>
   );
 }
-

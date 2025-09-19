@@ -16,8 +16,7 @@ export default function StripePayment({ publishableKey, amount, shippingAmount, 
   const handlePayment = async () => {
     // Guest checkout allowed only for physical products
     const hasDigital = state.cart.some(item => item.type === 'seal' || item.customData?.isDigital === true);
-    const guestAllowed = !hasDigital;
-    if (!session && !guestAllowed) {
+    if (hasDigital && !session?.user) {
       toast.error('Please log in or create a free account to purchase digital items.');
       return;
     }
@@ -26,18 +25,7 @@ export default function StripePayment({ publishableKey, amount, shippingAmount, 
     setProcessing(true);
 
     try {
-      // Create payment session
-      const popup = window.open('about:blank', 'stripe_checkout', 'width=520,height=720,menubar=no,toolbar=no,status=no');
-      const onMessage = (e: MessageEvent) => {
-        if (e.origin === window.location.origin && e.data?.type === 'payment-success') {
-          try { popup?.close(); } catch {}
-          clearCart();
-          window.removeEventListener('message', onMessage);
-          window.location.href = '/success?provider=stripe';
-        }
-      };
-      window.addEventListener('message', onMessage);
-
+      // Create checkout session
       const response = await fetch('/api/payment/stripe/create-payment', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -58,20 +46,15 @@ export default function StripePayment({ publishableKey, amount, shippingAmount, 
 
       if (error) throw new Error(error);
 
-      // Open in popup
-      if (url && popup) {
-        popup.location.href = url;
-      } else {
-        // Fallback: redirect via Stripe SDK
-        const stripe = await loadStripe(publishableKey || process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
-        if (!stripe) throw new Error('Stripe failed to load');
-        const { error: stripeError } = await stripe.redirectToCheckout({ sessionId: clientSecret });
-        if (stripeError) throw new Error(stripeError.message);
-      }
+      // Redirect the current window to Stripe hosted checkout.
+      // On completion, Stripe returns to /success which clears the cart.
+      const stripe = await loadStripe(publishableKey || process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
+      if (!stripe) throw new Error('Stripe failed to load');
+      const { error: stripeError } = await stripe.redirectToCheckout({ sessionId: clientSecret });
+      if (stripeError) throw new Error(stripeError.message);
     } catch (error) {
       console.error('Payment error:', error);
       toast.error('Payment failed. Please try again.');
-      try { const w = window.open('', 'stripe_checkout'); w?.close(); } catch {}
     } finally {
       setLoading(false);
       setProcessing(false);

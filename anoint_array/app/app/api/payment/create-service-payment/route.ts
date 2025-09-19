@@ -82,8 +82,11 @@ export async function POST(req: NextRequest) {
       console.warn('Failed to persist service order record', e);
     }
 
-    const successUrl = `${process.env.NEXTAUTH_URL}/success?provider=${encodeURIComponent(paymentMethod)}&order_id=${orderId}`;
-    const cancelUrl = `${process.env.NEXTAUTH_URL}/services?payment=cancelled`;
+    const { getCanonicalBaseUrl, logCanonicalResolution } = await import('@/lib/canonical');
+    const base = getCanonicalBaseUrl();
+    logCanonicalResolution('service.create-payment', base);
+    const successUrl = `${base}/success?provider=${encodeURIComponent(paymentMethod)}&order_id=${orderId}`;
+    const cancelUrl = `${base}/services?payment=cancelled`;
 
     if (paymentMethod === 'stripe') {
       if (!paymentConfig.stripe.enabled) return NextResponse.json({ error: 'Stripe not enabled' }, { status: 400 });
@@ -121,7 +124,10 @@ export async function POST(req: NextRequest) {
       const orderData = await createPaypalOrder(conf, token, {
         intent: 'CAPTURE',
         purchase_units: [{ amount: { currency_code: currency, value: amount.toFixed(2) }, description: `ANOINT Service — ${service.name}`, custom_id: orderId }],
-        application_context: { return_url: `${process.env.NEXTAUTH_URL}/api/payment/paypal/capture?custom_data=${encodeURIComponent(JSON.stringify({ aff, product_type: 'service', service_type: serviceType }))}`, cancel_url: cancelUrl }
+        application_context: {
+          return_url: `${(() => { const { getCanonicalBaseUrl, logCanonicalResolution } = require('@/lib/canonical'); const b = getCanonicalBaseUrl(); try{ logCanonicalResolution('paypal.create-service-payment', b); } catch{} return b; })()}/api/payment/paypal/capture?custom_data=${encodeURIComponent(JSON.stringify({ aff, product_type: 'service', service_type: serviceType }))}`,
+          cancel_url: cancelUrl
+        }
       });
       const approval = orderData.links.find((l: any)=>l.rel==='approve')?.href;
       try { await sendAdminServiceOrderEmail([

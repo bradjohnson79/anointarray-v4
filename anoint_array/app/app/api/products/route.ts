@@ -10,6 +10,20 @@ export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 export const revalidate = 0;
 
+function normalizeSupabasePublicUrl(url: any): any {
+  if (!url || typeof url !== 'string') return url;
+  try {
+    const u = new URL(url);
+    if (u.hostname.includes('.supabase.co') && u.pathname.includes('/storage/v1/object/')) {
+      // Convert any signed path to public and drop query params
+      u.pathname = u.pathname.replace('/storage/v1/object/sign/', '/storage/v1/object/public/');
+      u.search = '';
+      return u.toString();
+    }
+  } catch {}
+  return url;
+}
+
 async function getHandler(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const category = searchParams.get('category');
@@ -62,33 +76,53 @@ async function getHandler(request: NextRequest) {
       (select as any).defaultCustomsValueCad = true;
       (select as any).massGrams = true;
     }
-    // Try with sortOrder first; if the column is missing in DB, fallback without it
+    // Public requests: prefer Supabase REST (service role) for resilience; Admin: use Prisma
     let products: any[] = [];
-    try {
-      products = await prisma.product.findMany({
-        where,
-        select,
-        orderBy: [
-          { featured: 'desc' },
-          { sortOrder: 'asc' },
-          { createdAt: 'desc' }
-        ]
-      });
-    } catch (e: any) {
-      const msg = String(e?.message || e).toLowerCase();
-      const missingSort = msg.includes('sortorder') || msg.includes('sort_order');
-      if (!missingSort) throw e;
-      // Fallback: query again without referencing sortOrder
-      const selectNoSort = { ...select } as any;
-      delete selectNoSort.sortOrder;
-      products = await prisma.product.findMany({
-        where,
-        select: selectNoSort,
-        orderBy: [
-          { featured: 'desc' },
-          { createdAt: 'desc' }
-        ]
-      });
+    if (admin === 'true') {
+      // Admin view via Prisma (richer fields, counts later)
+      try {
+        try {
+          products = await prisma.product.findMany({
+            where,
+            select,
+            orderBy: [ { featured: 'desc' }, { sortOrder: 'asc' }, { createdAt: 'desc' } ]
+          });
+        } catch (e: any) {
+          const msg = String(e?.message || e).toLowerCase();
+          const missingSort = msg.includes('sortorder') || msg.includes('sort_order');
+          if (missingSort) {
+            const selectNoSort = { ...select } as any;
+            delete selectNoSort.sortOrder;
+            products = await prisma.product.findMany({ where, select: selectNoSort, orderBy: [ { featured: 'desc' }, { createdAt: 'desc' } ] });
+          } else {
+            throw e;
+          }
+        }
+      } catch (err) {
+        // Surface prisma error for admin use
+        throw err;
+      }
+    } else {
+      // Public view via Supabase REST first; fallback to Prisma only if REST fails
+      try {
+        const { createSupabaseServerClient } = await import('@/lib/supabase-server');
+        const supabase = createSupabaseServerClient();
+        const col = [ 'id','name','slug','teaserDescription','fullDescription','price','category','isVip','inStock','isPhysical','isDigital','imageUrl','imageGallery','featured','comingSoon','sortOrder','inventory','weight','dimensions','digitalFileUrl','instructionManualUrl','videoEmbedCode','createdAt','updatedAt' ];
+        let q = supabase.from('products').select(col.join(','));
+        if (category) q = q.eq('category', category);
+        if (featured === 'true') q = q.eq('featured', true);
+        const { data, error } = await q.order('featured', { ascending: false }).order('sortOrder', { ascending: true }).order('createdAt', { ascending: false });
+        if (error) throw error;
+        products = (data || []) as any[];
+      } catch (_) {
+        // Fallback to Prisma if REST is unavailable
+        try {
+          products = await prisma.product.findMany({ where, select, orderBy: [ { featured: 'desc' }, { sortOrder: 'asc' }, { createdAt: 'desc' } ] });
+        } catch {
+          // Last resort: empty list instead of 500 to keep storefront responsive
+          products = [];
+        }
+      }
     }
 
     // For admin view, compute order item counts per product in one query
@@ -106,6 +140,10 @@ async function getHandler(request: NextRequest) {
     // Convert Decimal fields to numbers for JSON serialization and add missing fields
     const processedProducts = products.map((product: any) => ({
       ...product,
+      imageUrl: normalizeSupabasePublicUrl(product?.imageUrl),
+      imageGallery: Array.isArray(product?.imageGallery)
+        ? product.imageGallery.map((u: string) => normalizeSupabasePublicUrl(u))
+        : [],
       price: Number(product?.price || 0),
       weight: product?.weight ? Number(product.weight) : null,
       sortOrder: Number((product as any)?.sortOrder ?? 9999),
@@ -216,13 +254,15 @@ async function postHandler(request: NextRequest) {
 
     // Add optional fields only if they have values
     if (fullDescription) productData.fullDescription = fullDescription;
-    if (imageUrl) productData.imageUrl = imageUrl;
+    if (imageUrl) productData.imageUrl = normalizeSupabasePublicUrl(imageUrl);
     if (isPhysical !== undefined) productData.isPhysical = isPhysical;
     if (isDigital !== undefined) productData.isDigital = isDigital;
     
     // Process imageGallery - filter out empty strings and null values
     if (imageGallery && Array.isArray(imageGallery)) {
-      const cleanedGallery = imageGallery.filter(url => url && typeof url === 'string' && url.trim() !== '');
+      const cleanedGallery = imageGallery
+        .filter(url => url && typeof url === 'string' && url.trim() !== '')
+        .map((u: string) => normalizeSupabasePublicUrl(u));
       if (cleanedGallery.length > 0) {
         productData.imageGallery = cleanedGallery;
       }

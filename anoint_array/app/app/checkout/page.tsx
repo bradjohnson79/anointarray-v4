@@ -94,7 +94,9 @@ export default function CheckoutPage() {
 
   const totals = useMemo(() => {
     const subtotalUSD = getTotalPrice();
-    const shippingUSD = state.cart.length > 0 ? (shipping.country === 'US' ? 15.5 : 12.5) : 0;
+    // Charge shipping only when the cart contains a physical item
+    const hasPhysical = state.cart.some(i => i.type === 'product' && i.customData?.isDigital !== true);
+    const shippingUSD = hasPhysical ? (state.cart.length > 0 ? (shipping.country === 'US' ? 15.5 : 12.5) : 0) : 0;
     let taxUSD = 0;
     if (shipping.country === 'CA' && shipping.state) {
       try {
@@ -222,11 +224,11 @@ export default function CheckoutPage() {
                   <div className="text-yellow-300 text-sm">Please complete shipping information first.</div>
                 ) : (
                   <>
-                    {!hasDigital ? null : (
+                    {hasDigital && !session?.user ? (
                       <div className="p-3 bg-purple-600/10 border border-purple-500/40 rounded text-purple-200 text-sm">
                         Digital products require a free account. Please <a href="/auth/login" className="underline">log in</a> or <a href="/auth/signup" className="underline">create an account</a> to continue.
                       </div>
-                    )}
+                    ) : null}
                     <div className="flex items-center justify-between">
                       <button onClick={() => setActive('shipping')} className="text-sm text-gray-300 hover:text-white underline">Back to Shipping</button>
                     </div>

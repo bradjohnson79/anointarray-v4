@@ -34,8 +34,10 @@ const globalForPrisma = globalThis as unknown as { prisma: ReturnType<PrismaClie
 
 function createClient() {
   if (useAccelerate) {
-    // Use Prisma Accelerate/Data Proxy via extension; respects PRISMA_ACCELERATE_URL
-    return new PrismaClient().$extends(withAccelerate());
+    // Route Prisma over Accelerate HTTP proxy instead of direct TCP.
+    // Important: provide datasourceUrl explicitly so the client doesn't try 5432.
+    const url = process.env.PRISMA_ACCELERATE_URL as string;
+    return new PrismaClient({ datasourceUrl: url }).$extends(withAccelerate());
   }
   if (!dbUrl) {
     throw new Error('DATABASE_URL not configured. Set DATABASE_URL (or DIRECT_URL) in env.');

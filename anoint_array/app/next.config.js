@@ -11,6 +11,11 @@ const nextConfig = {
     ...(isVercel ? {} : { outputFileTracingRoot: path.join(__dirname, '../') }),
     // Allow native Node/NAPI package to be required at runtime for server-only routes
     serverComponentsExternalPackages: ['@napi-rs/canvas'],
+    // Exclude large local knowledge base from Serverless bundles to avoid 250MB limit
+    // Routes that need KB should fetch from storage instead (temporary until moved)
+    outputFileTracingExcludes: {
+      '*': ['data/support-kb/**']
+    },
   },
   eslint: {
     ignoreDuringBuilds: true,

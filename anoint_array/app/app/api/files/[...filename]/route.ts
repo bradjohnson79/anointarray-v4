@@ -17,6 +17,7 @@ interface RouteParams {
 
 async function handler(request: NextRequest, { params }: RouteParams) {
   const filename = params.filename.join('/');
+  try { console.log('[files] request', { filename, url: request.url }); } catch {}
     
     // Security: Prevent directory traversal
   if (filename.includes('..')) {
@@ -45,11 +46,38 @@ async function handler(request: NextRequest, { params }: RouteParams) {
       // Public fallback
       path.join(process.cwd(), 'public', filename),
     ];
-  const filePath = candidates.find(p => existsSync(p));
-  if (!filePath) throw new NotFoundError('File not found');
+  try { console.log('[files] candidates', candidates); } catch {}
+  let filePath = candidates.find(p => existsSync(p));
+  let fileBuffer: Buffer | null = null;
+  if (!filePath) {
+    // Fallback to Supabase Storage if local candidates missing
+    try {
+      const { createSupabaseServerClient, PRODUCT_IMAGES_BUCKET } = await import('@/lib/supabase-server');
+      const supabase = createSupabaseServerClient();
+      const tryKeys = [filename, cleanUploads, cleanAssets].filter(Boolean);
+      try { console.log('[files] supabase.tryKeys', tryKeys, 'bucket', PRODUCT_IMAGES_BUCKET); } catch {}
+      let dl: any = null;
+      for (const key of tryKeys) {
+        const { data, error } = await supabase.storage.from(PRODUCT_IMAGES_BUCKET).download(key);
+        if (!error && data) { dl = data; break; }
+        if (error) { try { console.warn('[files] supabase.download error', key, error?.message || error); } catch {} }
+      }
+      if (dl) {
+        const ab = await (dl as any).arrayBuffer();
+        fileBuffer = Buffer.from(ab);
+        try { console.log('[files] served-from', 'supabase'); } catch {}
+      } else {
+        throw new NotFoundError('File not found');
+      }
+    } catch (e) {
+      if (e instanceof NotFoundError) throw e;
+      try { console.warn('[files] supabase fetch failed', e?.message || e); } catch {}
+      throw new NotFoundError('File not found');
+    }
+  }
 
-    // Read file
-    const fileBuffer = await readFile(filePath);
+    // Read file if resolved locally
+    if (!fileBuffer) { fileBuffer = await readFile(filePath!); try { console.log('[files] served-from', 'local', filePath); } catch {} }
     
     // Determine content type based on file extension
     const extension = path.extname(filename).toLowerCase();

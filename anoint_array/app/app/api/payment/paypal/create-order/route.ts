@@ -96,8 +96,8 @@ export async function POST(request: Request) {
           custom_id: userId,
         }],
         application_context: {
-          return_url: `${process.env.NEXTAUTH_URL}/api/payment/paypal/capture`,
-          cancel_url: `${process.env.NEXTAUTH_URL}/dashboard?payment=cancelled`,
+          return_url: `${(() => { const { getCanonicalBaseUrl, logCanonicalResolution } = require('@/lib/canonical'); const b = getCanonicalBaseUrl(); try{ logCanonicalResolution('paypal.create-order', b); } catch{} return b; })()}/api/payment/paypal/capture`,
+          cancel_url: `${(() => { const { getCanonicalBaseUrl } = require('@/lib/canonical'); return getCanonicalBaseUrl(); })()}/dashboard?payment=cancelled`,
           brand_name: 'ANOINT Array',
           user_action: 'PAY_NOW',
         },
@@ -109,7 +109,7 @@ export async function POST(request: Request) {
     const approvalUrl = orderData.links.find((link: any) => link.rel === 'approve')?.href;
 
     // Compact custom_data to avoid long URLs
-    const compactItems = items.map((it: any) => ({ n: String(it.name).slice(0,50), q: it.quantity, p: it.price }));
+    const compactItems = items.map((it: any) => ({ id: String(it.id || ''), n: String(it.name).slice(0,80), q: it.quantity, p: it.price }));
     let cd: any = {
       items: compactItems.length <= 5 ? compactItems : { count: items.length },
       userId,

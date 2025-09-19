@@ -77,6 +77,7 @@ export default function ProductManagementPage() {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [skuFixing, setSkuFixing] = useState(false);
+  const [imgFixing, setImgFixing] = useState(false);
 
   const categories = ['ALL', 'healing-cards', 'crystals', 'jewelry', 'technology', 'meditation', 'oils', 'clothing'];
 
@@ -193,6 +194,19 @@ export default function ProductManagementPage() {
     } catch (e: any) {
       toast.error(e?.message || 'SKU repair failed');
     } finally { setSkuFixing(false); }
+  }
+
+  async function fixImageUrls() {
+    setImgFixing(true);
+    try {
+      const r = await fetch('/api/admin/products/images/repair', { method: 'POST' });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j?.error || 'Image URL repair failed');
+      toast.success(`Image URLs normalized: ${j?.updated || 0}`);
+      await fetchProducts();
+    } catch (e: any) {
+      toast.error(e?.message || 'Image URL repair failed');
+    } finally { setImgFixing(false); }
   }
 
   const handleSaveProduct = async (productData: Partial<Product>) => {
@@ -584,6 +598,16 @@ export default function ProductManagementPage() {
             >
               <RefreshCw className={`h-4 w-4 ${skuFixing ? 'animate-spin' : ''}`} />
               <span>{skuFixing ? 'Fixing SKUs…' : 'Generate/Fix SKUs'}</span>
+            </motion.button>
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={fixImageUrls}
+              disabled={imgFixing}
+              className="flex items-center space-x-2 bg-gray-800 text-gray-200 border border-gray-700 px-3 py-2 rounded-lg hover:bg-gray-700 disabled:opacity-60"
+            >
+              <RefreshCw className={`h-4 w-4 ${imgFixing ? 'animate-spin' : ''}`} />
+              <span>{imgFixing ? 'Fixing Images…' : 'Normalize Image URLs'}</span>
             </motion.button>
             {products.some(p => ['Harmonic Seal – Vitality', 'Clarity Seal – Insight', 'Guardian Array – Protection'].includes(p.name)) && (
               <motion.button

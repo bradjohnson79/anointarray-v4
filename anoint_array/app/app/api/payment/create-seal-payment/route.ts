@@ -100,6 +100,9 @@ export async function POST(request: NextRequest) {
       const { resolveStripeConfig, createStripeCheckoutSession } = await import('@/lib/stripe');
       const conf = await resolveStripeConfig();
       if (!conf.secretKey) return NextResponse.json({ error: 'Stripe secret key not configured' }, { status: 500 });
+      const { getCanonicalBaseUrl, logCanonicalResolution } = await import('@/lib/canonical');
+      const base = getCanonicalBaseUrl();
+      logCanonicalResolution('stripe.create-seal-payment', base);
       const params = new URLSearchParams({
         'payment_method_types[0]': 'card',
         'line_items[0][price_data][currency]': currency.toLowerCase(),
@@ -108,8 +111,8 @@ export async function POST(request: NextRequest) {
         'line_items[0][price_data][unit_amount]': Math.round(amount * 100).toString(),
         'line_items[0][quantity]': '1',
         'mode': 'payment',
-        'success_url': `${process.env.NEXTAUTH_URL}/success?provider=stripe&order_id=${orderId}`,
-        'cancel_url': `${process.env.NEXTAUTH_URL}/dashboard/seal-generator?payment=cancelled`,
+        'success_url': `${base}/success?provider=stripe&order_id=${orderId}`,
+        'cancel_url': `${base}/dashboard/seal-generator?payment=cancelled`,
         'metadata[order_id]': orderId,
         'metadata[user_id]': userId,
         'metadata[product_type]': 'seal_array'
@@ -146,8 +149,8 @@ export async function POST(request: NextRequest) {
           }
         ],
         application_context: {
-          return_url: `${process.env.NEXTAUTH_URL}/api/payment/paypal/capture?custom_data=${encodeURIComponent(JSON.stringify({ aff }))}`,
-          cancel_url: `${process.env.NEXTAUTH_URL}/dashboard/seal-generator?payment=cancelled`
+          return_url: `${(() => { const { getCanonicalBaseUrl, logCanonicalResolution } = require('@/lib/canonical'); const b = getCanonicalBaseUrl(); try{ logCanonicalResolution('paypal.create-seal-payment', b); } catch{} return b; })()}/api/payment/paypal/capture?custom_data=${encodeURIComponent(JSON.stringify({ aff }))}`,
+          cancel_url: `${(() => { const { getCanonicalBaseUrl } = require('@/lib/canonical'); return getCanonicalBaseUrl(); })()}/dashboard/seal-generator?payment=cancelled`
         }
       });
       if (paypalData) {

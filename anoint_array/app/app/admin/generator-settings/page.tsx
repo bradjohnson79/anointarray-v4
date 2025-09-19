@@ -259,7 +259,7 @@ export default function GeneratorSettingsPage() {
     opacity: 30,
     enabled: false
   });
-  const [selectedTab, setSelectedTab] = useState<'calibration' | 'config' | 'payments' | 'system'>('calibration');
+  const [selectedTab, setSelectedTab] = useState<'calibration' | 'config' | 'payments' | 'system' | 'launch'>('calibration');
   const [writableDir, setWritableDir] = useState<string>('');
   const [health, setHealth] = useState<any | null>(null);
   const [isCalibrating, setIsCalibrating] = useState(false);
@@ -1114,11 +1114,19 @@ export default function GeneratorSettingsPage() {
               { id: 'calibration', label: 'Coordinate Calibration', icon: Target },
               { id: 'config', label: 'AI Configuration', icon: Settings },
               { id: 'payments', label: 'Payment Gateways', icon: CreditCard },
-              { id: 'system', label: 'System', icon: Shield }
+              { id: 'system', label: 'System', icon: Shield },
+              // Last tab opens the live generator page for admins
+              { id: 'launch', label: 'Seal Generator', icon: Zap },
             ].map(tab => (
               <button
                 key={tab.id}
-                onClick={() => setSelectedTab(tab.id as any)}
+                onClick={() => {
+                  if (tab.id === 'launch') {
+                    router.push('/dashboard/array-generator');
+                  } else {
+                    setSelectedTab(tab.id as any);
+                  }
+                }}
                 className={`flex items-center space-x-2 px-6 py-4 font-medium transition-all ${
                   selectedTab === tab.id
                     ? 'bg-purple-600/30 text-purple-300 border-b-2 border-purple-400'

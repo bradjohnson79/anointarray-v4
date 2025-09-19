@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { CheckCircle, Mail, Download } from 'lucide-react';
@@ -9,7 +9,9 @@ import { usePayment } from '@/contexts/payment-context';
 export default function SuccessPage() {
   const params = useSearchParams();
   const router = useRouter();
-  const provider = params.get('provider') || 'payment';
+  const provider = params.get('provider') || (params.get('session_id') ? 'stripe' : 'payment');
+  const sessionId = params.get('session_id') || '';
+  const [finalized, setFinalized] = useState(false);
   const payment = (() => {
     try { return usePayment(); } catch { return null as any; }
   })();
@@ -27,6 +29,18 @@ export default function SuccessPage() {
       }
     } catch {}
   }, []);
+
+  // Best-effort finalize in case webhook missed
+  useEffect(() => {
+    (async () => {
+      if (provider === 'stripe' && sessionId && !finalized) {
+        try {
+          await fetch(`/api/payment/stripe/finalize?session_id=${encodeURIComponent(sessionId)}`, { cache: 'no-store' });
+        } catch {}
+        setFinalized(true);
+      }
+    })();
+  }, [provider, sessionId, finalized]);
 
   // Notify opener (if this page was opened as a popup) then close
   // The checkout page listens for this message to clear cart and redirect
@@ -69,7 +83,7 @@ export default function SuccessPage() {
         </div>
         <h1 className="text-2xl font-bold text-white mb-2">Order Successful</h1>
         <p className="text-gray-300 mb-6">
-          Thank you for your purchase. A receipt has been sent to your email.
+          Thank you for your purchase. A receipt has been sent to your email. If you purchased a digital product, please log in to your member dashboard to download it.
         </p>
 
         <div className="bg-gray-800/60 border border-gray-700 rounded-lg p-4 text-left space-y-3 mb-6">

@@ -104,7 +104,17 @@ export default function ProductDetailPage() {
 
   const selectedVariant = (product?.variants || []).find(v => v.id === variantId) || null;
   const effectivePrice = selectedVariant ? selectedVariant.price : (product?.price || 0);
-  const available = selectedVariant ? selectedVariant.quantity : (product?.inventory ?? 999999);
+  // Availability rules:
+  // - For digital products, treat stock as unlimited.
+  // - If a variant is selected, use its quantity.
+  // - Otherwise, use product.inventory when present; fallback to a large number when inStock.
+  const available = (() => {
+    if (!product) return 0;
+    if (product.isDigital) return Number.POSITIVE_INFINITY;
+    if (selectedVariant && typeof selectedVariant.quantity === 'number') return selectedVariant.quantity;
+    if (typeof product.inventory === 'number') return product.inventory;
+    return product.inStock ? Number.POSITIVE_INFINITY : 0;
+  })();
 
   const handleAddToCart = () => {
     if (!product) return;
@@ -597,7 +607,7 @@ export default function ProductDetailPage() {
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
                       onClick={handleAddToCart}
-                      disabled={(product.variants && product.variants.length>0 && !variantId) || (available!=null && available<=0)}
+                      disabled={(product.variants && product.variants.length>0 && !variantId) || (Number.isFinite(available) && available<=0)}
                       className="w-full aurora-gradient text-white py-4 rounded-lg font-semibold text-lg hover:shadow-lg transition-all duration-300 flex items-center justify-center"
                     >
                       <ShoppingCart className="h-5 w-5 mr-2" />

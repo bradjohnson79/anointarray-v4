@@ -28,9 +28,9 @@ export async function GET(request: NextRequest) {
       const ext = path.extname(obj.name).toLowerCase();
       if (!imageExtensions.has(ext)) continue;
       const label = obj.name;
-      const signed = await supabase.storage.from(PRODUCT_IMAGES_BUCKET).createSignedUrl(obj.name, 3600);
+      // Always surface a stable, non‑expiring public URL for selection and storage
       const publicUrl = supabase.storage.from(PRODUCT_IMAGES_BUCKET).getPublicUrl(obj.name).data.publicUrl;
-      const url = signed.data?.signedUrl || publicUrl;
+      const url = publicUrl;
       options.push({
         value: url,
         label,

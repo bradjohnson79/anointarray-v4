@@ -77,10 +77,10 @@ export default function DashboardOverview({ user }: DashboardOverviewProps) {
 
   const quickActions = [
     {
-      title: 'Generate New Array',
-      description: 'Create a personalized healing seal array',
+      title: 'Seal Generator Launch',
+      description: 'Countdown to the Array Generator release',
       icon: Zap,
-      href: '/dashboard/array-generator',
+      href: '/dashboard/seal-generator',
       color: 'aurora-gradient',
     },
     {

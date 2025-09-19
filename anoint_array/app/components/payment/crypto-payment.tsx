@@ -34,8 +34,7 @@ export default function CryptoPayment({ amount, shippingAmount, currency, displa
 
   const createCryptoPayment = async () => {
     const hasDigital = state.cart.some(item => item.type === 'seal' || item.customData?.isDigital === true);
-    const guestAllowed = !hasDigital;
-    if (!session && !guestAllowed) {
+    if (hasDigital && !session?.user) {
       toast.error('Please log in or create a free account to purchase digital items.');
       return;
     }

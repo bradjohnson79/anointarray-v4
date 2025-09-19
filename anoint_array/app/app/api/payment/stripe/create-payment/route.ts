@@ -11,6 +11,7 @@ export async function POST(req: NextRequest) {
     if (!Array.isArray(items) || items.length === 0) return NextResponse.json({ error: 'No items' }, { status: 400 });
 
     const allPhysical = items.every((it: any) => it?.type === 'product' && !(it?.customData?.isDigital));
+    const hasPhysical = items.some((it: any) => it?.type === 'product' && !(it?.customData?.isDigital));
     const isLoggedIn = !!userId;
     if (!allPhysical && !isLoggedIn && !allowGuest) {
       return NextResponse.json({ error: 'Login required for digital items' }, { status: 400 });
@@ -29,7 +30,8 @@ export async function POST(req: NextRequest) {
     } else if (buyerCountry === 'US') {
       taxUSD = +(subtotalUSD * 0.35).toFixed(2);
     }
-    const shipUSD = Number(shippingAmount) || 0;
+    // Only apply shipping when there is at least one physical item
+    const shipUSD = hasPhysical ? (Number(shippingAmount) || 0) : 0;
     let totalUSD = subtotalUSD + taxUSD + shipUSD;
 
     const cur = String(currency || 'USD').toUpperCase();
@@ -40,8 +42,12 @@ export async function POST(req: NextRequest) {
     const ship = +(shipUSD * rate).toFixed(2);
     const total = +(subtotal + tax + ship).toFixed(2);
 
-    const successUrl = `${process.env.NEXTAUTH_URL}/success?provider=stripe`;
-    const cancelUrl = `${process.env.NEXTAUTH_URL}/cart?payment=cancelled`;
+    // Force canonical domain for all provider redirects
+    const { getCanonicalBaseUrl, logCanonicalResolution } = await import('@/lib/canonical');
+    const baseUrl = getCanonicalBaseUrl();
+    logCanonicalResolution('stripe.create-payment', baseUrl);
+    const successUrl = `${baseUrl}/success?provider=stripe&session_id={CHECKOUT_SESSION_ID}`;
+    const cancelUrl = `${baseUrl}/cart?payment=cancelled`;
 
     const params = new URLSearchParams({
       'payment_method_types[0]': 'card',
@@ -51,6 +57,40 @@ export async function POST(req: NextRequest) {
       'metadata[user_id]': userId || '',
       'metadata[user_email]': userEmail || '',
     });
+    // Prefill customer email so the webhook has session.customer_email
+    const checkoutEmail = (userEmail || shippingAddress?.email || billingAddress?.email || '').trim();
+    if (checkoutEmail) params.set('customer_email', checkoutEmail);
+    if (userId) params.set('client_reference_id', String(userId));
+    // Attach compact orderData metadata (<= ~500 chars)
+    try {
+      const compactItems = items.slice(0, 20).map((it: any) => ({
+        id: String(it.id || ''),
+        n: String(it.name || 'Item').slice(0, 80),
+        q: Number(it.quantity || 1),
+        p: Number(it.price || 0),
+        t: (it.type || 'product'),
+      }));
+      const compact = {
+        items: compactItems,
+        currency: String(currency || 'USD').toUpperCase(),
+        shippingAddress: shippingAddress ? {
+          fullName: shippingAddress.fullName || '',
+          street: [shippingAddress.street, shippingAddress.address2].filter(Boolean).join(' ').slice(0, 80),
+          city: shippingAddress.city || '',
+          state: shippingAddress.state || '',
+          zip: (shippingAddress.zip || '').slice(0, 16),
+          country: (shippingAddress.country || '').toUpperCase(),
+        } : undefined,
+        billingSameAsShipping: !!billingSameAsShipping,
+      } as any;
+      let meta = JSON.stringify(compact);
+      // Hard cap at ~480 chars to fit Stripe metadata limits comfortably
+      if (meta.length > 480) {
+        compact.items = compact.items.slice(0, 8);
+        meta = JSON.stringify(compact);
+      }
+      params.set('metadata[orderData]', meta);
+    } catch {}
     // line items
     items.forEach((it: any, idx: number) => {
       const unit = cur === 'USD' ? Number(it.price) : Math.round(Number(it.price) * rate * 100) / 100;
@@ -60,7 +100,7 @@ export async function POST(req: NextRequest) {
       params.set(`line_items[${idx}][quantity]`, String(it.quantity || 1));
     });
     // ship and tax shown as a separate line if needed (optional)
-    if (ship > 0) {
+    if (hasPhysical && ship > 0) {
       const idx = items.length;
       params.set(`line_items[${idx}][price_data][currency]`, cur.toLowerCase());
       params.set(`line_items[${idx}][price_data][product_data][name]`, 'Shipping');
