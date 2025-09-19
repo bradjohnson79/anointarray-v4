@@ -1,7 +1,6 @@
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { requireUser } from '@/lib/supabase-auth';
 import fs from 'fs/promises';
 import path from 'path';
 import { getConfig } from '@/lib/app-config';
@@ -510,11 +509,7 @@ function generateAffirmationText(category: string, subCategory: string): string 
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    try { await requireUser(); } catch { return NextResponse.json({ error: 'Unauthorized' }, { status: 401 }); }
 
     const { userDetails, sealConfig, userId } = await request.json();
 

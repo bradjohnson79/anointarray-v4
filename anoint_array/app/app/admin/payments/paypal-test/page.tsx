@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useSession } from 'next-auth/react';
+import { useAuth } from '@/contexts/auth-context';
 import AdminLayout from '@/components/admin/admin-layout';
 import { motion } from 'framer-motion';
 import { Check, AlertTriangle, RefreshCw, ExternalLink } from 'lucide-react';
@@ -10,7 +10,7 @@ import { toast } from 'sonner';
 type Result = { ok: boolean; label: string; detail?: string; url?: string };
 
 export default function PaypalTestPage() {
-  const { data: session } = useSession();
+  const { user } = useAuth();
   const [running, setRunning] = useState(false);
   const [results, setResults] = useState<Result[]>([]);
   const [ping, setPing] = useState<any>(null);
@@ -85,4 +85,3 @@ export default function PaypalTestPage() {
     </AdminLayout>
   );
 }
-

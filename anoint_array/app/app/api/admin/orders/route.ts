@@ -1,56 +1,30 @@
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
-import { prisma, selectedDbUrl } from '@/lib/prisma';
+import { requireAdmin } from '@/lib/supabase-auth';
+import { createSupabaseAdminClient } from '@/lib/supabaseClient';
 import { withApiErrorHandling } from '@/lib/api-handler';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 function dbEnvSummary() {
-  const dsn = selectedDbUrl();
-  let mode: 'accelerate' | 'direct' | 'unknown' = 'unknown';
-  let host: string | undefined;
-  let port: number | undefined;
-  const accel = process.env.PRISMA_ACCELERATE_URL || process.env.ACCELERATE_URL || '';
-  const db = process.env.DATABASE_URL || '';
-  try {
-    if (/^prisma:/.test(db) || /^prisma:/.test(accel)) mode = 'accelerate';
-    if (accel) mode = 'accelerate';
-    if (dsn) { const u = new URL(dsn); host = u.hostname; port = Number(u.port || 5432); }
-  } catch {}
-  return { mode, host, port, hasAccelerate: !!accel, hasDbUrl: !!db, envSource: process.env.DATABASE_URL ? 'DATABASE_URL' : (process.env.DIRECT_URL ? 'DIRECT_URL' : 'none') };
+  const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+  return { supabaseUrl: url || null };
 }
 
 async function GET_handler(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    
-    if (!session || session.user?.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const orders = await prisma.order.findMany({
-      include: {
-        orderItems: {
-          include: {
-            // Select only needed product fields to avoid schema mismatches
-            product: { select: { name: true } },
-          }
-        },
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          }
-        }
-      },
-      orderBy: {
-        createdAt: 'desc'
-      }
-    });
+    await requireAdmin();
+    const s = createSupabaseAdminClient();
+    const { data: orders, error } = await s
+      .from('orders')
+      .select(`
+        *,
+        orderItems:order_items(id, quantity, price, hsCode, countryOfOrigin, customsDescription, unitValueCad, massGramsEach, isDigital, product:products(name)),
+        user:users(id, name, email)
+      `)
+      .order('createdAt', { ascending: false });
+    if (error) throw error;
 
     // Process orders for frontend consumption
     const processedOrders = orders.map((order: any) => ({
@@ -88,7 +62,7 @@ async function GET_handler(request: NextRequest) {
   } catch (error: any) {
     const raw = String(error?.message || error || '');
     // Sanitize DSN credentials if present
-    const detail = raw.replace(/postgresql:\/\/[^@]+@/gi, 'postgresql://***:***@');
+    const detail = raw;
     const summary = dbEnvSummary();
     // Add short hint classification
     const m = raw.toLowerCase();
@@ -104,11 +78,7 @@ async function GET_handler(request: NextRequest) {
 
 async function POST_handler(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    
-    if (!session || session.user?.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    await requireAdmin();
 
     const body = await request.json();
     const {
@@ -145,61 +115,58 @@ async function POST_handler(request: NextRequest) {
     }
 
     // Generate order number
-    const orderCount = await prisma.order.count();
-    const orderNumber = `ANA-${new Date().getFullYear()}-${String(orderCount + 1).padStart(3, '0')}`;
+    const s = createSupabaseAdminClient();
+    const { count: orderCount } = await s.from('orders').select('*', { count: 'exact', head: true });
+    const orderNumber = `ANA-${new Date().getFullYear()}-${String((orderCount || 0) + 1).padStart(3, '0')}`;
 
     // Create order with optional items in a transaction
-    const order = await prisma.$transaction(async (tx: any) => {
-      const created = await tx.order.create({
-        data: {
-          orderNumber,
-          customerName,
-          customerEmail,
-          customerPhone,
-          status,
-          paymentStatus,
-          paymentMethod,
-          totalAmount,
-          subtotal,
-          taxAmount,
-          shippingAmount,
-          shippingAddress,
-          billingAddress,
-          notes,
-          buyerCountry,
-          shippingCountry,
-          taxSubtotalCad,
-          taxBreakdown,
-          dutiesEstimatedCad,
-          taxesEstimatedCad,
-          dutiesTaxesCurrency,
-          incoterm,
-        }
-      });
-
-      if (Array.isArray(items) && items.length > 0) {
-        for (const it of items) {
-          if (!it?.productId || !it?.quantity || typeof it.price === 'undefined') continue;
-          await tx.orderItem.create({
-            data: {
-              orderId: created.id,
-              productId: it.productId,
-              quantity: Number(it.quantity) || 1,
-              price: Number(it.price) || 0,
-              // Customs snapshot
-              hsCode: it.hsCode || null,
-              countryOfOrigin: it.countryOfOrigin || null,
-              customsDescription: it.customsDescription || null,
-              unitValueCad: typeof it.unitValueCad !== 'undefined' ? Number(it.unitValueCad) : null,
-              massGramsEach: typeof it.massGramsEach !== 'undefined' ? Number(it.massGramsEach) : null,
-              isDigital: !!it.isDigital,
-            }
-          });
-        }
-      }
-
-      return created;
-    });
+    const { data: order, error: createErr } = await s
+      .from('orders')
+      .insert({
+        orderNumber,
+        customerName,
+        customerEmail,
+        customerPhone,
+        status,
+        paymentStatus,
+        paymentMethod,
+        totalAmount,
+        subtotal,
+        taxAmount,
+        shippingAmount,
+        shippingAddress,
+        billingAddress,
+        notes,
+        buyerCountry,
+        shippingCountry,
+        taxSubtotalCad,
+        taxBreakdown,
+        dutiesEstimatedCad,
+        taxesEstimatedCad,
+        dutiesTaxesCurrency,
+        incoterm,
+      })
+      .select('*')
+      .single();
+    if (createErr) throw createErr;
+    if (Array.isArray(items) && items.length > 0) {
+      const rows = items
+        .filter((it: any) => it?.productId && it?.quantity && typeof it.price !== 'undefined')
+        .map((it: any) => ({
+          orderId: (order as any).id,
+          productId: it.productId,
+          quantity: Number(it.quantity) || 1,
+          price: Number(it.price) || 0,
+          hsCode: it.hsCode || null,
+          countryOfOrigin: it.countryOfOrigin || null,
+          customsDescription: it.customsDescription || null,
+          unitValueCad: typeof it.unitValueCad !== 'undefined' ? Number(it.unitValueCad) : null,
+          massGramsEach: typeof it.massGramsEach !== 'undefined' ? Number(it.massGramsEach) : null,
+          isDigital: !!it.isDigital,
+        }));
+      const { error: itemsErr } = await s.from('order_items').insert(rows);
+      if (itemsErr) throw itemsErr;
+    }
 
     return NextResponse.json({
       ...order,
@@ -214,7 +181,7 @@ async function POST_handler(request: NextRequest) {
     }, { status: 201 });
   } catch (error: any) {
     const raw = String(error?.message || error || '');
-    const detail = raw.replace(/postgresql:\/\/[^@]+@/gi, 'postgresql://***:***@');
+    const detail = raw;
     const body = { error: 'Failed to create order', detail, db: dbEnvSummary() };
     console.error('orders:create error', body);
     return NextResponse.json(body, { status: 500 });

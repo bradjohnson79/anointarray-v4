@@ -2,7 +2,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useSession, signOut } from 'next-auth/react';
+import { useAuth } from '@/contexts/auth-context';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { motion } from 'framer-motion';
@@ -48,11 +48,11 @@ interface AdminLayoutProps {
 
 export default function AdminLayout({ children }: AdminLayoutProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const { data: session } = useSession() || {};
+  const { user, logout } = useAuth();
   const pathname = usePathname();
 
   const handleSignOut = async () => {
-    await signOut({ callbackUrl: '/' });
+    await logout();
   };
 
   return (
@@ -97,7 +97,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                 </div>
                 <div>
                   <p className="font-medium text-white">
-                    {session?.user?.name || 'Admin'}
+                    {user?.email || 'Admin'}
                   </p>
                   <p className="text-sm text-yellow-400 font-medium">Administrator</p>
                 </div>

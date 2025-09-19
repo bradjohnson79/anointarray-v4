@@ -1,7 +1,6 @@
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { requireUser } from '@/lib/supabase-auth';
 import fs from 'fs/promises';
 import path from 'path';
 import { getAffiliateCodeFromHeaders } from '@/lib/affiliates';
@@ -70,11 +69,7 @@ async function loadPaymentConfiguration(): Promise<PaymentGatewayConfiguration |
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    try { await requireUser(); } catch { return NextResponse.json({ error: 'Unauthorized' }, { status: 401 }); }
 
     const { paymentMethod, userId, sealConfig, userDetails, testMode } = await request.json();
     

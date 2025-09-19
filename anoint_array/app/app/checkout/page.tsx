@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { useSession } from 'next-auth/react';
+import { useAuth } from '@/contexts/auth-context';
 import { usePayment } from '@/contexts/payment-context';
 import StripePayment from '@/components/payment/stripe-payment';
 import PayPalPayment from '@/components/payment/paypal-payment';
@@ -9,7 +9,7 @@ import { calculateCanadianTaxes } from '@/lib/canadian-taxes';
 import { ChevronDown, ChevronUp, MapPin, Phone, User, Mail, ShoppingCart } from 'lucide-react';
 
 export default function CheckoutPage() {
-  const { data: session } = useSession();
+  const { user } = useAuth();
   const {
     state,
     updateQuantity,
@@ -26,8 +26,8 @@ export default function CheckoutPage() {
 
   const [billingSame, setBillingSame] = useState<boolean>(state.billingSameAsShipping ?? true);
   const [shipping, setShipping] = useState({
-    fullName: state.shippingAddress?.fullName || (session?.user?.name || ''),
-    email: state.shippingAddress?.email || (session?.user?.email || ''),
+    fullName: state.shippingAddress?.fullName || '',
+    email: state.shippingAddress?.email || '',
     phone: state.shippingAddress?.phone || '',
     street: state.shippingAddress?.street || '',
     address2: (state.shippingAddress as any)?.address2 || '',
@@ -37,8 +37,8 @@ export default function CheckoutPage() {
     country: state.shippingAddress?.country || 'CA',
   });
   const [billing, setBilling] = useState({
-    fullName: state.billingAddress?.fullName || (session?.user?.name || ''),
-    email: state.billingAddress?.email || (session?.user?.email || ''),
+    fullName: state.billingAddress?.fullName || '',
+    email: state.billingAddress?.email || '',
     phone: state.billingAddress?.phone || '',
     street: state.billingAddress?.street || '',
     address2: (state.billingAddress as any)?.address2 || '',

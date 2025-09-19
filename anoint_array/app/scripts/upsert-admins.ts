@@ -1,11 +1,13 @@
 import 'dotenv/config';
 import bcrypt from 'bcryptjs';
-import { PrismaClient } from '@prisma/client';
+import { createClient } from '@supabase/supabase-js';
 
-// Prefer DIRECT_URL for scripts to avoid serverless poolers
-if (process.env.DIRECT_URL) process.env.DATABASE_URL = process.env.DIRECT_URL;
-
-const prisma = new PrismaClient();
+function adminClient() {
+  const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+  if (!url || !key) throw new Error('Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY');
+  return createClient(url, key);
+}
 
 type AdminSeed = { email: string; name: string; role?: 'ADMIN'|'USER'; password?: string };
 
@@ -18,20 +20,23 @@ async function upsertAdmin(t: AdminSeed) {
   const email = t.email.trim().toLowerCase();
   const name = t.name.trim();
   const role = t.role || 'ADMIN';
-  const existing = await prisma.user.findUnique({ where: { email } });
+  const s = adminClient();
+  const { data: existing } = await s.from('users').select('id, email').eq('email', email).maybeSingle();
   if (existing) {
-    const updated = await prisma.user.update({
-      where: { email },
-      data: { name, role, isActive: true },
-      select: { id: true, email: true, role: true, isActive: true, name: true },
-    });
+    const { data: updated } = await s
+      .from('users')
+      .update({ name, role, isActive: true })
+      .eq('email', email)
+      .select('id, email, role, isActive, name')
+      .single();
     return { action: 'updated', user: updated };
   }
   const hash = await bcrypt.hash(t.password || 'Admin123', 12);
-  const created = await prisma.user.create({
-    data: { email, name, password: hash, role, isActive: true },
-    select: { id: true, email: true, role: true, isActive: true, name: true },
-  });
+  const { data: created } = await s
+    .from('users')
+    .insert({ email, name, password: hash, role, isActive: true })
+    .select('id, email, role, isActive, name')
+    .single();
   return { action: 'created', user: created };
 }
 
@@ -44,6 +49,4 @@ async function main() {
 }
 
 main()
-  .catch((e) => { console.error(e); process.exit(1); })
-  .finally(() => prisma.$disconnect());
-
+  .catch((e) => { console.error(e); process.exit(1); });

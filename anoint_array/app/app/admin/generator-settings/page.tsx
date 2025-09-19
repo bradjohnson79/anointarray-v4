@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { useSession } from 'next-auth/react';
+import { useAuth } from '@/contexts/auth-context';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -207,7 +207,7 @@ const DIRECTION_POSITIONS = [
 ];
 
 export default function GeneratorSettingsPage() {
-  const { data: session, status } = useSession() || {};
+  const { user, loading } = useAuth();
   const router = useRouter();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   

@@ -2,14 +2,14 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useSession } from 'next-auth/react';
+import { useAuth } from '@/contexts/auth-context';
 import { motion } from 'framer-motion';
 import { User, Mail, Calendar, Save, Edit3 } from 'lucide-react';
 import { toast } from 'sonner';
 import DashboardLayout from '@/components/dashboard/dashboard-layout';
 
 export default function ProfilePage() {
-  const { data: session, update } = useSession() || {};
+  const { user } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({

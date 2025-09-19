@@ -1,9 +1,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
-import { Prisma } from '@prisma/client';
+import { requireAdmin } from '@/lib/supabase-auth';
+import { createSupabaseAdminClient } from '@/lib/supabaseClient';
 
 export const dynamic = 'force-dynamic';
 
@@ -44,68 +42,62 @@ interface CreateOrderRequest {
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    
-    if (!session || session.user?.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    await requireAdmin();
 
     const body: CreateOrderRequest = await request.json();
 
     // Create sequential order number
-    const orderCount = await prisma.order.count();
+    const supabase = createSupabaseAdminClient();
+    const { count: orderCount } = await supabase.from('orders').select('*', { count: 'exact', head: true });
     const orderNumber = `ANA-${new Date().getFullYear()}-${String(orderCount + 1).padStart(3, '0')}`;
 
-    // Persist order with items
-    const order = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-      const created = await tx.order.create({
-        data: {
-          orderNumber,
-          customerName: body.customerName,
-          customerEmail: body.customerEmail,
-          customerPhone: body.customerPhone,
-          status: 'pending',
-          paymentStatus: body.paymentStatus || 'pending',
-          paymentMethod: body.paymentMethod,
-          totalAmount: body.totalAmount,
-          subtotal: body.subtotal,
-          taxAmount: body.taxAmount || 0,
-          shippingAmount: body.shippingAmount || 0,
-          shippingAddress: body.shippingAddress,
-          billingAddress: body.billingAddress || body.shippingAddress,
-          notes: body.notes,
-        }
-      });
-
-      if (Array.isArray(body.items) && body.items.length > 0) {
-        for (const it of body.items) {
-          await tx.orderItem.create({
-            data: {
-              orderId: created.id,
-              productId: it.productId,
-              quantity: Number(it.quantity) || 1,
-              price: Number(it.price) || 0,
-            }
-          });
-        }
-      }
-
-      return created;
-    });
+    // Persist order with items using Supabase
+    const { data: order, error: createErr } = await supabase
+      .from('orders')
+      .insert({
+        orderNumber,
+        customerName: body.customerName,
+        customerEmail: body.customerEmail,
+        customerPhone: body.customerPhone,
+        status: 'pending',
+        paymentStatus: body.paymentStatus || 'pending',
+        paymentMethod: body.paymentMethod,
+        totalAmount: body.totalAmount,
+        subtotal: body.subtotal,
+        taxAmount: body.taxAmount || 0,
+        shippingAmount: body.shippingAmount || 0,
+        shippingAddress: body.shippingAddress,
+        billingAddress: body.billingAddress || body.shippingAddress,
+        notes: body.notes,
+      })
+      .select('*')
+      .single();
+    if (createErr) throw createErr;
+    if (Array.isArray(body.items) && body.items.length > 0) {
+      const rows = body.items.map((it) => ({
+        orderId: (order as any).id,
+        productId: it.productId,
+        quantity: Number(it.quantity) || 1,
+        price: Number(it.price) || 0,
+      }));
+      const { error: itemsErr } = await supabase.from('order_items').insert(rows);
+      if (itemsErr) throw itemsErr;
+    }
 
     let shippingLabel = null;
 
     // Create shipping label if requested
     if (body.createShippingLabel && body.shippingCarrier) {
       try {
-        shippingLabel = await createShippingLabel(order, body.shippingCarrier);
+        const orderForLabel = { ...(order as any), items: Array.isArray(body.items) ? body.items : [] };
+        shippingLabel = await createShippingLabel(orderForLabel, body.shippingCarrier);
         
         // Update order with tracking number
         if (shippingLabel.success && shippingLabel.trackingNumber) {
-          await prisma.order.update({
-            where: { id: order.id },
-            data: { trackingNumber: shippingLabel.trackingNumber, status: 'processing' }
-          });
+          await supabase
+            .from('orders')
+            .update({ trackingNumber: shippingLabel.trackingNumber, status: 'processing' })
+            .eq('id', (order as any).id);
         }
       } catch (labelError) {
         console.error('Error creating shipping label:', labelError);

@@ -1,9 +1,8 @@
 
 'use client';
-
-import { SessionProvider } from 'next-auth/react';
 import { useEffect, useState } from 'react';
 import { PaymentProvider } from '@/contexts/payment-context';
+import { AuthProvider } from '@/contexts/auth-context';
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [hasMounted, setHasMounted] = useState(false);
@@ -29,10 +28,10 @@ export function Providers({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <SessionProvider>
+    <AuthProvider>
       <PaymentProvider>
         {children}
       </PaymentProvider>
-    </SessionProvider>
+    </AuthProvider>
   );
 }

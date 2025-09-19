@@ -2,7 +2,7 @@
 import { NextResponse } from 'next/server';
 import { headers } from 'next/headers';
 import Stripe from 'stripe';
-import { prisma } from '@/lib/prisma';
+import { createSupabaseAdminClient } from '@/lib/supabaseClient';
 import { sendReceiptEmail } from '@/lib/email';
 import { notifyGoAffProConversion } from '@/lib/affiliates';
 
@@ -82,29 +82,30 @@ export async function POST(request: Request) {
 
         // Attempt to resolve userId by email if not supplied
         let resolvedUserId: string | undefined = ((session.metadata as any)?.user_id as string) || undefined;
+        const s = createSupabaseAdminClient();
         try {
           if (!resolvedUserId && customerEmail) {
-            const u = await prisma.user.findUnique({ where: { email: customerEmail.toLowerCase() }, select: { id: true } });
-            if (u) resolvedUserId = u.id;
+            const { data: u } = await s.from('users').select('id').eq('email', customerEmail.toLowerCase()).maybeSingle();
+            if (u) resolvedUserId = (u as any).id;
           }
         } catch {}
 
-        const created = await prisma.order.create({
-          data: {
+        const { data: created } = await s
+          .from('orders')
+          .insert({
             orderNumber: `STRIPE_${session.id}`,
             userId: resolvedUserId,
             status: 'processing',
-            totalAmount: session.amount_total! / 100, // Convert from cents
+            totalAmount: session.amount_total! / 100,
             paymentStatus: 'paid',
             paymentMethod: 'stripe',
-            stripePaymentId: session.payment_intent as string || session.id,
+            stripePaymentId: (session.payment_intent as string) || session.id,
             customerEmail: customerEmail || 'unknown@example.com',
             customerName: session.customer_details?.name || 'Unknown',
             shippingAddress: shippingAddress || undefined,
             billingAddress: billingAddress || undefined,
             buyerCountry: (billingAddress?.country || shippingAddress?.country || 'CA') as string,
             shippingCountry: (shippingAddress?.country || 'CA') as string,
-            // Estimated taxes/tariffs from metadata
             taxSubtotalCad: (() => {
               try {
                 const od = JSON.parse(session.metadata?.orderData || '{}');
@@ -118,8 +119,9 @@ export async function POST(request: Request) {
               try { const od = JSON.parse(session.metadata?.orderData || '{}'); return od?.extraLabel?.toLowerCase().includes('tariff') ? Number(od?.extraAmount || 0) : 0; } catch { return 0; }
             })(),
             taxBreakdown: (() => { try { const od = JSON.parse(session.metadata?.orderData || '{}'); return od?.taxBreakdown || {}; } catch { return {}; } })(),
-          }
-        });
+          })
+          .select('id')
+          .single();
 
         // Create order items if provided in metadata
         try {
@@ -134,14 +136,18 @@ export async function POST(request: Request) {
               const qty = Number(it.q || it.quantity || 1) || 1;
               const price = Number(it.p || it.price || 0) || 0;
               if (pid) {
-                const product = await prisma.product.findUnique({ where: { id: pid }, select: { id: true, isDigital: true, hsCode: true, countryOfOrigin: true, customsDescription: true } });
+                const { data: product } = await s
+                  .from('products')
+                  .select('id, isDigital, hsCode, countryOfOrigin, customsDescription')
+                  .eq('id', pid)
+                  .maybeSingle();
                 if (product) {
-                  rows.push({ orderId: created.id, productId: product.id, quantity: qty, price, isDigital: !!product.isDigital, hsCode: product.hsCode || undefined, countryOfOrigin: product.countryOfOrigin || undefined, customsDescription: product.customsDescription || undefined });
+                  rows.push({ orderId: (created as any).id, productId: (product as any).id, quantity: qty, price, isDigital: !!(product as any).isDigital, hsCode: (product as any).hsCode || undefined, countryOfOrigin: (product as any).countryOfOrigin || undefined, customsDescription: (product as any).customsDescription || undefined });
                 }
               }
             } catch {}
           }
-          if (rows.length) await prisma.orderItem.createMany({ data: rows, skipDuplicates: true });
+          if (rows.length) await s.from('order_items').insert(rows);
         } catch {}
 
         // Send receipt email to customer and all admins (best effort)
@@ -172,10 +178,11 @@ export async function POST(request: Request) {
             }));
           }
           // Admin notifications receive the same receipt template
-          const admins: { email: string | null }[] = await prisma.user.findMany({
-            where: { role: 'ADMIN', isActive: true },
-            select: { email: true },
-          });
+          const { data: admins } = await s
+            .from('users')
+            .select('email')
+            .eq('role', 'ADMIN')
+            .eq('isActive', true);
           admins.filter((a: { email: string | null }) => !!a.email).forEach((a: { email: string | null }) => {
             sends.push(sendReceiptEmail(a.email as string, {
               customerName: session.customer_details?.name || 'Customer',

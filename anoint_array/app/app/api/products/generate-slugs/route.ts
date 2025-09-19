@@ -1,9 +1,8 @@
 
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
+import { requireAdmin } from '@/lib/supabase-auth';
+import { createSupabaseAdminClient } from '@/lib/supabaseClient';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,23 +18,15 @@ function generateSlug(name: string): string {
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    
-    if (!session || session.user?.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
-    }
+    await requireAdmin();
 
     // Get all products that have empty slugs
-    const productsWithoutSlugs = await prisma.product.findMany({
-      where: {
-        slug: '',
-      },
-      select: {
-        id: true,
-        name: true,
-        slug: true,
-      },
-    });
+    const supabase = createSupabaseAdminClient();
+    const { data: productsWithoutSlugs, error } = await supabase
+      .from('products')
+      .select('id, name, slug')
+      .eq('slug', '');
+    if (error) throw error;
 
     const updatedProducts = [];
 
@@ -46,10 +37,11 @@ export async function POST(request: NextRequest) {
 
       // Check for uniqueness
       while (true) {
-        const existingProduct = await prisma.product.findUnique({
-          where: { slug: finalSlug },
-          select: { id: true },
-        });
+        const { data: existingProduct } = await supabase
+          .from('products')
+          .select('id')
+          .eq('slug', finalSlug)
+          .maybeSingle();
 
         if (!existingProduct || existingProduct.id === product.id) break;
         
@@ -58,15 +50,13 @@ export async function POST(request: NextRequest) {
       }
 
       // Update the product with the new slug
-      const updatedProduct = await prisma.product.update({
-        where: { id: product.id },
-        data: { slug: finalSlug },
-        select: {
-          id: true,
-          name: true,
-          slug: true,
-        },
-      });
+      const { data: updatedProduct, error: uErr } = await supabase
+        .from('products')
+        .update({ slug: finalSlug })
+        .eq('id', (product as any).id)
+        .select('id, name, slug')
+        .single();
+      if (uErr) throw uErr;
 
       updatedProducts.push(updatedProduct);
     }
@@ -85,4 +75,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-

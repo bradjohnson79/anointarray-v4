@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { requireAdmin } from '@/lib/supabase-auth';
 import { getConfig, setConfig } from '@/lib/app-config';
 import fs from 'fs/promises';
 import path from 'path';
@@ -18,10 +17,7 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session || session.user?.role !== 'ADMIN') {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  try { await requireAdmin(); } catch { return NextResponse.json({ error: 'Unauthorized' }, { status: 401 }); }
   const cfg = await request.json();
   await setConfig('support-config', cfg);
   return NextResponse.json({ success: true });

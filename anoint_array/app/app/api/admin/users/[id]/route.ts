@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
+import { requireAdmin } from '@/lib/supabase-auth';
+import { createSupabaseAdminClient } from '@/lib/supabaseClient';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -10,18 +9,14 @@ type RouteContext = { params: { id: string } };
 
 export async function GET(_req: NextRequest, ctx: RouteContext) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session || session.user?.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    await requireAdmin();
     const id = ctx.params.id;
-    const user = await prisma.user.findUnique({
-      where: { id },
-      select: {
-        id: true, name: true, email: true, role: true, phone: true,
-        address: true, isActive: true, lastLoginAt: true, createdAt: true, updatedAt: true,
-      },
-    });
+    const supabase = createSupabaseAdminClient();
+    const { data: user } = await supabase
+      .from('users')
+      .select('id, name, email, role, phone, address, isActive, lastLoginAt, createdAt, updatedAt')
+      .eq('id', id)
+      .maybeSingle();
     if (!user) return NextResponse.json({ error: 'Not found' }, { status: 404 });
     return NextResponse.json(user);
   } catch (e) {
@@ -31,10 +26,7 @@ export async function GET(_req: NextRequest, ctx: RouteContext) {
 
 export async function PATCH(req: NextRequest, ctx: RouteContext) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session || session.user?.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    await requireAdmin();
     const id = ctx.params.id;
     const body = await req.json().catch(() => ({}));
     const data: any = {};
@@ -45,28 +37,33 @@ export async function PATCH(req: NextRequest, ctx: RouteContext) {
     if (Object.keys(data).length === 0) {
       return NextResponse.json({ error: 'No valid fields to update' }, { status: 400 });
     }
-    const updated = await prisma.user.update({ where: { id }, data, select: { id: true, name: true, email: true, role: true, phone: true, isActive: true } });
+    const supabase = createSupabaseAdminClient();
+    const { data: updated, error } = await supabase
+      .from('users')
+      .update(data)
+      .eq('id', id)
+      .select('id, name, email, role, phone, isActive')
+      .single();
+    if (error) throw error;
     return NextResponse.json(updated);
   } catch (e: any) {
     const msg = String(e?.message || e || '');
-    if (/record to update not found/i.test(msg)) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    if (/not\s+found/i.test(msg)) return NextResponse.json({ error: 'Not found' }, { status: 404 });
     return NextResponse.json({ error: 'Failed to update user' }, { status: 500 });
   }
 }
 
 export async function DELETE(_req: NextRequest, ctx: RouteContext) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session || session.user?.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    await requireAdmin();
     const id = ctx.params.id;
-    await prisma.user.delete({ where: { id } });
+    const supabase = createSupabaseAdminClient();
+    const { error } = await supabase.from('users').delete().eq('id', id);
+    if (error) throw error;
     return NextResponse.json({ ok: true });
   } catch (e: any) {
     const msg = String(e?.message || e || '');
-    if (/record to delete does not exist/i.test(msg)) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    if (/not\s+found/i.test(msg)) return NextResponse.json({ error: 'Not found' }, { status: 404 });
     return NextResponse.json({ error: 'Failed to delete user' }, { status: 500 });
   }
 }
-

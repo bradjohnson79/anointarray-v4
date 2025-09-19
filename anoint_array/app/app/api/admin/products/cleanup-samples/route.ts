@@ -1,16 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
+import { requireAdmin } from '@/lib/supabase-auth';
+import { createSupabaseAdminClient } from '@/lib/supabaseClient';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(_req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session || session.user?.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    await requireAdmin();
 
     const sampleNames = [
       'Harmonic Seal – Vitality',
@@ -19,10 +15,11 @@ export async function POST(_req: NextRequest) {
     ];
 
     // Find sample products
-    const products = await prisma.product.findMany({
-      where: { name: { in: sampleNames } },
-      select: { id: true, name: true },
-    });
+    const s = createSupabaseAdminClient();
+    const { data: products } = await s
+      .from('products')
+      .select('id, name')
+      .in('name', sampleNames);
 
     if (products.length === 0) {
       return NextResponse.json({ message: 'No sample products found' });
@@ -30,11 +27,10 @@ export async function POST(_req: NextRequest) {
 
     const ids = products.map((p: { id: string }) => p.id);
 
-    await prisma.$transaction([
-      prisma.productVariant.deleteMany({ where: { productId: { in: ids } } }),
-      prisma.orderItem.deleteMany({ where: { productId: { in: ids } } }),
-      prisma.product.deleteMany({ where: { id: { in: ids } } }),
-    ]);
+    // delete variants then order_items then products
+    await s.from('product_variants').delete().in('productId', ids);
+    await s.from('order_items').delete().in('productId', ids);
+    await s.from('products').delete().in('id', ids);
 
     return NextResponse.json({ message: `Removed ${products.length} sample product(s)` });
   } catch (error: any) {

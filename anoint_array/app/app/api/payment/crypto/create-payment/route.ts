@@ -1,7 +1,6 @@
 
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { getAuthUserFromRequest } from '@/lib/supabase-auth';
 import fs from 'fs/promises';
 import { calculateCanadianTaxes } from '@/lib/canadian-taxes';
 import path from 'path';
@@ -21,9 +20,7 @@ async function loadNowPaymentsKey() {
 
 export async function POST(request: Request) {
   try {
-    const session = await getServerSession(authOptions);
-    
-    // Guest allowed logic handled upstream; accept guest flow here as well
+    await getAuthUserFromRequest(); // optional; guest flows may proceed
 
     const { items, currency, userId, userEmail, shippingAddress, shippingAmount = 0, fiatCurrency = 'USD' } = await request.json();
 

@@ -2,9 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import fs from 'fs/promises';
 import fsSync from 'fs';
 import path from 'path';
-import { getServerSession } from 'next-auth/next';
 import { createSupabaseServerClient, useSupabaseStorage, PRODUCT_IMAGES_BUCKET } from '@/lib/supabase-server';
-import { authOptions } from '@/lib/auth';
+import { requireAdmin } from '@/lib/supabase-auth';
 
 type ServiceKey = 'basic' | 'full' | 'environmental';
 type ServiceSettings = Record<ServiceKey, { price: number; description: string }>;
@@ -59,10 +58,7 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session || session.user?.role !== 'ADMIN') {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  try { await requireAdmin(); } catch { return NextResponse.json({ error: 'Unauthorized' }, { status: 401 }); }
   try {
     const body = await req.json();
     const incoming: ServiceSettings = {

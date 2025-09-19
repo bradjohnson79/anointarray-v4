@@ -1,7 +1,6 @@
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
+import { requireAdmin } from '@/lib/supabase-auth';
 import { readdir, stat } from 'fs/promises';
 import path from 'path';
 import { createSupabaseServerClient, useSupabaseStorage, PRODUCT_IMAGES_BUCKET } from '@/lib/supabase-server';
@@ -72,12 +71,7 @@ async function listLocalImages() {
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    
-    // Only authenticated admins can access file manager
-    if (!session || session.user?.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    try { await requireAdmin(); } catch { return NextResponse.json({ error: 'Unauthorized' }, { status: 401 }); }
 
     // Strict Supabase-only mode
     const useSupabase = useSupabaseStorage();

@@ -2,7 +2,7 @@
 'use client';
 
 import { useState } from 'react';
-import { signIn, getSession } from 'next-auth/react';
+import { useAuth } from '@/contexts/auth-context';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Mail, Lock, Eye, EyeOff, Sparkles } from 'lucide-react';
@@ -18,6 +18,7 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
+  const { login } = useAuth();
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData(prev => ({
@@ -31,24 +32,12 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      const result = await signIn('credentials', {
-        email: formData.email,
-        password: formData.password,
-        redirect: false,
-      });
-
-      if (result?.error) {
+      const resp = await fetch('/api/supabase/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: formData.email, password: formData.password }) });
+      if (!resp.ok) {
         toast.error('Invalid email or password');
       } else {
         toast.success('Login successful!');
-        
-        // Get the session to check user role
-        const session = await getSession();
-        if (session?.user?.role === 'ADMIN') {
-          router.push('/admin');
-        } else {
-          router.push('/dashboard');
-        }
+        router.push('/dashboard');
       }
     } catch (error) {
       toast.error('An error occurred during login');

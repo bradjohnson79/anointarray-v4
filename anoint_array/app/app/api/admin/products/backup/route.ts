@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
+import { requireAdmin } from '@/lib/supabase-auth';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -19,10 +18,7 @@ function nowStamp() {
 }
 
 export async function GET(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session || session.user?.role !== 'ADMIN') {
-    return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
-  }
+  try { await requireAdmin(); } catch { return NextResponse.json({ error: 'Admin access required' }, { status: 403 }); }
   try {
     const { searchParams } = new URL(req.url);
     const dry = searchParams.get('dry') === '1' || searchParams.get('check') === '1';

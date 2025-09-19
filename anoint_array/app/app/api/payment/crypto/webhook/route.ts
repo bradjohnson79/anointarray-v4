@@ -1,6 +1,6 @@
 
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { createSupabaseAdminClient } from '@/lib/supabaseClient';
 import { sendReceiptEmail } from '@/lib/email';
 import { notifyGoAffProConversion } from '@/lib/affiliates';
 
@@ -15,8 +15,8 @@ export async function POST(request: Request) {
     if (body.payment_status === 'finished' || body.payment_status === 'confirmed') {
       try {
         // Create order in database
-        await prisma.order.create({
-          data: {
+        const s = createSupabaseAdminClient();
+        await s.from('orders').insert({
             orderNumber: `CRYPTO_${body.payment_id}`,
             userId: undefined, // You'll need to store this in the order_id or metadata
             status: 'processing',
@@ -26,8 +26,7 @@ export async function POST(request: Request) {
             cryptoAddress: body.pay_address || '',
             customerEmail: body.order_description?.includes('@') ? body.order_description : 'unknown',
             customerName: 'Crypto Customer'
-          }
-        });
+          });
 
         // Send receipt email to customer and all admins (best effort)
         try {
@@ -42,7 +41,7 @@ export async function POST(request: Request) {
               currency,
             }));
           }
-          const admins: { email: string | null }[] = await prisma.user.findMany({ where: { role: 'ADMIN', isActive: true }, select: { email: true } });
+          const { data: admins } = await s.from('users').select('email').eq('role', 'ADMIN').eq('isActive', true);
           admins.filter((a: { email: string | null }) => !!a.email).forEach((a: { email: string | null }) => {
             sends.push(sendReceiptEmail(a.email as string, {
               orderNumber: `CRYPTO_${body.payment_id}`,

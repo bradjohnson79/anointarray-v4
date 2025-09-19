@@ -1,7 +1,6 @@
 
 import { NextRequest, NextResponse } from 'next/server';
-import bcrypt from 'bcryptjs';
-import { prisma } from '@/lib/prisma';
+import { createSupabaseAdminClient } from '@/lib/supabaseClient';
 import { withApiErrorHandling } from '@/lib/api-handler';
 import { BadRequestError, ConflictError } from '@/lib/http-errors';
 
@@ -18,30 +17,27 @@ async function handler(req: NextRequest) {
     throw new BadRequestError('Email, password, and full name are required');
   }
 
-    // Check if user already exists
-    const existingUser = await prisma.user.findUnique({
-      where: { email: String(email).toLowerCase() },
-      select: { id: true }
-    });
+    const s = createSupabaseAdminClient();
+    // Check if user already exists (profile table)
+    const { data: existingUser } = await s
+      .from('users')
+      .select('id')
+      .eq('email', String(email).toLowerCase())
+      .maybeSingle();
 
   if (existingUser) {
     throw new ConflictError('User with this email already exists');
   }
 
-    // Hash password
-    const hashedPassword = await bcrypt.hash(String(password), 12);
-
-    // Create user
-    const user = await prisma.user.create({
-      data: {
-        email: String(email).toLowerCase(),
-        name: String(fullName),
-        password: hashedPassword,
-        role: 'USER',
-        isActive: true,
-      },
-      select: { id: true, email: true, name: true, role: true, createdAt: true }
-    });
+    // Create Supabase Auth user and profile row
+    const emailLower = String(email).toLowerCase();
+    const adminRes = await s.auth.admin.createUser({ email: emailLower, password: String(password), email_confirm: true });
+    if (adminRes.error) throw new BadRequestError(adminRes.error.message || 'Failed to create auth user');
+    const { data: user } = await s
+      .from('users')
+      .upsert({ email: emailLower, name: String(fullName), role: 'USER', isActive: true }, { onConflict: 'email' })
+      .select('id, email, name, role, createdAt')
+      .single();
 
     // Remove password from response
   return NextResponse.json(

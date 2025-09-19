@@ -1,23 +1,20 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
+import { requireAdmin } from '@/lib/supabase-auth';
+import { createSupabaseAdminClient } from '@/lib/supabaseClient';
 import fs from 'fs/promises';
 import path from 'path';
 
 export async function POST() {
-  const session = await getServerSession(authOptions);
-  if (!session || session.user?.role !== 'ADMIN') {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  try { await requireAdmin(); } catch { return NextResponse.json({ error: 'Unauthorized' }, { status: 401 }); }
   const base = process.env.NEXTAUTH_URL || 'http://localhost:3000';
 
   // Build target paths (public pages only)
   const staticPaths = ['/', '/auth/login', '/auth/signup'];
   let productPaths: string[] = [];
   try {
-    const products: { slug: string }[] = await prisma.product.findMany({ select: { slug: true } });
-    productPaths = products.map((p: { slug: string }) => `/products/${p.slug}`);
+    const s = createSupabaseAdminClient();
+    const { data: products } = await s.from('products').select('slug');
+    productPaths = (products || []).map((p: any) => `/products/${p.slug}`);
   } catch {}
 
   const paths = [...new Set([...staticPaths, ...productPaths])];

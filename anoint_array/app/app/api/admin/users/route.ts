@@ -1,50 +1,43 @@
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
+import { requireAdmin } from '@/lib/supabase-auth';
+import { createSupabaseAdminClient } from '@/lib/supabaseClient';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    
-    if (!session || session.user?.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    await requireAdmin();
+
+    const supabase = createSupabaseAdminClient();
+    const { data: users, error } = await supabase
+      .from('users')
+      .select('id, name, email, role, phone, address, isActive, lastLoginAt, createdAt, updatedAt')
+      .order('createdAt', { ascending: false });
+    if (error) throw error;
+
+    // Fetch basic order aggregates per user
+    const ids = (users || []).map((u: any) => u.id);
+    let countsByUser: Record<string, { count: number; total: number }> = {};
+    if (ids.length) {
+      const { data: orders } = await supabase
+        .from('orders')
+        .select('userId, totalAmount')
+        .in('userId', ids);
+      for (const o of orders || []) {
+        const uid = (o as any).userId || 'unknown';
+        const total = Number((o as any).totalAmount || 0);
+        countsByUser[uid] = countsByUser[uid] || { count: 0, total: 0 };
+        countsByUser[uid].count += 1;
+        countsByUser[uid].total += total;
+      }
     }
 
-    const users = await prisma.user.findMany({
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-        phone: true,
-        address: true,
-        isActive: true,
-        lastLoginAt: true,
-        createdAt: true,
-        updatedAt: true,
-        orders: {
-          select: {
-            id: true,
-            totalAmount: true,
-            status: true,
-          }
-        }
-      },
-      orderBy: {
-        createdAt: 'desc'
-      }
-    });
-
-    // Process users to add computed fields
-    const processedUsers = users.map((user: any) => ({
+    const processedUsers = (users || []).map((user: any) => ({
       ...user,
-      ordersCount: user.orders.length,
-      totalSpent: user.orders.reduce((sum: number, order: any) => sum + Number(order.totalAmount), 0),
-      arraysGenerated: Math.floor(Math.random() * 20), // TODO: Implement actual array count
+      ordersCount: countsByUser[user.id]?.count || 0,
+      totalSpent: countsByUser[user.id]?.total || 0,
+      arraysGenerated: Math.floor(Math.random() * 20),
     }));
 
     return NextResponse.json(processedUsers);
@@ -59,11 +52,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    
-    if (!session || session.user?.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    await requireAdmin();
 
     const body = await request.json();
     const { name, email, password, phone, role = 'USER' } = body;
@@ -75,10 +64,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if user already exists
-    const existingUser = await prisma.user.findUnique({
-      where: { email },
-    });
+    const supabase = createSupabaseAdminClient();
+    const { data: existingUser } = await supabase
+      .from('users')
+      .select('id')
+      .eq('email', email)
+      .maybeSingle();
 
     if (existingUser) {
       return NextResponse.json(
@@ -90,18 +81,15 @@ export async function POST(request: NextRequest) {
     const bcrypt = require('bcryptjs');
     const hashedPassword = await bcrypt.hash(password, 12);
 
-    const user = await prisma.user.create({
-      data: {
-        name,
-        email,
-        password: hashedPassword,
-        phone,
-        role,
-      },
-    });
+    const { data: user, error } = await supabase
+      .from('users')
+      .insert({ name, email, password: hashedPassword, phone, role })
+      .select('id, name, email, role, phone, address, isActive, lastLoginAt, createdAt, updatedAt')
+      .single();
+    if (error) throw error;
 
     // Don't return password
-    const { password: _, ...userWithoutPassword } = user;
+    const { password: _, ...userWithoutPassword } = (user as any);
 
     return NextResponse.json(userWithoutPassword, { status: 201 });
   } catch (error) {

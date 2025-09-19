@@ -1,8 +1,7 @@
 
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
+import { requireAdmin } from '@/lib/supabase-auth';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
 
 export const dynamic = 'force-dynamic';
@@ -33,10 +32,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
     // Check admin authentication if admin flag is set
     if (isAdmin) {
-      const session = await getServerSession(authOptions);
-      if (!session || session.user?.role !== 'ADMIN') {
-        return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
-      }
+      try { await requireAdmin(); } catch { return NextResponse.json({ error: 'Admin access required' }, { status: 403 }); }
     }
 
     // Attempt to select including sortOrder; if column missing, fallback without it
@@ -116,11 +112,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
-    const session = await getServerSession(authOptions);
-    
-    if (!session || session.user?.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
-    }
+    try { await requireAdmin(); } catch { return NextResponse.json({ error: 'Admin access required' }, { status: 403 }); }
 
     const body = await request.json();
     
@@ -271,10 +263,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session || session.user?.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
-    }
+    try { await requireAdmin(); } catch { return NextResponse.json({ error: 'Admin access required' }, { status: 403 }); }
 
     const { searchParams } = new URL(request.url);
     const force = searchParams.get('force') === 'true';

@@ -1,14 +1,14 @@
 
 'use client';
 
-import { useSession } from 'next-auth/react';
+import { useAuth } from '@/contexts/auth-context';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import AdminLayout from '@/components/admin/admin-layout';
 import AdminOverview from '@/components/admin/admin-overview';
 
 export default function AdminDashboard() {
-  const { data: session, status } = useSession() || {};
+  const { user, loading } = useAuth();
   const router = useRouter();
 
   useEffect(() => {

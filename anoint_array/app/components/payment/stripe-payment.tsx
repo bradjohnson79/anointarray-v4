@@ -5,18 +5,18 @@ import { useState } from 'react';
 import { loadStripe } from '@stripe/stripe-js';
 import { CreditCard, Lock, Loader } from 'lucide-react';
 import { usePayment } from '@/contexts/payment-context';
-import { useSession } from 'next-auth/react';
+import { useAuth } from '@/contexts/auth-context';
 import { toast } from 'sonner';
 
 export default function StripePayment({ publishableKey, amount, shippingAmount, currency, displaySymbol }: { publishableKey?: string; amount?: number; shippingAmount?: number; currency?: string; displaySymbol?: string }) {
   const { state, setProcessing, clearCart, toggleModal, getTotalPrice } = usePayment();
-  const { data: session } = useSession();
+  const { user } = useAuth();
   const [loading, setLoading] = useState(false);
 
   const handlePayment = async () => {
     // Guest checkout allowed only for physical products
     const hasDigital = state.cart.some(item => item.type === 'seal' || item.customData?.isDigital === true);
-    if (hasDigital && !session?.user) {
+    if (hasDigital && !user) {
       toast.error('Please log in or create a free account to purchase digital items.');
       return;
     }
@@ -31,12 +31,12 @@ export default function StripePayment({ publishableKey, amount, shippingAmount, 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           items: state.cart,
-          userId: session?.user?.id,
-          userEmail: session?.user?.email || state.shippingAddress?.email,
+          userId: user?.id,
+          userEmail: user?.email || state.shippingAddress?.email,
           shippingAddress: state.shippingAddress,
           billingAddress: state.billingAddress,
           billingSameAsShipping: state.billingSameAsShipping,
-          allowGuest: !session?.user,
+          allowGuest: !user,
           shippingAmount: typeof shippingAmount === 'number' ? shippingAmount : 0,
           currency: (currency || 'USD').toUpperCase(),
         })

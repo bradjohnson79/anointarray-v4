@@ -2,7 +2,7 @@
 'use client';
 
 import { useState } from 'react';
-import { signIn } from 'next-auth/react';
+import { useAuth } from '@/contexts/auth-context';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Mail, Lock, User, Eye, EyeOff, Sparkles } from 'lucide-react';
@@ -21,6 +21,7 @@ export default function SignupPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
+  const { login } = useAuth();
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData(prev => ({
@@ -61,18 +62,9 @@ export default function SignupPage() {
         toast.success('Account created successfully!');
         
         // Auto-login after successful signup
-        const result = await signIn('credentials', {
-          email: formData.email,
-          password: formData.password,
-          redirect: false,
-        });
-
-        if (result?.error) {
-          toast.error('Account created but login failed. Please try logging in manually.');
-          router.push('/auth/login');
-        } else {
-          router.push('/dashboard');
-        }
+        const resp = await fetch('/api/supabase/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: formData.email, password: formData.password }) });
+        if (!resp.ok) toast.error('Account created but login failed. Please try logging in manually.');
+        router.push('/dashboard');
       } else {
         let payload: any = null;
         try { payload = await response.json(); } catch {}

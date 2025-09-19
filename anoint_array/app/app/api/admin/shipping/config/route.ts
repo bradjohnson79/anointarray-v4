@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
+import { requireAdmin } from '@/lib/supabase-auth';
 import { getConfig, setConfig } from '@/lib/app-config';
 
 export const dynamic = 'force-dynamic';
@@ -21,10 +20,8 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session || session.user?.role !== 'ADMIN') return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  try { await requireAdmin(); } catch { return NextResponse.json({ error: 'Unauthorized' }, { status: 401 }); }
   const cfg = (await req.json()) as ShippingConfig;
   await setConfig(KEY, cfg || {});
   return NextResponse.json({ success: true });
 }
-

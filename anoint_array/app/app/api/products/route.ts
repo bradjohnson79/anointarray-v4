@@ -1,7 +1,6 @@
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
+import { requireAdmin } from '@/lib/supabase-auth';
 import { withApiErrorHandling } from '@/lib/api-handler';
 import { BadRequestError, ForbiddenError, UnauthorizedError } from '@/lib/http-errors';
 
@@ -86,9 +85,7 @@ async function getHandler(request: NextRequest) {
 }
 
 async function postHandler(request: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session) throw new UnauthorizedError('Authentication required. Please log in.');
-  if (session.user?.role !== 'ADMIN') throw new ForbiddenError('Admin privileges required');
+  await requireAdmin();
 
   const body = await request.json();
     
@@ -138,16 +135,14 @@ async function postHandler(request: NextRequest) {
     let slugCounter = 0;
     let finalSlug = slug;
     while (true) {
-      const existingProduct = await prisma.product.findUnique({
-        where: { slug: finalSlug },
-        select: {
-          id: true,
-          slug: true,
-        },
-      });
-
+      const { createSupabaseServerClient } = await import('@/lib/supabase-server');
+      const supabase = createSupabaseServerClient();
+      const { data: existingProduct } = await supabase
+        .from('products')
+        .select('id, slug')
+        .eq('slug', finalSlug)
+        .maybeSingle();
       if (!existingProduct) break;
-      
       slugCounter++;
       finalSlug = `${slug}-${slugCounter}`;
     }

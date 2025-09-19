@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useSession } from 'next-auth/react';
+import { useAuth } from '@/contexts/auth-context';
 import { useRouter } from 'next/navigation';
 import AdminLayout from '@/components/admin/admin-layout';
 import { RefreshCw, Wand2, Save } from 'lucide-react';
@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 
 export default function ServiceOrdersPage() {
-  const { data: session, status } = useSession() || {};
+  const { user, loading } = useAuth();
   const router = useRouter();
   const [tab, setTab] = useState('orders');
   const [orders, setOrders] = useState<any[]>([]);

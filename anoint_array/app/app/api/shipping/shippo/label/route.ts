@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
+import { requireAdmin } from '@/lib/supabase-auth';
+import { createSupabaseAdminClient } from '@/lib/supabaseClient';
 
 export const dynamic = 'force-dynamic';
 
@@ -48,10 +47,7 @@ interface LabelRequest {
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session || session.user?.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    await requireAdmin();
 
     const liveKey = process.env.SHIPPO_API_KEY;
     const testKey = process.env.SHIPPO_API_TEST_KEY;
@@ -137,8 +133,8 @@ export async function POST(request: NextRequest) {
     // Persist shipment in DB when connected to an order
     if (body.orderId) {
       try {
-        await prisma.shipment.create({
-          data: {
+        const s = createSupabaseAdminClient();
+        await s.from('shipments').insert({
             orderId: body.orderId,
             carrier: 'canadapost',
             incoterm: (String(address_to.country).toUpperCase() !== 'CA') ? 'DDP' : 'DDP',
@@ -151,8 +147,7 @@ export async function POST(request: NextRequest) {
             service: preferred?.servicelevel?.name || preferred?.servicelevel?.token || preferred?.servicelevel || 'Canada Post',
             estimatedDelivery: preferred?.estimated_days ? new Date(Date.now() + preferred.estimated_days * 86400000) : null,
             status: 'created',
-          }
-        });
+          });
       } catch (e) {
         console.warn('DB persist shipment failed:', e);
       }

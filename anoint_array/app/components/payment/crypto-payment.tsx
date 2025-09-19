@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import { Coins, Lock, Loader, Copy, CheckCircle } from 'lucide-react';
 import { usePayment } from '@/contexts/payment-context';
-import { useSession } from 'next-auth/react';
+import { useAuth } from '@/contexts/auth-context';
 import { toast } from 'sonner';
 
 interface CryptoOption {
@@ -25,7 +25,7 @@ const CRYPTO_OPTIONS: CryptoOption[] = [
 
 export default function CryptoPayment({ amount, shippingAmount, currency, displaySymbol }: { amount?: number; shippingAmount?: number; currency?: string; displaySymbol?: string }) {
   const { state, setProcessing, clearCart, toggleModal, getTotalPrice } = usePayment();
-  const { data: session } = useSession();
+  const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [selectedCrypto, setSelectedCrypto] = useState<string>('btc');
   const [paymentData, setPaymentData] = useState<any>(null);
@@ -34,7 +34,7 @@ export default function CryptoPayment({ amount, shippingAmount, currency, displa
 
   const createCryptoPayment = async () => {
     const hasDigital = state.cart.some(item => item.type === 'seal' || item.customData?.isDigital === true);
-    if (hasDigital && !session?.user) {
+    if (hasDigital && !user) {
       toast.error('Please log in or create a free account to purchase digital items.');
       return;
     }
@@ -60,8 +60,8 @@ export default function CryptoPayment({ amount, shippingAmount, currency, displa
         body: JSON.stringify({
           items: state.cart,
           currency: selectedCrypto.toUpperCase(),
-          userId: session?.user?.id,
-          userEmail: session?.user?.email,
+          userId: user?.id,
+          userEmail: user?.email,
           shippingAddress: state.shippingAddress,
           shippingAmount: typeof shippingAmount === 'number' ? shippingAmount : 0,
           fiatCurrency: (currency || 'USD').toUpperCase(),

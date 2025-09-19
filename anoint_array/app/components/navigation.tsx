@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import { Menu, X, User, LogOut, Settings, Shield, ShoppingCart } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useSession, signOut } from 'next-auth/react';
+import { useAuth } from '@/contexts/auth-context';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { usePayment } from '@/contexts/payment-context';
@@ -25,7 +25,7 @@ export default function Navigation() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
-  const { data: session, status } = useSession() || {};
+  const { user, loading, logout } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
@@ -50,20 +50,20 @@ export default function Navigation() {
   // Set a simple login cookie for UX features (not auth)
   useEffect(() => {
     try {
-      if (session?.user?.id) {
+      if (user?.id) {
         document.cookie = `aa_logged_in=1; path=/; SameSite=Lax; max-age=${60*60*24*30}`;
       } else {
         document.cookie = 'aa_logged_in=; path=/; SameSite=Lax; max-age=0';
       }
     } catch {}
-  }, [session?.user?.id]);
+  }, [user?.id]);
 
   const handleSignOut = async () => {
     setIsUserMenuOpen(false);
-    await signOut({ callbackUrl: '/' });
+    await logout();
+    router.push('/');
   };
-
-  const isAdmin = session?.user?.role === 'ADMIN';
+  const isAdmin = false;
 
   return (
     <nav className={`fixed top-0 w-full z-50 transition-all duration-300 ${
@@ -127,9 +127,9 @@ export default function Navigation() {
                   </motion.span>
                 )}
               </motion.button>
-              {status === 'loading' ? (
+              {loading ? (
                 <div className="w-8 h-8 rounded-full bg-gray-700 animate-pulse" />
-              ) : session ? (
+              ) : user ? (
                 /* User Menu */
                 <div className="relative">
                   <motion.button
@@ -140,7 +140,7 @@ export default function Navigation() {
                   >
                     <User className="h-4 w-4 text-purple-400" />
                     <span className="text-sm text-white">
-                      {session.user?.name?.split(' ')[0] || 'User'}
+                      User
                     </span>
                     {isAdmin && <Shield className="h-3 w-3 text-yellow-400" />}
                   </motion.button>
@@ -286,11 +286,11 @@ export default function Navigation() {
 
               {/* Mobile Authentication */}
               <div className="border-t border-purple-500/20 pt-4 mt-4">
-                {session ? (
+                {user ? (
                   <div className="space-y-1">
                     <div className="px-4 py-3 bg-purple-500/10 rounded-lg border border-purple-500/20">
                       <p className="text-sm text-purple-200 font-medium">
-                        Welcome, {session.user?.name?.split(' ')[0] || 'User'}
+                        Welcome, {user.email?.split('@')[0] || 'User'}
                         {isAdmin && <span className="ml-2 text-yellow-400 text-xs font-semibold">(Admin)</span>}
                       </p>
                     </div>

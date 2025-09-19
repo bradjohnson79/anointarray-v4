@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
+import { requireAdmin } from '@/lib/supabase-auth';
+import { createSupabaseAdminClient } from '@/lib/supabaseClient';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -14,19 +13,17 @@ function genSku(name: string, style?: string | null) {
 }
 
 export async function POST() {
-  const session = await getServerSession(authOptions);
-  if (!session || session.user?.role !== 'ADMIN') {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  await requireAdmin();
   const actions: any[] = [];
   try {
     type Variant = { id: string; style: string | null; price: any; quantity: number | null; sku: string | null };
     type ProductWithVariants = { id: string; name: string; price: any; inventory: number | null; variants?: Variant[] };
 
-    const products: ProductWithVariants[] = await prisma.product.findMany({
-      select: { id: true, name: true, price: true, inventory: true, variants: { select: { id: true, style: true, price: true, quantity: true, sku: true } } },
-      orderBy: { createdAt: 'asc' },
-    });
+    const s = createSupabaseAdminClient();
+    const { data: products } = await s
+      .from('products')
+      .select('id, name, price, inventory, variants:product_variants(id, style, price, quantity, sku)')
+      .order('createdAt', { ascending: true });
     // Build a deterministic SKU set without relying on array callbacks that can trip TS strict rules
     const skuList: string[] = [];
     for (const p of products as ProductWithVariants[]) {
@@ -42,9 +39,7 @@ export async function POST() {
         let sku = genSku(p.name, 'DEFAULT');
         while (existingSkus.has(sku)) sku = genSku(p.name, 'DEFAULT');
         existingSkus.add(sku);
-        await prisma.productVariant.create({
-          data: { productId: p.id, style: 'Default', price: p.price, quantity: p.inventory ?? 0, sku }
-        });
+        await s.from('product_variants').insert({ productId: p.id, style: 'Default', price: p.price, quantity: p.inventory ?? 0, sku });
         actions.push({ productId: p.id, createdVariant: true, sku });
       } else {
         for (const v of p.variants) {
@@ -52,7 +47,7 @@ export async function POST() {
             let sku = genSku(p.name, v.style);
             while (existingSkus.has(sku)) sku = genSku(p.name, v.style);
             existingSkus.add(sku);
-            await prisma.productVariant.update({ where: { id: v.id }, data: { sku } });
+            await s.from('product_variants').update({ sku }).eq('id', v.id);
             actions.push({ productId: p.id, variantId: v.id, updatedSku: sku });
           }
         }

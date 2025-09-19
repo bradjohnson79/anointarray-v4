@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
+import { requireAdmin } from '@/lib/supabase-auth';
 import { createSupabaseServerClient, useSupabaseStorage, GLYPHS_BUCKET } from '@/lib/supabase-server';
 import { readdir, readFile, stat } from 'fs/promises';
 import path from 'path';
@@ -34,8 +33,7 @@ async function enumerateGlyphs(): Promise<Array<{ name: string; fullPath: string
 }
 
 export async function POST(_req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session || session.user?.role !== 'ADMIN') return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  try { await requireAdmin(); } catch { return NextResponse.json({ error: 'Unauthorized' }, { status: 401 }); }
   if (!useSupabaseStorage()) return NextResponse.json({ error: 'Supabase storage not configured' }, { status: 400 });
 
   const supabase = createSupabaseServerClient();
@@ -57,4 +55,3 @@ export async function POST(_req: NextRequest) {
   const failed = results.filter(r => r.status === 'failed').length;
   return NextResponse.json({ success: true, uploaded, failed, bucket: GLYPHS_BUCKET, results });
 }
-

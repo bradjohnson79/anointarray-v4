@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ShoppingCart, CreditCard, DollarSign, Coins, Minus, Plus, Trash2, Loader, MapPin, Phone, User, Mail, ChevronDown, ChevronUp } from 'lucide-react';
 import { usePayment } from '@/contexts/payment-context';
-import { useSession } from 'next-auth/react';
+import { useAuth } from '@/contexts/auth-context';
 import { toast } from 'sonner';
 import StripePayment from './stripe-payment';
 import PayPalPayment from './paypal-payment';
@@ -13,7 +13,7 @@ import CryptoPayment from './crypto-payment';
 
 export default function PaymentModal() {
   const { state, toggleModal, updateQuantity, removeFromCart, clearCart, setPaymentMethod, getTotalPrice, getTotalItems, setShippingAddress, setBillingAddress, setBillingSameAsShipping } = usePayment();
-  const { data: session } = useSession();
+  const { user } = useAuth();
   const [step, setStep] = useState<'cart' | 'payment' | 'processing'>('cart');
   const [payments, setPayments] = useState<any | null>(null);
   const [buyerCountry, setBuyerCountry] = useState<string>(state.shippingAddress?.country || 'CA');
@@ -47,8 +47,8 @@ export default function PaymentModal() {
 
   // Local form state for address details
   const [shipping, setShipping] = useState({
-    fullName: state.shippingAddress?.fullName || (session?.user?.name || ''),
-    email: state.shippingAddress?.email || (session?.user?.email || ''),
+    fullName: state.shippingAddress?.fullName || '',
+    email: state.shippingAddress?.email || '',
     phone: state.shippingAddress?.phone || '',
     street: state.shippingAddress?.street || '',
     city: state.shippingAddress?.city || '',
@@ -58,8 +58,8 @@ export default function PaymentModal() {
   });
   const [billingSame, setBillingSame] = useState<boolean>(state.billingSameAsShipping ?? true);
   const [billing, setBilling] = useState({
-    fullName: state.billingAddress?.fullName || (session?.user?.name || ''),
-    email: state.billingAddress?.email || (session?.user?.email || ''),
+    fullName: state.billingAddress?.fullName || '',
+    email: state.billingAddress?.email || '',
     phone: state.billingAddress?.phone || '',
     street: state.billingAddress?.street || '',
     city: state.billingAddress?.city || '',

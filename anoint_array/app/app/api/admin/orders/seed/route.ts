@@ -1,22 +1,18 @@
 
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
+import { requireAdmin } from '@/lib/supabase-auth';
+import { createSupabaseAdminClient } from '@/lib/supabaseClient';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    
-    if (!session || session.user?.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    await requireAdmin();
 
     // Check if orders already exist
-    const existingOrders = await prisma.order.count();
+    const s = createSupabaseAdminClient();
+    const { count: existingOrders } = await s.from('orders').select('*', { count: 'exact', head: true });
     if (existingOrders > 0) {
       return NextResponse.json({ 
         message: 'Database already has orders',
@@ -25,10 +21,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Create products first (if they don't exist)
-    const existingProducts = await prisma.product.count();
-    if (existingProducts === 0) {
-      await prisma.product.createMany({
-        data: [
+    const { count: existingProducts } = await s.from('products').select('*', { count: 'exact', head: true });
+    if (!existingProducts) {
+      await s.from('products').insert([
           {
             name: 'Chakra Balancing Crystal Array',
             slug: 'chakra-balancing-crystal-array',
@@ -100,14 +95,13 @@ export async function POST(request: NextRequest) {
             inStock: true
             // Missing customs fields intentionally
           }
-        ]
-      });
+        ]);
     }
 
     // Get product IDs
-    const products = await prisma.product.findMany({
-      select: { id: true, name: true, hsCode: true, countryOfOrigin: true, customsDescription: true, defaultCustomsValueCad: true, massGrams: true, isDigital: true }
-    });
+    const { data: products } = await s
+      .from('products')
+      .select('id, name, hsCode, countryOfOrigin, customsDescription, defaultCustomsValueCad, massGrams, isDigital');
 
     const productMap = products.reduce((acc: any, product: any) => {
       acc[product.name] = product;
@@ -289,19 +283,13 @@ export async function POST(request: NextRequest) {
     for (const orderData of sampleOrders) {
       const { items, ...orderFields } = orderData;
       
-      const order = await prisma.order.create({
-        data: orderFields
-      });
+      const { data: order, error } = await s.from('orders').insert(orderFields).select('id').single();
+      if (error) throw error;
 
       // Create order items
       for (const item of items) {
         if (item.productId) {
-          await prisma.orderItem.create({
-            data: {
-              orderId: order.id,
-              ...item
-            }
-          });
+          await s.from('order_items').insert({ orderId: (order as any).id, ...item });
         }
       }
     }

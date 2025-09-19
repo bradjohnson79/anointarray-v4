@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
+import { requireAdmin } from '@/lib/supabase-auth';
+import { createSupabaseAdminClient } from '@/lib/supabaseClient';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -20,15 +19,14 @@ function normalizeSupabasePublicUrl(url: any): any {
 }
 
 export async function POST() {
-  const session = await getServerSession(authOptions);
-  if (!session || session.user?.role !== 'ADMIN') {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
   try {
-    const products = await prisma.product.findMany({
-      select: { id: true, imageUrl: true, imageGallery: true },
-    });
+    await requireAdmin();
+
+    const s = createSupabaseAdminClient();
+    const { data: products, error } = await s
+      .from('products')
+      .select('id, imageUrl, imageGallery');
+    if (error) throw error;
 
     let updated = 0;
     for (const p of products) {
@@ -37,10 +35,7 @@ export async function POST() {
         .map((u: any) => normalizeSupabasePublicUrl(u));
       const changed = nextUrl !== p.imageUrl || JSON.stringify(nextGallery) !== JSON.stringify(p.imageGallery || []);
       if (changed) {
-        await prisma.product.update({
-          where: { id: p.id },
-          data: { imageUrl: nextUrl, imageGallery: nextGallery },
-        });
+        await s.from('products').update({ imageUrl: nextUrl, imageGallery: nextGallery }).eq('id', (p as any).id);
         updated++;
       }
     }
@@ -50,4 +45,3 @@ export async function POST() {
     return NextResponse.json({ error: e?.message || 'Failed to repair image URLs' }, { status: 500 });
   }
 }
-

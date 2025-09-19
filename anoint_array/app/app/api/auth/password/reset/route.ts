@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { createSupabaseAdminClient } from '@/lib/supabaseClient';
 import bcrypt from 'bcryptjs';
 
 export const dynamic = 'force-dynamic';
@@ -12,19 +12,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Password must be at least 8 characters' }, { status: 400 });
     }
 
-    const record = await prisma.verificationToken.findUnique({ where: { token } });
+    const s = createSupabaseAdminClient();
+    const { data: record } = await s.from('verificationtokens').select('*').eq('token', token).maybeSingle();
     if (!record || (record.expires && record.expires < new Date())) {
       return NextResponse.json({ error: 'Invalid or expired token' }, { status: 400 });
     }
 
-    const user = await prisma.user.findUnique({ where: { email: record.identifier.toLowerCase() } });
+    const { data: user } = await s.from('users').select('id, email').eq('email', (record as any).identifier.toLowerCase()).maybeSingle();
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
     const hash = await bcrypt.hash(password, 10);
-    await prisma.$transaction([
-      prisma.user.update({ where: { id: user.id }, data: { password: hash } }),
-      prisma.verificationToken.deleteMany({ where: { identifier: record.identifier } })
-    ]);
+    await s.from('users').update({ password: hash }).eq('id', (user as any).id);
+    await s.from('verificationtokens').delete().eq('identifier', (record as any).identifier);
 
     return NextResponse.json({ success: true });
   } catch (e) {
@@ -32,4 +31,3 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to reset password' }, { status: 500 });
   }
 }
-

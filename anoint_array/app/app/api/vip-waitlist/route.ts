@@ -1,6 +1,6 @@
 
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { createSupabaseAdminClient } from '@/lib/supabaseClient';
 import { withApiErrorHandling } from '@/lib/api-handler';
 import { BadRequestError, ConflictError } from '@/lib/http-errors';
 
@@ -23,23 +23,29 @@ async function handler(request: NextRequest) {
   }
 
     // Check if email already exists in waitlist
-    const existingEntry = await prisma.vipWaitlist.findUnique({
-      where: { email: email.trim().toLowerCase() }
-    });
+    const s = createSupabaseAdminClient();
+    const { data: existingEntry } = await s
+      .from('vip_waitlist')
+      .select('id')
+      .eq('email', email.trim().toLowerCase())
+      .maybeSingle();
 
   if (existingEntry) {
     throw new ConflictError('This email is already registered for the VIP waitlist.');
   }
 
     // Save to database
-    const waitlistEntry = await prisma.vipWaitlist.create({
-      data: {
+    const { data: waitlistEntry, error } = await s
+      .from('vip_waitlist')
+      .insert({
         name: name.trim(),
         email: email.trim().toLowerCase(),
         phone: phone?.trim() || null,
         interests: interests?.trim() || null,
-      },
-    });
+      })
+      .select('id, name, email, phone, interests')
+      .single();
+    if (error) throw error;
 
     // Send email notification (placeholder - in production would use email service)
     console.log(`New VIP waitlist signup:

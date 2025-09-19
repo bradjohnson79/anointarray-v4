@@ -1,8 +1,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
+import { requireAdmin } from '@/lib/supabase-auth';
+import { createSupabaseAdminClient } from '@/lib/supabaseClient';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,31 +13,21 @@ interface RouteParams {
 
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
-    const session = await getServerSession(authOptions);
-    
-    if (!session || session.user?.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    await requireAdmin();
 
     const { id } = params;
 
-    const order = await prisma.order.findUnique({
-      where: { id },
-      include: {
-        orderItems: {
-          include: {
-            product: true,
-          }
-        },
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          }
-        }
-      }
-    });
+    const s = createSupabaseAdminClient();
+    const { data: order, error } = await s
+      .from('orders')
+      .select(`
+        *,
+        orderItems:order_items(*, product:products(*)),
+        user:users(id, name, email)
+      `)
+      .eq('id', id)
+      .maybeSingle();
+    if (error) throw error;
 
     if (!order) {
       return NextResponse.json({ error: 'Order not found' }, { status: 404 });
@@ -52,7 +41,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       taxAmount: order.taxAmount ? Number(order.taxAmount) : null,
       shippingAmount: order.shippingAmount ? Number(order.shippingAmount) : null,
       refundAmount: order.refundAmount ? Number(order.refundAmount) : null,
-      items: order.orderItems.map((item: { id: string; quantity: number; price: any; product: { name: string | null } }) => ({
+      items: (order.orderItems || []).map((item: { id: string; quantity: number; price: any; product: { name: string | null } }) => ({
         id: item.id,
         name: item.product?.name ?? '',
         quantity: item.quantity,
@@ -72,11 +61,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
-    const session = await getServerSession(authOptions);
-    
-    if (!session || session.user?.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    await requireAdmin();
 
     const { id } = params;
     const body = await request.json();
@@ -89,21 +74,25 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       billingAddress,
     } = body;
 
-    const updatedOrder = await prisma.order.update({
-      where: { id },
-      data: {
-        ...(status && { status }),
-        ...(paymentStatus && { paymentStatus }),
-        ...(trackingNumber && { trackingNumber }),
-        ...(notes && { notes }),
-        ...(shippingAddress && { shippingAddress }),
-        ...(billingAddress && { billingAddress }),
-        ...(status === 'shipped' && !trackingNumber && { shippedAt: new Date() }),
-        ...(status === 'delivered' && { deliveredAt: new Date() }),
-        ...(status === 'cancelled' && { cancelledAt: new Date() }),
-        ...(paymentStatus === 'refunded' && { refundedAt: new Date() }),
-      },
-    });
+    const s = createSupabaseAdminClient();
+    const patch: any = {};
+    if (status) patch.status = status;
+    if (paymentStatus) patch.paymentStatus = paymentStatus;
+    if (trackingNumber) patch.trackingNumber = trackingNumber;
+    if (notes) patch.notes = notes;
+    if (shippingAddress) patch.shippingAddress = shippingAddress;
+    if (billingAddress) patch.billingAddress = billingAddress;
+    if (status === 'shipped' && !trackingNumber) patch.shippedAt = new Date().toISOString();
+    if (status === 'delivered') patch.deliveredAt = new Date().toISOString();
+    if (status === 'cancelled') patch.cancelledAt = new Date().toISOString();
+    if (paymentStatus === 'refunded') patch.refundedAt = new Date().toISOString();
+    const { data: updatedOrder, error: uErr } = await s
+      .from('orders')
+      .update(patch)
+      .eq('id', id)
+      .select('*')
+      .single();
+    if (uErr) throw uErr;
 
     return NextResponse.json({
       ...updatedOrder,
@@ -124,30 +113,20 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
-    const session = await getServerSession(authOptions);
-    
-    if (!session || session.user?.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    await requireAdmin();
 
     const { id } = params;
 
-    const order = await prisma.order.findUnique({
-      where: { id },
-    });
+    const s = createSupabaseAdminClient();
+    const { data: order } = await s.from('orders').select('id').eq('id', id).maybeSingle();
 
     if (!order) {
       return NextResponse.json({ error: 'Order not found' }, { status: 404 });
     }
 
     // Delete order items first, then order
-    await prisma.orderItem.deleteMany({
-      where: { orderId: id },
-    });
-
-    await prisma.order.delete({
-      where: { id },
-    });
+    await s.from('order_items').delete().eq('orderId', id);
+    await s.from('orders').delete().eq('id', id);
 
     return NextResponse.json({ message: 'Order deleted successfully' });
   } catch (error) {

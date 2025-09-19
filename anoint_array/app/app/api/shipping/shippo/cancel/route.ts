@@ -1,16 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
+import { requireAdmin } from '@/lib/supabase-auth';
+import { createSupabaseAdminClient } from '@/lib/supabaseClient';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session || session.user?.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    await requireAdmin();
     const liveKey = process.env.SHIPPO_API_KEY;
     const testKey = process.env.SHIPPO_API_TEST_KEY;
     const apiKey = (process.env.NODE_ENV === 'production' ? (liveKey || testKey) : (testKey || liveKey)) || '';
@@ -28,7 +24,8 @@ export async function POST(request: NextRequest) {
     if (!resp.ok) return NextResponse.json({ error: 'Shippo refund failed', refund }, { status: 500 });
 
     if (shipmentId) {
-      await prisma.shipment.updateMany({ where: { id: shipmentId }, data: { status: 'cancelled', apiAudit: { refund } } });
+      const s = createSupabaseAdminClient();
+      await s.from('shipments').update({ status: 'cancelled', apiAudit: { refund } }).eq('id', shipmentId);
     }
     return NextResponse.json({ success: true, refund });
   } catch (e) {

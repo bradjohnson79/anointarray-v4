@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
+import { requireAdmin } from '@/lib/supabase-auth';
 import { getConfig } from '@/lib/app-config';
 
 export const dynamic = 'force-dynamic';
@@ -20,10 +19,7 @@ async function shippoFetch(path: string, apiKey: string, init?: any) {
 export async function GET(request: NextRequest) {
   const checks: any[] = [];
   try {
-    const session = await getServerSession(authOptions);
-    if (!session || session.user?.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    try { await requireAdmin(); } catch { return NextResponse.json({ error: 'Unauthorized' }, { status: 401 }); }
     const url = new URL(request.url);
     const parcelTemplateId = url.searchParams.get('parcelTemplateId') || '';
     const carrierAccountIdOverride = url.searchParams.get('carrierAccountId') || '';

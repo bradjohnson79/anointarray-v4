@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 import { redirect } from 'next/navigation';
-import { prisma } from '@/lib/prisma';
+import { createSupabaseAdminClient } from '@/lib/supabaseClient';
 import fs from 'fs/promises';
 import path from 'path';
 import { sendReceiptEmail } from '@/lib/email';
@@ -88,8 +88,10 @@ export async function GET(request: Request) {
         // Create order in database
         const capture = captureData.purchase_units[0].payments.captures[0];
         
-        const created = await prisma.order.create({
-          data: {
+        const s = createSupabaseAdminClient();
+        const { data: created } = await s
+          .from('orders')
+          .insert({
             orderNumber: `PAYPAL_${token}`,
             userId: orderInfo.userId || undefined,
             status: 'processing',
@@ -107,8 +109,9 @@ export async function GET(request: Request) {
             taxesEstimatedCad: orderInfo?.extraLabel?.toLowerCase()?.includes('tax') ? Number(orderInfo?.extraAmount || 0) : 0,
             dutiesEstimatedCad: orderInfo?.extraLabel?.toLowerCase()?.includes('tariff') ? Number(orderInfo?.extraAmount || 0) : 0,
             taxBreakdown: orderInfo?.taxBreakdown || {},
-          }
-        });
+          })
+          .select('id')
+          .single();
 
         // Create order items from custom_data if product ids were provided
         try {
@@ -121,12 +124,16 @@ export async function GET(request: Request) {
               const qty = Number(it.q || it.quantity || 1) || 1;
               const price = Number(it.p || it.price || 0) || 0;
               if (pid) {
-                const product = await prisma.product.findUnique({ where: { id: pid }, select: { id: true, isDigital: true, hsCode: true, countryOfOrigin: true, customsDescription: true } });
-                if (product) rows.push({ orderId: created.id, productId: product.id, quantity: qty, price, isDigital: !!product.isDigital, hsCode: product.hsCode || undefined, countryOfOrigin: product.countryOfOrigin || undefined, customsDescription: product.customsDescription || undefined });
+                const { data: product } = await s
+                  .from('products')
+                  .select('id, isDigital, hsCode, countryOfOrigin, customsDescription')
+                  .eq('id', pid)
+                  .maybeSingle();
+                if (product) rows.push({ orderId: (created as any).id, productId: (product as any).id, quantity: qty, price, isDigital: !!(product as any).isDigital, hsCode: (product as any).hsCode || undefined, countryOfOrigin: (product as any).countryOfOrigin || undefined, customsDescription: (product as any).customsDescription || undefined });
               }
             } catch {}
           }
-          if (rows.length) await prisma.orderItem.createMany({ data: rows, skipDuplicates: true });
+          if (rows.length) await s.from('order_items').insert(rows);
         } catch {}
 
         // Send receipt email to customer and all admins (best effort)
@@ -156,7 +163,7 @@ export async function GET(request: Request) {
               shippingAddress,
             }));
           }
-          const admins: { email: string | null }[] = await prisma.user.findMany({ where: { role: 'ADMIN', isActive: true }, select: { email: true } });
+          const { data: admins } = await s.from('users').select('email').eq('role', 'ADMIN').eq('isActive', true);
           admins.filter((a: { email: string | null }) => !!a.email).forEach((a: { email: string | null }) => {
             sends.push(sendReceiptEmail(a.email as string, {
               customerName: customerName || 'Customer',

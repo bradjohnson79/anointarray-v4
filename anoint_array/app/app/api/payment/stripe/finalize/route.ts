@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
-import { prisma } from '@/lib/prisma';
+import { createSupabaseAdminClient } from '@/lib/supabaseClient';
 import { sendReceiptEmail } from '@/lib/email';
 
 export const runtime = 'nodejs';
@@ -27,7 +27,8 @@ export async function GET(req: NextRequest) {
 
     // If the order already exists, exit early
     const orderNumber = `STRIPE_${session.id}`;
-    const existing = await prisma.order.findUnique({ where: { orderNumber }, select: { id: true } });
+    const s = createSupabaseAdminClient();
+    const { data: existing } = await s.from('orders').select('id').eq('orderNumber', orderNumber).maybeSingle();
     if (existing) return NextResponse.json({ ok: true, orderNumber, status: 'already_finalized' });
 
     // Build addresses
@@ -51,14 +52,15 @@ export async function GET(req: NextRequest) {
     let resolvedUserId: string | undefined = ((session.metadata as any)?.user_id as string) || undefined;
     try {
       if (!resolvedUserId && customerEmail) {
-        const u = await prisma.user.findUnique({ where: { email: customerEmail.toLowerCase() }, select: { id: true } });
-        if (u) resolvedUserId = u.id;
+        const { data: u } = await s.from('users').select('id').eq('email', customerEmail.toLowerCase()).maybeSingle();
+        if (u) resolvedUserId = (u as any).id;
       }
     } catch {}
 
     // Create order
-    const created = await prisma.order.create({
-      data: {
+    const { data: created } = await s
+      .from('orders')
+      .insert({
         orderNumber,
         userId: resolvedUserId,
         status: 'processing',
@@ -72,8 +74,9 @@ export async function GET(req: NextRequest) {
         billingAddress: billingAddress || undefined,
         buyerCountry: (billingAddress?.country || shippingAddress?.country || 'CA') as string,
         shippingCountry: (shippingAddress?.country || 'CA') as string,
-      }
-    });
+      })
+      .select('id')
+      .single();
 
     // Create order items from metadata
     try {
@@ -87,14 +90,18 @@ export async function GET(req: NextRequest) {
           const qty = Number(it.q || it.quantity || 1) || 1;
           const price = Number(it.p || it.price || 0) || 0;
           if (pid) {
-            const product = await prisma.product.findUnique({ where: { id: pid }, select: { id: true, isDigital: true, hsCode: true, countryOfOrigin: true, customsDescription: true } });
+            const { data: product } = await s
+              .from('products')
+              .select('id, isDigital, hsCode, countryOfOrigin, customsDescription')
+              .eq('id', pid)
+              .maybeSingle();
             if (product) {
-              rows.push({ orderId: created.id, productId: product.id, quantity: qty, price, isDigital: !!product.isDigital, hsCode: product.hsCode || undefined, countryOfOrigin: product.countryOfOrigin || undefined, customsDescription: product.customsDescription || undefined });
+              rows.push({ orderId: (created as any).id, productId: (product as any).id, quantity: qty, price, isDigital: !!(product as any).isDigital, hsCode: (product as any).hsCode || undefined, countryOfOrigin: (product as any).countryOfOrigin || undefined, customsDescription: (product as any).customsDescription || undefined });
             }
           }
         } catch {}
       }
-      if (rows.length) await prisma.orderItem.createMany({ data: rows, skipDuplicates: true });
+      if (rows.length) await s.from('order_items').insert(rows);
     } catch {}
 
     // Send receipts

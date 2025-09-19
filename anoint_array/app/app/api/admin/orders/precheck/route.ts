@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
+import { requireAdmin } from '@/lib/supabase-auth';
+import { createSupabaseAdminClient } from '@/lib/supabaseClient';
 import { getConfig } from '@/lib/app-config';
 import fs from 'fs/promises';
 import path from 'path';
@@ -39,63 +38,29 @@ function parseDbUrlInfo(dbUrl: string | undefined) {
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session || session.user?.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    try { await requireAdmin(); } catch { return NextResponse.json({ error: 'Unauthorized' }, { status: 401 }); }
 
     const checks: Check[] = [];
 
     // Database connectivity and counts
     try {
-      // Connectivity probe
-      await prisma.$queryRaw`SELECT 1`;
-      // Run individual counts with guards so one missing table doesn't mask the rest
+      const s = createSupabaseAdminClient();
       const res: any = { connected: true };
-      const dbInfo = parseDbUrlInfo(process.env.DATABASE_URL);
-      if (dbInfo) res.target = `${dbInfo.host}:${dbInfo.port}/${dbInfo.db} (${dbInfo.user || 'user'})`;
-      try { res.ordersCount = await prisma.order.count(); } catch (e: any) { res.ordersCount = 'n/a'; res.ordersError = String(e?.message || e); }
-      try { res.productsCount = await prisma.product.count(); } catch (e: any) { res.productsCount = 'n/a'; res.productsError = String(e?.message || e); }
-      try { res.usersCount = await prisma.user.count(); } catch (e: any) { res.usersCount = 'n/a'; res.usersError = String(e?.message || e); }
-      try { res.adminsCount = await prisma.user.count({ where: { role: 'ADMIN', isActive: true } }); } catch (e: any) { res.adminsCount = 'n/a'; res.adminsError = String(e?.message || e); }
+      const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+      if (url) res.target = url;
+      const oc = await s.from('orders').select('*', { count: 'exact', head: true });
+      const pc = await s.from('products').select('*', { count: 'exact', head: true });
+      const uc = await s.from('users').select('*', { count: 'exact', head: true });
+      const ac = await s.from('users').select('*', { count: 'exact', head: true }).eq('role', 'ADMIN').eq('isActive', true);
+      res.ordersCount = oc.count ?? 'n/a';
+      res.productsCount = pc.count ?? 'n/a';
+      res.usersCount = uc.count ?? 'n/a';
+      res.adminsCount = ac.count ?? 'n/a';
       const status: CheckStatus = (typeof res.ordersCount === 'string' || typeof res.productsCount === 'string' || typeof res.usersCount === 'string') ? 'warn' : 'ok';
       checks.push({ key: 'db', label: 'Database', status, details: res });
     } catch (e: any) {
-      const dbUrl = process.env.DATABASE_URL || '';
-      // Attempt simple alternate-port probes using Prisma override
       const suggestions: any = { error: String(e?.message || e) };
-      const dbInfo = parseDbUrlInfo(dbUrl);
-      if (dbInfo) suggestions.target = dbInfo;
-      try {
-        const url = new URL(dbUrl);
-        const base = `${url.protocol}//${url.username ? `${url.username}${url.password ? ':' + url.password : ''}@` : ''}${url.hostname}`;
-        const path = `${url.pathname}${url.search}${url.hash}`;
-        const currentPort = url.port ? Number(url.port) : 5432;
-        // Enforce policy: only 5432 is supported
-        if (currentPort !== 5432) {
-          const alt = `${base}:5432${path}`;
-          try {
-            const { PrismaClient } = await import('@prisma/client');
-            const client = new PrismaClient({ datasources: { db: { url: alt } } });
-            await client.$queryRaw`SELECT 1`;
-            await client.$disconnect();
-            suggestions.recommendedDatabaseUrl = alt;
-            suggestions.recommendation = 'Port 5432 is required by policy. Update DATABASE_URL to use :5432 and restart dev server.';
-            suggestions.probe5432 = 'ok';
-          } catch (pe: any) {
-            suggestions.probe5432 = String(pe?.message || pe);
-          }
-        }
-      } catch {
-        // ignore URL parsing errors
-      }
-      // Local Postgres hints (no Docker)
-      suggestions.howToCheck = 'Ensure PostgreSQL is running locally. Example: lsof -i :5432 (macOS), or psql connection test.';
-      suggestions.howToStartMacHomebrew = 'brew services start postgresql@16 (or your installed version)';
-      suggestions.howToStartLinux = 'sudo systemctl start postgresql (or service postgresql start)';
-      suggestions.howToMigrate = 'In project root: pnpm prisma db push (then optionally seed via Admin > Seed Sample Orders)';
-      suggestions.envClarification = 'Prisma CLI reads .env by default; Next.js reads .env.local at runtime. Keep DATABASE_URL in both files in sync.';
-
+      suggestions.howToCheck = 'Verify SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY env vars. Test /api/debug/db';
       checks.push({ key: 'db', label: 'Database', status: 'error', message: 'Database connection failed', details: suggestions });
     }
 
@@ -168,17 +133,18 @@ export async function GET(request: NextRequest) {
 
     // Orders health
     try {
-      const lastOrder = await prisma.order.findFirst({ orderBy: { createdAt: 'desc' } });
-      // Successful read is OK; include hasAny detail
-      checks.push({ key: 'orders', label: 'Orders Read', status: 'ok', details: { hasAny: !!lastOrder } });
+      const s = createSupabaseAdminClient();
+      const { count: oc } = await s.from('orders').select('*', { count: 'exact', head: true });
+      checks.push({ key: 'orders', label: 'Orders Read', status: 'ok', details: { hasAny: !!(oc && oc > 0) } });
     } catch (e: any) {
       checks.push({ key: 'orders', label: 'Orders Read', status: 'error', message: 'Cannot query orders table', details: { error: String(e?.message || e) } });
     }
 
     // Products health
     try {
-      const firstProduct = await prisma.product.findFirst();
-      checks.push({ key: 'products', label: 'Products', status: firstProduct ? 'ok' : 'warn', details: { hasAny: !!firstProduct } });
+      const s = createSupabaseAdminClient();
+      const { count: pc } = await s.from('products').select('*', { count: 'exact', head: true });
+      checks.push({ key: 'products', label: 'Products', status: (pc && pc > 0) ? 'ok' : 'warn', details: { hasAny: !!(pc && pc > 0) } });
     } catch (e: any) {
       checks.push({ key: 'products', label: 'Products', status: 'error', message: 'Cannot query products table', details: { error: String(e?.message || e) } });
     }

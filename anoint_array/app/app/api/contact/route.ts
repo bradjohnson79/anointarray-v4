@@ -1,6 +1,6 @@
 
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { createSupabaseAdminClient } from '@/lib/supabaseClient';
 
 export const dynamic = 'force-dynamic';
 
@@ -27,15 +27,19 @@ export async function POST(request: NextRequest) {
     }
 
     // Save to database
-    const contactForm = await prisma.contactForm.create({
-      data: {
+    const s = createSupabaseAdminClient();
+    const { data: contactForm, error } = await s
+      .from('contact_forms')
+      .insert({
         name: name.trim(),
         email: email.trim().toLowerCase(),
         subject: subject?.trim() || null,
         message: message.trim(),
         formType: formType || 'contact',
-      },
-    });
+      })
+      .select('id, name, email, subject, message, formType')
+      .single();
+    if (error) throw error;
 
     // Send email notification (placeholder - in production would use email service)
     console.log(`New contact form submission:
@@ -61,6 +65,6 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   } finally {
-    // Keep shared Prisma client; do not disconnect in serverless handlers
+    // nothing
   }
 }

@@ -1,20 +1,19 @@
 
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { getAuthUserFromRequest } from '@/lib/supabase-auth';
 import { calculateCanadianTaxes } from '@/lib/canadian-taxes';
 import { getFxRate } from '@/lib/currency';
 import { resolvePaypalConfig, getPaypalAccessToken, createPaypalOrder } from '@/lib/paypal';
 
 export async function POST(request: Request) {
   try {
-    const session = await getServerSession(authOptions);
+    const user = await getAuthUserFromRequest();
     const { items, userId, userEmail, shippingAddress, billingAddress, billingSameAsShipping, allowGuest, shippingAmount = 0, currency = 'USD' } = await request.json();
 
     const allPhysical = Array.isArray(items) && items.every((item: any) => item?.type === 'product' && !(item?.customData?.isDigital));
-    const guestAllowed = !session?.user && allowGuest && allPhysical;
+    const guestAllowed = !user && allowGuest && allPhysical;
     
-    if (!session?.user && !guestAllowed) {
+    if (!user && !guestAllowed) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 

@@ -1,7 +1,6 @@
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
+import { requireAdmin } from '@/lib/supabase-auth';
 import { uploadFile } from '@/lib/s3';
 import fs from 'fs/promises';
 import path from 'path';
@@ -13,27 +12,8 @@ export async function POST(request: NextRequest) {
   try {
     console.log('📤 Upload request received');
     
-    const session = await getServerSession(authOptions);
-    
-    // Only authenticated admins can upload files
-    if (!session) {
-      console.log('❌ No session found - user not authenticated');
-      return NextResponse.json({ 
-        error: 'Not authenticated. Please log in as an Admin user.',
-        code: 'NO_SESSION'
-      }, { status: 401 });
-    }
-    
-    if (session.user?.role !== 'ADMIN') {
-      console.log('❌ User role not admin:', session.user?.role);
-      return NextResponse.json({ 
-        error: 'Admin privileges required. Current role: ' + (session.user?.role || 'none'),
-        code: 'NOT_ADMIN',
-        userRole: session.user?.role
-      }, { status: 401 });
-    }
-
-    console.log('✅ Authentication successful for admin user:', session.user?.email);
+    await requireAdmin();
+    console.log('✅ Authentication successful for admin user');
 
     const formData = await request.formData();
     const file = formData.get('file') as File;

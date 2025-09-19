@@ -1,14 +1,14 @@
 
 'use client';
 
-import { useSession } from 'next-auth/react';
+import { useAuth } from '@/contexts/auth-context';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import DashboardLayout from '@/components/dashboard/dashboard-layout';
 import DashboardOverview from '@/components/dashboard/dashboard-overview';
 
 export default function MemberDashboard() {
-  const { data: session, status } = useSession() || {};
+  const { user, loading } = useAuth();
   const router = useRouter();
 
   useEffect(() => {

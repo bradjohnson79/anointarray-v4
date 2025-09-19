@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
+import { requireAdmin } from '@/lib/supabase-auth';
 import { serverEnv } from '@/lib/env';
 import { Resend } from 'resend';
 
@@ -8,10 +7,7 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(_req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session || session.user?.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    try { await requireAdmin(); } catch { return NextResponse.json({ error: 'Unauthorized' }, { status: 401 }); }
 
     const from = (serverEnv.EMAIL_FROM || '').trim();
     const provider = ((process.env.EMAIL_PROVIDER || '').trim().toLowerCase()) || (serverEnv.RESEND_API_KEY ? 'resend' : (process.env.POSTMARK_SERVER_TOKEN ? 'postmark' : 'none'));
