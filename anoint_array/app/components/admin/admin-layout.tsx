@@ -23,7 +23,8 @@ import {
   Wand2,
   ShoppingCart,
   Truck,
-  CreditCard
+  CreditCard,
+  Download
 } from 'lucide-react';
 import EnergyRibbons from '@/components/energy-ribbons';
 
@@ -38,6 +39,8 @@ const adminNavLinks = [
   { href: '/admin/contacts', label: 'Contact Messages', icon: Mail },
   { href: '/admin/analytics', label: 'Analytics', icon: BarChart3 },
   { href: '/admin/settings', label: 'Settings', icon: Settings },
+  // Tools
+  { href: '/api/admin/products/backup', label: 'Backup Products', icon: Download, external: true },
 ];
 
 interface AdminLayoutProps {
@@ -111,15 +114,17 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                     <li key={link.href}>
                       <Link
                         href={link.href}
+                        target={link?.external ? '_blank' : undefined}
+                        rel={link?.external ? 'noopener noreferrer' : undefined}
                         onClick={() => setIsSidebarOpen(false)}
                         className={`flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors duration-200 ${
-                          isActive
+                          isActive && !link?.external
                             ? 'bg-purple-600/30 text-purple-300 border border-purple-500/50'
                             : 'text-gray-300 hover:text-white hover:bg-purple-500/20'
                         }`}
                       >
                         <link.icon className="h-5 w-5" />
-                        <span>{link.label}</span>
+                        <span>{link.label}{link?.external ? ' ↗' : ''}</span>
                       </Link>
                     </li>
                   );
