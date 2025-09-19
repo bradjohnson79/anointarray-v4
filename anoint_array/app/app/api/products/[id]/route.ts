@@ -3,7 +3,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
+import { createSupabaseServerClient } from '@/lib/supabase-server';
 
 export const dynamic = 'force-dynamic';
 
@@ -75,14 +75,14 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
           select: { id: true, style: true, price: true, quantity: true, sku: true }
         }
       };
-    try {
-      product = await prisma.product.findUnique({ where: { id: params.id }, select: { ...selectBase, sortOrder: true } });
-    } catch (e: any) {
-      const msg = String(e?.message || e).toLowerCase();
-      const missingSort = msg.includes('sortorder') || msg.includes('sort_order');
-      if (!missingSort) throw e;
-      product = await prisma.product.findUnique({ where: { id: params.id }, select: selectBase });
-    }
+    const supabase = createSupabaseServerClient();
+    const { data: rows, error } = await supabase
+      .from('products')
+      .select('*, variants(*)')
+      .eq('id', params.id)
+      .limit(1);
+    if (error) throw new Error(error.message || 'Fetch failed');
+    product = (rows && rows[0]) || null;
 
     if (!product) {
       return NextResponse.json({ error: 'Product not found' }, { status: 404 });
@@ -220,77 +220,40 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     }
 
     // If variants array provided, replace the set atomically (typed transaction)
+    const supabase2 = createSupabaseServerClient();
     if (Array.isArray(variants)) {
-      await prisma.$transaction(async (tx) => {
-        await tx.productVariant.deleteMany({ where: { productId: params.id } });
-        function genSku(n: string, s?: string) {
+      function genSku(n: string, s?: string) {
           const base = (n || 'SKU').toUpperCase().replace(/[^A-Z0-9]+/g, '').slice(0, 8);
           const sty = (s || 'DEFAULT').toUpperCase().replace(/[^A-Z0-9]+/g, '').slice(0, 6);
           const rand = Math.random().toString(36).toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4);
           return [base, sty, rand].filter(Boolean).join('-');
-        }
-        const data = variants
-          .filter((v: any) => v && v.style && v.price != null)
-          .map((v: any) => ({
-            productId: params.id,
-            style: String(v.style),
-            price: Number(v.price),
-            quantity: Number.isFinite(Number(v.quantity)) ? Number(v.quantity) : 0,
-            sku: (v.sku && String(v.sku).trim()) ? String(v.sku).trim() : genSku(name || '' , v.style),
-          }));
-        if (data.length) {
-          await tx.productVariant.createMany({ data, skipDuplicates: true });
-        }
-      });
+      }
+      // Replace variants: delete old, insert new
+      await supabase2.from('product_variants').delete().eq('productId', params.id);
+      const data = variants
+        .filter((v: any) => v && v.style && v.price != null)
+        .map((v: any) => ({
+          productId: params.id,
+          style: String(v.style),
+          price: Number(v.price),
+          quantity: Number.isFinite(Number(v.quantity)) ? Number(v.quantity) : 0,
+          sku: (v.sku && String(v.sku).trim()) ? String(v.sku).trim() : genSku(name || '' , v.style),
+        }));
+      if (data.length) await supabase2.from('product_variants').insert(data);
     }
 
-    const product = await prisma.product.update({
-      where: { id: params.id },
-      data: updateData,
-      select: {
-        id: true,
-        name: true,
-        slug: true,
-        teaserDescription: true,
-        fullDescription: true,
-        price: true,
-        category: true,
-        isVip: true,
-        inStock: true,
-        isPhysical: true,
-        isDigital: true,
-        imageUrl: true,
-        imageGallery: true,
-        featured: true,
-        comingSoon: true,
-        sortOrder: true,
-        inventory: true,
-        weight: true,
-        dimensions: true,
-        digitalFileUrl: true,
-        instructionManualUrl: true,
-        videoEmbedCode: true,
-        // Customs & Compliance
-        hsCode: true,
-        countryOfOrigin: true,
-        customsDescription: true,
-        defaultCustomsValueCad: true,
-        massGrams: true,
-        createdAt: true,
-        updatedAt: true,
-        variants: { select: { id: true, style: true, price: true, quantity: true, sku: true } }
-      },
-    });
+    const { data: upd, error: uErr } = await supabase2.from('products').update(updateData).eq('id', params.id).select('*, variants(*)').single();
+    if (uErr) throw new Error(uErr.message || 'Update failed');
 
     // Convert Decimal fields to numbers for JSON serialization
     const serializedProduct = {
-      ...product,
+      ...upd,
       price: Number(product.price),
       weight: product.weight ? Number(product.weight) : null,
       sortOrder: Number((product as any).sortOrder ?? 9999),
       youtubeUrl: null, // Add this field for frontend compatibility
-      defaultCustomsValueCad: product.defaultCustomsValueCad != null ? Number(product.defaultCustomsValueCad) : null,
-      variants: product.variants?.map((v: any) => ({ ...v, price: Number(v.price) })) || [],
+      defaultCustomsValueCad: (upd as any).defaultCustomsValueCad != null ? Number((upd as any).defaultCustomsValueCad) : null,
+      variants: (upd as any).variants?.map((v: any) => ({ ...v, price: Number((v as any).price) })) || [],
     };
 
     return NextResponse.json(serializedProduct);
@@ -320,7 +283,9 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       'Clarity Seal – Insight',
       'Guardian Array – Protection',
     ];
-    const current = await prisma.product.findUnique({ where: { id: params.id }, select: { id: true, name: true } });
+    const supabase = createSupabaseServerClient();
+    const { data: current, error } = await supabase.from('products').select('id,name').eq('id', params.id).single();
+    if (error && (error as any).code !== 'PGRST116') throw new Error(error.message || 'Fetch failed');
     if (!current) return NextResponse.json({ error: 'Product not found' }, { status: 404 });
     const isSample = sampleNames.includes(current.name);
     if (!isSample) {
@@ -328,7 +293,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     }
 
     // For the three sample products, allow hard delete. If referenced by orders, need force=true.
-    const orderItemCount = await prisma.orderItem.count({ where: { productId: params.id } });
+    const { count: orderItemCount } = await supabase.from('order_items').select('id', { count: 'exact', head: true }).eq('productId', params.id);
     if (orderItemCount > 0 && !force) {
       return NextResponse.json(
         { error: `Sample product is referenced by ${orderItemCount} order item(s). Retry with ?force=true to remove related order items.` },
@@ -336,13 +301,10 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    await prisma.$transaction([
-      // Clean up variants explicitly (even if cascading) for clarity
-      prisma.productVariant.deleteMany({ where: { productId: params.id } }),
-      // If forcing, remove dependent order items to satisfy FK constraints
-      ...(force ? [prisma.orderItem.deleteMany({ where: { productId: params.id } })] : []),
-      prisma.product.delete({ where: { id: params.id } }),
-    ]);
+    // Delete variants then (optional) order_items then product
+    await supabase.from('product_variants').delete().eq('productId', params.id);
+    if (force) await supabase.from('order_items').delete().eq('productId', params.id);
+    await supabase.from('products').delete().eq('id', params.id);
 
     return NextResponse.json({ success: true });
   } catch (error: any) {

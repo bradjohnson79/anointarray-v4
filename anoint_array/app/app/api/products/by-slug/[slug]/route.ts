@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { createSupabaseServerClient } from '@/lib/supabase-server';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -7,17 +7,14 @@ export const runtime = 'nodejs';
 export async function GET(_req: NextRequest, { params }: { params: { slug: string } }) {
   try {
     const slug = decodeURIComponent(params.slug);
-    const p = await prisma.product.findUnique({
-      where: { slug },
-      select: {
-        id: true, name: true, slug: true, teaserDescription: true, fullDescription: true,
-        price: true, category: true, isVip: true, inStock: true, isPhysical: true, isDigital: true,
-        featured: true, comingSoon: true, imageUrl: true, imageGallery: true, videoEmbedCode: true,
-        inventory: true, weight: true, dimensions: true, digitalFileUrl: true, instructionManualUrl: true,
-        createdAt: true, updatedAt: true,
-        variants: { select: { id: true, style: true, price: true, quantity: true, sku: true } },
-      }
-    });
+    const supabase = createSupabaseServerClient();
+    const { data: list, error } = await supabase
+      .from('products')
+      .select('*, variants(*)')
+      .eq('slug', slug)
+      .limit(1);
+    if (error) throw new Error(error.message || 'Fetch failed');
+    const p = (list && list[0]) || null;
     if (!p) return NextResponse.json({ error: 'Not found' }, { status: 404 });
     const data: any = {
       ...p,
@@ -30,4 +27,3 @@ export async function GET(_req: NextRequest, { params }: { params: { slug: strin
     return NextResponse.json({ error: e?.message || 'Failed' }, { status: 500 });
   }
 }
-

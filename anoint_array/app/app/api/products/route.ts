@@ -2,7 +2,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
 import { withApiErrorHandling } from '@/lib/api-handler';
 import { BadRequestError, ForbiddenError, UnauthorizedError } from '@/lib/http-errors';
 
@@ -40,102 +39,24 @@ async function getHandler(request: NextRequest) {
       where.featured = true;
     }
 
-    // Build select dynamically; include variants only for admin view
-    const select: any = {
-      id: true,
-      name: true,
-      slug: true,
-      teaserDescription: true,
-      fullDescription: true,
-      price: true,
-      category: true,
-      isVip: true,
-      inStock: true,
-      isPhysical: true,
-      isDigital: true,
-      imageUrl: true,
-      imageGallery: true,
-      featured: true,
-      comingSoon: true,
-      sortOrder: true,
-      inventory: true,
-      weight: true,
-      dimensions: true,
-      digitalFileUrl: true,
-      instructionManualUrl: true,
-      videoEmbedCode: true,
-      createdAt: true,
-      updatedAt: true,
-    };
-    if (admin === 'true') {
-      select.variants = { select: { id: true, style: true, price: true, quantity: true, sku: true } };
-      // Include customs fields for admin editing
-      (select as any).hsCode = true;
-      (select as any).countryOfOrigin = true;
-      (select as any).customsDescription = true;
-      (select as any).defaultCustomsValueCad = true;
-      (select as any).massGrams = true;
-    }
-    // Public requests: prefer Supabase REST (service role) for resilience; Admin: use Prisma
-    let products: any[] = [];
-    if (admin === 'true') {
-      // Admin view via Prisma (richer fields, counts later)
-      try {
-        try {
-          products = await prisma.product.findMany({
-            where,
-            select,
-            orderBy: [ { featured: 'desc' }, { sortOrder: 'asc' }, { createdAt: 'desc' } ]
-          });
-        } catch (e: any) {
-          const msg = String(e?.message || e).toLowerCase();
-          const missingSort = msg.includes('sortorder') || msg.includes('sort_order');
-          if (missingSort) {
-            const selectNoSort = { ...select } as any;
-            delete selectNoSort.sortOrder;
-            products = await prisma.product.findMany({ where, select: selectNoSort, orderBy: [ { featured: 'desc' }, { createdAt: 'desc' } ] });
-          } else {
-            throw e;
-          }
-        }
-      } catch (err) {
-        // Surface prisma error for admin use
-        throw err;
-      }
-    } else {
-      // Public view via Supabase REST first; fallback to Prisma only if REST fails
-      try {
-        const { createSupabaseServerClient } = await import('@/lib/supabase-server');
-        const supabase = createSupabaseServerClient();
-        const col = [ 'id','name','slug','teaserDescription','fullDescription','price','category','isVip','inStock','isPhysical','isDigital','imageUrl','imageGallery','featured','comingSoon','sortOrder','inventory','weight','dimensions','digitalFileUrl','instructionManualUrl','videoEmbedCode','createdAt','updatedAt' ];
-        let q = supabase.from('products').select(col.join(','));
-        if (category) q = q.eq('category', category);
-        if (featured === 'true') q = q.eq('featured', true);
-        const { data, error } = await q.order('featured', { ascending: false }).order('sortOrder', { ascending: true }).order('createdAt', { ascending: false });
-        if (error) throw error;
-        products = (data || []) as any[];
-      } catch (_) {
-        // Fallback to Prisma if REST is unavailable
-        try {
-          products = await prisma.product.findMany({ where, select, orderBy: [ { featured: 'desc' }, { sortOrder: 'asc' }, { createdAt: 'desc' } ] });
-        } catch {
-          // Last resort: empty list instead of 500 to keep storefront responsive
-          products = [];
-        }
-      }
-    }
+    // Supabase-only implementation for both public and admin
+    const { createSupabaseServerClient } = await import('@/lib/supabase-server');
+    const supabase = createSupabaseServerClient();
+    const baseCols = [
+      'id','name','slug','teaserDescription','fullDescription','price','category','isVip','inStock','isPhysical','isDigital','imageUrl','imageGallery','featured','comingSoon','sortOrder','inventory','weight','dimensions','digitalFileUrl','instructionManualUrl','videoEmbedCode','createdAt','updatedAt'
+    ];
+    const adminCols = ['hsCode','countryOfOrigin','customsDescription','defaultCustomsValueCad','massGrams'];
+    let cols = baseCols.join(',');
+    if (admin === 'true') cols = cols + ',' + adminCols.join(',') + ',variants(*)';
+    let q = supabase.from('products').select(cols);
+    if (category) q = q.eq('category', category);
+    if (featured === 'true') q = q.eq('featured', true);
+    const { data, error } = await q.order('featured', { ascending: false }).order('sortOrder', { ascending: true }).order('createdAt', { ascending: false });
+    if (error) throw error;
+    let products: any[] = (data || []) as any[];
 
-    // For admin view, compute order item counts per product in one query
-    let countsMap: Record<string, number> = {};
-    if (admin === 'true' && products.length > 0) {
-      const ids = products.map((p: any) => p.id);
-      const grouped = await prisma.orderItem.groupBy({
-        by: ['productId'],
-        where: { productId: { in: ids } },
-        _count: { _all: true }
-      });
-      countsMap = Object.fromEntries(grouped.map((g: any) => [g.productId, Number(g._count?._all || 0)]));
-    }
+    // (Optional) order item counts could be added via a view/ RPC later.
+    const countsMap: Record<string, number> = {};
 
     // Convert Decimal fields to numbers for JSON serialization and add missing fields
     const processedProducts = products.map((product: any) => ({
@@ -159,9 +80,7 @@ async function getHandler(request: NextRequest) {
     }));
 
     // Return different format for admin vs public API
-    if (admin === 'true') {
-      return NextResponse.json(processedProducts);
-    }
+    if (admin === 'true') return NextResponse.json(processedProducts);
 
     return NextResponse.json({ success: true, products: processedProducts });
 }
@@ -306,46 +225,16 @@ async function postHandler(request: NextRequest) {
           }))
       : [{ style: 'Default', price: toNumber(price), quantity: toNumber(inventory) ?? 0, sku: genSku(name, 'DEFAULT') }];
 
-    const product = await prisma.product.create({
-      data: {
-        ...productData,
-        variants: { create: createVariants },
-      },
-      select: {
-        id: true,
-        name: true,
-        slug: true,
-        teaserDescription: true,
-        fullDescription: true,
-        price: true,
-        category: true,
-        isVip: true,
-        inStock: true,
-        isPhysical: true,
-        isDigital: true,
-        imageUrl: true,
-        imageGallery: true,
-        featured: true,
-        comingSoon: true,
-        inventory: true,
-        weight: true,
-        dimensions: true,
-        digitalFileUrl: true,
-        instructionManualUrl: true,
-        videoEmbedCode: true,
-        // Customs & Compliance
-        hsCode: true,
-        countryOfOrigin: true,
-        customsDescription: true,
-        defaultCustomsValueCad: true,
-        massGrams: true,
-        createdAt: true,
-        updatedAt: true,
-        variants: {
-          select: { id: true, style: true, price: true, quantity: true, sku: true }
-        }
-      },
-    });
+    // Insert product via Supabase then variants
+    const { createSupabaseServerClient } = await import('@/lib/supabase-server');
+    const supabase = createSupabaseServerClient();
+    const { data: created, error: cErr } = await supabase.from('products').insert(productData).select('*').single();
+    if (cErr) throw new Error(cErr.message || 'Create failed');
+    if (Array.isArray(createVariants) && createVariants.length) {
+      const rows = createVariants.map((v: any) => ({ ...v, productId: created.id }));
+      const { error: vErr } = await supabase.from('product_variants').insert(rows);
+      if (vErr) throw new Error(vErr.message || 'Variants create failed');
+    }
 
     // Convert Decimal fields to numbers for JSON serialization and add missing fields for frontend compatibility
     const serializedProduct = {
@@ -357,20 +246,21 @@ async function postHandler(request: NextRequest) {
       variants: (product as any).variants?.map((v: any) => ({ ...v, price: Number(v.price) })) || [],
     };
 
-  return NextResponse.json(serializedProduct, { status: 201 });
+  return NextResponse.json(created, { status: 201 });
 }
 
 async function deleteHandler(request: NextRequest) {
-    const { searchParams } = new URL(request.url);
-    const clearAll = searchParams.get('clear_all');
-    
-    if (clearAll === 'true') {
-      // Clear all products (for development/admin use)
-      await prisma.product.deleteMany({});
-      return NextResponse.json({ message: 'All products cleared successfully' });
-    }
-    
-    return NextResponse.json({ error: 'Invalid request' }, { status: 400 });
+  const { searchParams } = new URL(request.url);
+  const clearAll = searchParams.get('clear_all');
+  if (clearAll === 'true') {
+    const { createSupabaseServerClient } = await import('@/lib/supabase-server');
+    const supabase = createSupabaseServerClient();
+    // Delete all variants then products (if cascade not defined)
+    await supabase.from('product_variants').delete().neq('id', '');
+    await supabase.from('products').delete().neq('id', '');
+    return NextResponse.json({ message: 'All products cleared successfully' });
+  }
+  return NextResponse.json({ error: 'Invalid request' }, { status: 400 });
 }
 
 export const GET = withApiErrorHandling(getHandler, '/api/products');
