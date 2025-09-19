@@ -173,12 +173,14 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       let finalSlug = baseSlug;
       let counter = 0;
       while (true) {
-        const existingProduct = await prisma.product.findUnique({
-          where: { slug: finalSlug },
-          select: { id: true },
-        });
-
-        if (!existingProduct || existingProduct.id === params.id) break;
+        const { data: exists, error: e1 } = await createSupabaseServerClient()
+          .from('products')
+          .select('id')
+          .eq('slug', finalSlug)
+          .limit(1);
+        if (e1) throw new Error(e1.message || 'Slug check failed');
+        const existingProduct = exists && exists[0];
+        if (!existingProduct || String(existingProduct.id) === params.id) break;
         
         counter++;
         finalSlug = `${baseSlug}-${counter}`;
@@ -248,9 +250,9 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     // Convert Decimal fields to numbers for JSON serialization
     const serializedProduct = {
       ...upd,
-      price: Number(product.price),
-      weight: product.weight ? Number(product.weight) : null,
-      sortOrder: Number((product as any).sortOrder ?? 9999),
+      price: Number((upd as any).price),
+      weight: (upd as any).weight ? Number((upd as any).weight) : null,
+      sortOrder: Number((upd as any).sortOrder ?? 9999),
       youtubeUrl: null, // Add this field for frontend compatibility
       defaultCustomsValueCad: (upd as any).defaultCustomsValueCad != null ? Number((upd as any).defaultCustomsValueCad) : null,
       variants: (upd as any).variants?.map((v: any) => ({ ...v, price: Number((v as any).price) })) || [],
