@@ -219,29 +219,29 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       updateData.imageGallery = cleanedGallery;
     }
 
-    // If variants array provided, replace the set atomically
+    // If variants array provided, replace the set atomically (typed transaction)
     if (Array.isArray(variants)) {
-      await prisma.$transaction([
-        prisma.productVariant.deleteMany({ where: { productId: params.id } }),
-        (async () => {
-          function genSku(n: string, s?: string) {
-            const base = (n || 'SKU').toUpperCase().replace(/[^A-Z0-9]+/g, '').slice(0, 8);
-            const sty = (s || 'DEFAULT').toUpperCase().replace(/[^A-Z0-9]+/g, '').slice(0, 6);
-            const rand = Math.random().toString(36).toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4);
-            return [base, sty, rand].filter(Boolean).join('-');
-          }
-          const data = variants
-            .filter((v: any) => v && v.style && v.price != null)
-            .map((v: any) => ({
-              productId: params.id,
-              style: String(v.style),
-              price: v.price,
-              quantity: Number(v.quantity || 0),
-              sku: (v.sku && String(v.sku).trim()) ? String(v.sku).trim() : genSku(name || '' , v.style),
-            }));
-          return prisma.productVariant.createMany({ data, skipDuplicates: true });
-        })(),
-      ]);
+      await prisma.$transaction(async (tx) => {
+        await tx.productVariant.deleteMany({ where: { productId: params.id } });
+        function genSku(n: string, s?: string) {
+          const base = (n || 'SKU').toUpperCase().replace(/[^A-Z0-9]+/g, '').slice(0, 8);
+          const sty = (s || 'DEFAULT').toUpperCase().replace(/[^A-Z0-9]+/g, '').slice(0, 6);
+          const rand = Math.random().toString(36).toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4);
+          return [base, sty, rand].filter(Boolean).join('-');
+        }
+        const data = variants
+          .filter((v: any) => v && v.style && v.price != null)
+          .map((v: any) => ({
+            productId: params.id,
+            style: String(v.style),
+            price: Number(v.price),
+            quantity: Number.isFinite(Number(v.quantity)) ? Number(v.quantity) : 0,
+            sku: (v.sku && String(v.sku).trim()) ? String(v.sku).trim() : genSku(name || '' , v.style),
+          }));
+        if (data.length) {
+          await tx.productVariant.createMany({ data, skipDuplicates: true });
+        }
+      });
     }
 
     const product = await prisma.product.update({
