@@ -71,7 +71,7 @@ async function handler(request: NextRequest, { params }: RouteParams) {
       }
     } catch (e) {
       if (e instanceof NotFoundError) throw e;
-      try { console.warn('[files] supabase fetch failed', e?.message || e); } catch {}
+      try { const msg = (e as any)?.message || String(e); console.warn('[files] supabase fetch failed', msg); } catch {}
       throw new NotFoundError('File not found');
     }
   }
