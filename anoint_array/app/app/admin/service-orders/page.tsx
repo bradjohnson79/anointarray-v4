@@ -9,20 +9,19 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 
 export default function ServiceOrdersPage() {
-  const { user, loading } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const [tab, setTab] = useState('orders');
   const [orders, setOrders] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [listLoading, setListLoading] = useState(true);
   const [svc, setSvc] = useState<any | null>(null);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (status === 'loading') return;
-    if (!session) { router.push('/auth/login'); return; }
-    if (session.user?.role !== 'ADMIN') { router.push('/dashboard'); return; }
+    if (authLoading) return;
+    if (!user) { router.push('/auth/login'); return; }
     const load = async () => {
-      setLoading(true);
+      setListLoading(true);
       try {
         const res = await fetch('/api/admin/service-orders/list');
         const data = await res.json();
@@ -30,13 +29,13 @@ export default function ServiceOrdersPage() {
         const ss = await fetch('/api/services/settings');
         if (ss.ok) setSvc(await ss.json());
       } catch {}
-      setLoading(false);
+      setListLoading(false);
     };
     load();
-  }, [session, status, router]);
+  }, [user, authLoading, router]);
 
-  if (status === 'loading') return null;
-  if (!session || session.user?.role !== 'ADMIN') return null;
+  if (authLoading) return null;
+  if (!user) return null;
 
   return (
     <AdminLayout>
@@ -57,7 +56,7 @@ export default function ServiceOrdersPage() {
         </TabsList>
 
         <TabsContent value="orders" className="mt-4">
-          {loading ? (
+          {listLoading ? (
             <div className="text-gray-400">Loading orders…</div>
           ) : orders.length === 0 ? (
             <div className="text-gray-400">No service orders yet.</div>

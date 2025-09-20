@@ -26,7 +26,7 @@ export async function POST() {
       .order('createdAt', { ascending: true });
     // Build a deterministic SKU set without relying on array callbacks that can trip TS strict rules
     const skuList: string[] = [];
-    for (const p of products as ProductWithVariants[]) {
+    for (const p of (products as ProductWithVariants[] | null) || []) {
       const vars = (p.variants ?? []) as Variant[];
       for (const v of vars) {
         if (v.sku && typeof v.sku === 'string') skuList.push(v.sku);
@@ -34,7 +34,7 @@ export async function POST() {
     }
     const existingSkus = new Set<string>(skuList);
 
-    for (const p of products) {
+    for (const p of products || []) {
       if (!p.variants || p.variants.length === 0) {
         let sku = genSku(p.name, 'DEFAULT');
         while (existingSkus.has(sku)) sku = genSku(p.name, 'DEFAULT');

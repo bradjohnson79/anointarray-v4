@@ -164,7 +164,7 @@ export async function GET(request: Request) {
             }));
           }
           const { data: admins } = await s.from('users').select('email').eq('role', 'ADMIN').eq('isActive', true);
-          admins.filter((a: { email: string | null }) => !!a.email).forEach((a: { email: string | null }) => {
+          (admins || []).filter((a: { email: string | null }) => !!a.email).forEach((a: { email: string | null }) => {
             sends.push(sendReceiptEmail(a.email as string, {
               customerName: customerName || 'Customer',
               orderNumber: `PAYPAL_${token}`,

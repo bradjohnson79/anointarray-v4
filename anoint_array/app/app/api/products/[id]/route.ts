@@ -285,9 +285,10 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
 
     // For the three sample products, allow hard delete. If referenced by orders, need force=true.
     const { count: orderItemCount } = await supabase.from('order_items').select('id', { count: 'exact', head: true }).eq('productId', params.id);
-    if (orderItemCount > 0 && !force) {
+    const itemCount = typeof orderItemCount === 'number' ? orderItemCount : 0;
+    if (itemCount > 0 && !force) {
       return NextResponse.json(
-        { error: `Sample product is referenced by ${orderItemCount} order item(s). Retry with ?force=true to remove related order items.` },
+        { error: `Sample product is referenced by ${itemCount} order item(s). Retry with ?force=true to remove related order items.` },
         { status: 409 }
       );
     }

@@ -183,7 +183,7 @@ export async function POST(request: Request) {
             .select('email')
             .eq('role', 'ADMIN')
             .eq('isActive', true);
-          admins.filter((a: { email: string | null }) => !!a.email).forEach((a: { email: string | null }) => {
+          (admins || []).filter((a: { email: string | null }) => !!a.email).forEach((a: { email: string | null }) => {
             sends.push(sendReceiptEmail(a.email as string, {
               customerName: session.customer_details?.name || 'Customer',
               orderNumber: `STRIPE_${session.id}`,

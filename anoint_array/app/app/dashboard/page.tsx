@@ -8,19 +8,18 @@ import DashboardLayout from '@/components/dashboard/dashboard-layout';
 import DashboardOverview from '@/components/dashboard/dashboard-overview';
 
 export default function MemberDashboard() {
-  const { user, loading } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    if (status === 'loading') return;
-    
-    if (!session) {
+    if (authLoading) return;
+    if (!user) {
       router.push('/auth/login');
       return;
     }
-  }, [session, status, router]);
+  }, [user, authLoading, router]);
 
-  if (status === 'loading') {
+  if (authLoading) {
     return (
       <div className="min-h-screen bg-gray-950 flex items-center justify-center">
         <div className="aurora-text text-2xl font-bold">Loading...</div>
@@ -28,13 +27,13 @@ export default function MemberDashboard() {
     );
   }
 
-  if (!session) {
+  if (!user) {
     return null;
   }
 
   return (
     <DashboardLayout>
-      <DashboardOverview user={session.user} />
+      <DashboardOverview user={{ id: user.id, email: user.email || '' } as any} />
     </DashboardLayout>
   );
 }

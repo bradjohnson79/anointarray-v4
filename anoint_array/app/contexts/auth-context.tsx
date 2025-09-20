@@ -21,11 +21,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     (async () => {
       const { data } = await supabase.auth.getUser();
       if (!isMounted) return;
-      setUser(data.user ? { id: data.user.id, email: data.user.email } : null);
+      setUser(data.user ? { id: data.user.id, email: data.user.email || null } : null);
       setLoading(false);
     })();
     const { data: sub } = supabase.auth.onAuthStateChange((_evt, session) => {
-      setUser(session?.user ? { id: session.user.id, email: session.user.email } : null);
+      setUser(session?.user ? { id: session.user.id, email: session.user.email || null } : null);
     });
     return () => { isMounted = false; sub.subscription.unsubscribe(); };
   }, [supabase]);
@@ -55,4 +55,3 @@ export function useAuth() {
   if (!ctx) throw new Error('useAuth must be used within AuthProvider');
   return ctx;
 }
-

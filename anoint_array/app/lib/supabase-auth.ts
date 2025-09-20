@@ -33,10 +33,10 @@ export async function getAuthUserFromRequest(req?: NextRequest): Promise<AuthUse
     if (bearer) {
       const { data, error } = await supabase.auth.getUser(bearer);
       if (error) return null;
-      return data.user ? { id: data.user.id, email: data.user.email } : null;
+      return data.user ? { id: data.user.id, email: data.user.email || null } : null;
     }
     const { data } = await supabase.auth.getUser();
-    return data.user ? { id: data.user.id, email: data.user.email } : null;
+    return data.user ? { id: data.user.id, email: data.user.email || null } : null;
   } catch {
     return null;
   }
@@ -65,4 +65,3 @@ export async function requireAdmin(req?: NextRequest) {
   }
   return u;
 }
-

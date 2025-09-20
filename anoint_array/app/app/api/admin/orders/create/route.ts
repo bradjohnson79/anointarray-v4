@@ -49,7 +49,8 @@ export async function POST(request: NextRequest) {
     // Create sequential order number
     const supabase = createSupabaseAdminClient();
     const { count: orderCount } = await supabase.from('orders').select('*', { count: 'exact', head: true });
-    const orderNumber = `ANA-${new Date().getFullYear()}-${String(orderCount + 1).padStart(3, '0')}`;
+    const safeCount = typeof orderCount === 'number' ? orderCount : 0;
+    const orderNumber = `ANA-${new Date().getFullYear()}-${String(safeCount + 1).padStart(3, '0')}`;
 
     // Persist order with items using Supabase
     const { data: order, error: createErr } = await supabase

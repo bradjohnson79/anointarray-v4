@@ -29,7 +29,7 @@ export default function PaypalTestPage() {
       // Product order
       const prod = await fetch('/api/payment/paypal/create-order', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
         items: [{ name: 'Test Item', price: 1.11, quantity: 1, type: 'product', customData: { isDigital: false } }],
-        userEmail: session?.user?.email || 'buyer@example.com',
+        userEmail: user?.email || 'buyer@example.com',
         shippingAddress: { fullName: 'QA Buyer', street: '200 Bloor St', city: 'Toronto', state: 'ON', zip: 'M5S 1T8', country: 'CA' },
         billingSameAsShipping: true,
         currency: 'USD',
@@ -39,13 +39,13 @@ export default function PaypalTestPage() {
       add({ ok: await headOk(pj?.approvalUrl), label: 'Products: approval URL reachable', url: pj?.approvalUrl });
 
       // Service order
-      const svc = await fetch('/api/payment/create-service-payment', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ paymentMethod: 'paypal', serviceType: 'basic', customer: { fullName: 'QA Buyer', email: session?.user?.email || 'buyer@example.com' } }) });
+      const svc = await fetch('/api/payment/create-service-payment', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ paymentMethod: 'paypal', serviceType: 'basic', customer: { fullName: 'QA Buyer', email: user?.email || 'buyer@example.com' } }) });
       const sj = await svc.json();
       add({ ok: svc.ok && !!sj?.paypalUrl, label: 'Services: create order', detail: sj?.orderId || '', url: sj?.paypalUrl });
       add({ ok: await headOk(sj?.paypalUrl), label: 'Services: approval URL reachable', url: sj?.paypalUrl });
 
       // Seal generator
-      const seal = await fetch('/api/payment/create-seal-payment', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ paymentMethod: 'paypal', userId: session?.user?.id || 'qa', sealConfig: { category: 'healing' }, userDetails: { fullName: 'QA Buyer' }, testMode: true }) });
+      const seal = await fetch('/api/payment/create-seal-payment', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ paymentMethod: 'paypal', userId: user?.id || 'qa', sealConfig: { category: 'healing' }, userDetails: { fullName: 'QA Buyer' }, testMode: true }) });
       const zj = await seal.json();
       add({ ok: seal.ok && !!zj?.paypalUrl, label: 'Seal Generator: create order', detail: zj?.orderId || '', url: zj?.paypalUrl });
       add({ ok: await headOk(zj?.paypalUrl), label: 'Seal Generator: approval URL reachable', url: zj?.paypalUrl });

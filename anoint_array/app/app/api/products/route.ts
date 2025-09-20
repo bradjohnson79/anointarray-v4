@@ -232,16 +232,17 @@ async function postHandler(request: NextRequest) {
     }
 
     // Convert Decimal fields to numbers for JSON serialization and add missing fields for frontend compatibility
+    const p: any = created;
     const serializedProduct = {
-      ...product,
-      price: Number(product.price),
-      weight: product.weight ? Number(product.weight) : null,
+      ...p,
+      price: Number(p.price),
+      weight: p.weight ? Number(p.weight) : null,
       youtubeUrl: null, // Add this field for frontend compatibility (not available in current DB)
-      defaultCustomsValueCad: product.defaultCustomsValueCad != null ? Number(product.defaultCustomsValueCad) : null,
-      variants: (product as any).variants?.map((v: any) => ({ ...v, price: Number(v.price) })) || [],
+      defaultCustomsValueCad: p.defaultCustomsValueCad != null ? Number(p.defaultCustomsValueCad) : null,
+      variants: (p.variants as any[] | undefined)?.map((v: any) => ({ ...v, price: Number(v.price) })) || [],
     };
 
-  return NextResponse.json(created, { status: 201 });
+  return NextResponse.json(serializedProduct, { status: 201 });
 }
 
 async function deleteHandler(request: NextRequest) {

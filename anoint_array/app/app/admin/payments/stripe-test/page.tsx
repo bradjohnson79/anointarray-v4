@@ -22,7 +22,7 @@ export default function StripeTestPage() {
       // Products (cart) via /api/payment/stripe/create-payment
       const prod = await fetch('/api/payment/stripe/create-payment', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
         items: [{ name: 'Test Item', price: 1.23, quantity: 1, type: 'product', customData: { isDigital: false } }],
-        userEmail: session?.user?.email || 'buyer@example.com',
+        userEmail: user?.email || 'buyer@example.com',
         shippingAddress: { fullName: 'QA Buyer', street: '200 Bloor St', city: 'Toronto', state: 'ON', zip: 'M5S1T8', country: 'CA' },
         billingSameAsShipping: true,
         allowGuest: true,
@@ -33,12 +33,12 @@ export default function StripeTestPage() {
       add({ ok: prod.ok && !!pj?.url, label: 'Products: Stripe checkout session', url: pj?.url });
 
       // Services
-      const svc = await fetch('/api/payment/create-service-payment', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ paymentMethod: 'stripe', serviceType: 'basic', customer: { fullName: 'QA Buyer', email: session?.user?.email || 'buyer@example.com' } }) });
+      const svc = await fetch('/api/payment/create-service-payment', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ paymentMethod: 'stripe', serviceType: 'basic', customer: { fullName: 'QA Buyer', email: user?.email || 'buyer@example.com' } }) });
       const sj = await svc.json();
       add({ ok: svc.ok && !!sj?.checkoutUrl, label: 'Services: Stripe checkout session', url: sj?.checkoutUrl });
 
       // Seal generator
-      const seal = await fetch('/api/payment/create-seal-payment', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ paymentMethod: 'stripe', userId: session?.user?.id || 'qa', sealConfig: { category: 'healing' }, userDetails: { fullName: 'QA Buyer' }, testMode: true }) });
+      const seal = await fetch('/api/payment/create-seal-payment', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ paymentMethod: 'stripe', userId: user?.id || 'qa', sealConfig: { category: 'healing' }, userDetails: { fullName: 'QA Buyer' }, testMode: true }) });
       const zj = await seal.json();
       add({ ok: seal.ok && !!zj?.checkoutUrl, label: 'Seal Generator: Stripe checkout session', url: zj?.checkoutUrl });
 

@@ -8,24 +8,20 @@ import AdminLayout from '@/components/admin/admin-layout';
 import AdminOverview from '@/components/admin/admin-overview';
 
 export default function AdminDashboard() {
-  const { user, loading } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    if (status === 'loading') return;
-    
-    if (!session) {
+    if (authLoading) return;
+    if (!user) {
       router.push('/auth/login');
       return;
     }
 
-    if (session.user?.role !== 'ADMIN') {
-      router.push('/dashboard');
-      return;
-    }
-  }, [session, status, router]);
+    // Optional: we could fetch /api/me/account to confirm role client-side.
+  }, [user, authLoading, router]);
 
-  if (status === 'loading') {
+  if (authLoading) {
     return (
       <div className="min-h-screen bg-gray-950 flex items-center justify-center">
         <div className="aurora-text text-2xl font-bold">Loading...</div>
@@ -33,7 +29,7 @@ export default function AdminDashboard() {
     );
   }
 
-  if (!session || session.user?.role !== 'ADMIN') {
+  if (!user) {
     return null;
   }
 

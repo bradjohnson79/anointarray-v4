@@ -64,14 +64,15 @@ export async function GET(request: NextRequest) {
       checks.push({ key: 'db', label: 'Database', status: 'error', message: 'Database connection failed', details: suggestions });
     }
 
-    // NextAuth
-    const nextAuthUrl = process.env.NEXTAUTH_URL;
-    const nextAuthSecret = process.env.NEXTAUTH_SECRET;
+    // Supabase Auth
+    const supaUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
+    const service = process.env.SUPABASE_SERVICE_ROLE_KEY;
     checks.push({
-      key: 'nextauth',
-      label: 'Auth (NextAuth)',
-      status: nextAuthUrl && nextAuthSecret ? 'ok' : 'warn',
-      details: { NEXTAUTH_URL: !!nextAuthUrl, NEXTAUTH_SECRET: !!nextAuthSecret }
+      key: 'supabase',
+      label: 'Auth (Supabase)',
+      status: (supaUrl && anon) ? 'ok' : 'warn',
+      details: { SUPABASE_URL: !!supaUrl, ANON: !!anon, SERVICE_ROLE: !!service }
     });
 
     // Payments: storefront config file and envs

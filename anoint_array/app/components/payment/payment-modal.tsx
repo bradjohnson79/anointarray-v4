@@ -145,7 +145,7 @@ export default function PaymentModal() {
   };
 
   const handleSaveDetailsAndContinue = () => {
-    if (!session && !canGuestCheckout) {
+    if (!user && !canGuestCheckout) {
       toast.error('Please log in to continue');
       return;
     }
@@ -298,14 +298,14 @@ export default function PaymentModal() {
                         </button>
                         <button
                           onClick={() => setStep('payment')}
-                          disabled={!session && !canGuestCheckout}
+                          disabled={!user && !canGuestCheckout}
                           className="flex-2 aurora-gradient text-white px-6 py-3 rounded-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                          {session ? 'Proceed to Checkout' : (canGuestCheckout ? 'Proceed as Guest' : 'Login Required')}
+                          {user ? 'Proceed to Checkout' : (canGuestCheckout ? 'Proceed as Guest' : 'Login Required')}
                         </button>
                       </div>
                       
-                      {!session && (
+                      {!user && (
                         <p className="text-yellow-400 text-sm mt-2 text-center">
                           {canGuestCheckout ? 'Guest checkout available for physical items only' : 'Please log in to complete your purchase'}
                         </p>

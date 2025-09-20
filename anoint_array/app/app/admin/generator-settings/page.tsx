@@ -320,24 +320,15 @@ export default function GeneratorSettingsPage() {
   const [isUploading, setIsUploading] = useState(false);
 
   useEffect(() => {
-    if (status === 'loading') return;
-    
-    if (!session) {
-      router.push('/auth/login');
-      return;
-    }
-
-    if (session.user?.role !== 'ADMIN') {
-      router.push('/dashboard');
-      return;
-    }
+    if (loading) return;
+    if (!user) { router.push('/auth/login'); return; }
 
     // Load existing uploaded files, AI configuration, and payment configuration
     loadUploadedFiles();
     loadAIConfiguration();
     loadGeneratorConfig();
     loadPaymentConfiguration();
-  }, [session, status, router]);
+  }, [user, loading, router]);
 
   useEffect(() => {
     calculateCoordinates();
@@ -1019,7 +1010,7 @@ export default function GeneratorSettingsPage() {
     toast.success('Configuration exported');
   };
 
-  if (status === 'loading') {
+  if (loading) {
     return (
       <div className="min-h-screen bg-gray-950 flex items-center justify-center">
         <div className="aurora-text text-2xl font-bold">Loading...</div>
@@ -1027,7 +1018,7 @@ export default function GeneratorSettingsPage() {
     );
   }
 
-  if (!session || session.user?.role !== 'ADMIN') {
+  if (!user) {
     return null;
   }
 

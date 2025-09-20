@@ -20,7 +20,7 @@ export async function POST() {
       await s.from('products').update({ sortOrder: i }).eq('id', (p as any).id);
       i += 10;
     }
-    return NextResponse.json({ ok: true, count: products.length, from: 100, step: 10 });
+    return NextResponse.json({ ok: true, count: (products || []).length, from: 100, step: 10 });
   } catch (e: any) {
     return NextResponse.json({ error: e?.message || 'Failed to resequence' }, { status: 500 });
   }

@@ -18,13 +18,13 @@ export default function ProfilePage() {
   });
 
   useEffect(() => {
-    if (session?.user) {
+    if (user) {
       setFormData({
-        name: session.user.name || '',
-        email: session.user.email || '',
+        name: '',
+        email: user.email || '',
       });
     }
-  }, [session]);
+  }, [user]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData(prev => ({
@@ -76,7 +76,7 @@ export default function ProfilePage() {
             </div>
             <div>
               <h2 className="text-xl font-semibold text-white">
-                {session?.user?.name || 'User'}
+                {formData.name || user?.email?.split('@')[0] || 'User'}
               </h2>
               <p className="text-gray-400">Member</p>
               {/* Optional member since date can be added when available */}

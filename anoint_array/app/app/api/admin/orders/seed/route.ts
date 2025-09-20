@@ -13,7 +13,8 @@ export async function POST(request: NextRequest) {
     // Check if orders already exist
     const s = createSupabaseAdminClient();
     const { count: existingOrders } = await s.from('orders').select('*', { count: 'exact', head: true });
-    if (existingOrders > 0) {
+    const existing = typeof existingOrders === 'number' ? existingOrders : 0;
+    if (existing > 0) {
       return NextResponse.json({ 
         message: 'Database already has orders',
         count: existingOrders 
@@ -103,7 +104,7 @@ export async function POST(request: NextRequest) {
       .from('products')
       .select('id, name, hsCode, countryOfOrigin, customsDescription, defaultCustomsValueCad, massGrams, isDigital');
 
-    const productMap = products.reduce((acc: any, product: any) => {
+    const productMap = (products || []).reduce((acc: any, product: any) => {
       acc[product.name] = product;
       return acc;
     }, {} as any);

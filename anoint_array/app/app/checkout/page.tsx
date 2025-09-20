@@ -125,9 +125,9 @@ export default function CheckoutPage() {
           <ShoppingCart className="h-6 w-6 text-purple-400" />
           Checkout
         </h1>
-        {session?.user?.email && (
+        {user && user.email && (
           <div className="text-xs md:text-sm text-gray-300 bg-gray-800 border border-gray-700 px-3 py-1 rounded">
-            Signed in as <span className="text-white font-medium">{session.user.email}</span>
+            Signed in as <span className="text-white font-medium">{user.email}</span>
           </div>
         )}
       </div>
@@ -224,7 +224,7 @@ export default function CheckoutPage() {
                   <div className="text-yellow-300 text-sm">Please complete shipping information first.</div>
                 ) : (
                   <>
-                    {hasDigital && !session?.user ? (
+                    {hasDigital && !user ? (
                       <div className="p-3 bg-purple-600/10 border border-purple-500/40 rounded text-purple-200 text-sm">
                         Digital products require a free account. Please <a href="/auth/login" className="underline">log in</a> or <a href="/auth/signup" className="underline">create an account</a> to continue.
                       </div>
