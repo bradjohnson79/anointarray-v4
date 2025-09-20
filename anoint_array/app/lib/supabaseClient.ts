@@ -1,10 +1,7 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-
-function requireEnv(name: string): string {
-  const v = process.env[name] || '';
-  if (!v) throw new Error(`Missing env ${name}`);
-  return v;
-}
+// Note: In the browser, Next.js only inlines env vars when referenced statically
+// (e.g., process.env.NEXT_PUBLIC_*). Dynamic indexing like process.env[name]
+// will be undefined in the client bundle. Keep client-side reads static.
 
 export function createSupabaseAdminClient(): SupabaseClient {
   // Prefer guardrail names, fall back to existing NEXT_PUBLIC_* for compatibility
@@ -15,10 +12,11 @@ export function createSupabaseAdminClient(): SupabaseClient {
 }
 
 export function createSupabaseBrowserClient(): SupabaseClient {
-  const url = requireEnv('NEXT_PUBLIC_SUPABASE_URL');
-  const key = requireEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY');
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL as string | undefined;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string | undefined;
+  if (!url) throw new Error('Missing env NEXT_PUBLIC_SUPABASE_URL');
+  if (!key) throw new Error('Missing env NEXT_PUBLIC_SUPABASE_ANON_KEY');
   return createClient(url, key);
 }
 
 export type { SupabaseClient };
-
