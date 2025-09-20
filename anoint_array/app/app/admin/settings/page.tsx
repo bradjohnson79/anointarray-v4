@@ -946,6 +946,13 @@ function AdminPasswordsPanel() {
 function AdminProfilePanel() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [address, setAddress] = useState('');
+  const [address2, setAddress2] = useState('');
+  const [city, setCity] = useState('');
+  const [state, setState] = useState('');
+  const [zip, setZip] = useState('');
+  const [country, setCountry] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -954,7 +961,7 @@ function AdminProfilePanel() {
       try {
         const r = await fetch('/api/me/account', { cache: 'no-store' });
         const j = await r.json();
-        if (r.ok) { setName(j?.name || ''); setEmail(j?.email || ''); }
+        if (r.ok) { setName(j?.name || ''); setEmail(j?.email || ''); setPhone(j?.phone || ''); setAddress(j?.address || ''); setAddress2(j?.address2 || ''); setCity(j?.city || ''); setState(j?.state || ''); setZip(j?.zip || ''); setCountry(j?.country || ''); }
       } catch {}
       setLoading(false);
     })();
@@ -963,7 +970,7 @@ function AdminProfilePanel() {
   const save = async () => {
     setSaving(true);
     try {
-      const r = await fetch('/api/me/account', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, email }) });
+      const r = await fetch('/api/me/account', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, email, phone, address, address2, city, state, zip, country }) });
       const j = await r.json().catch(()=>({}));
       if (!r.ok) throw new Error(j?.error || 'Update failed');
       toast.success('Profile updated');
@@ -988,6 +995,36 @@ function AdminProfilePanel() {
             <label className="block text-sm text-gray-300 mb-2">Email</label>
             <input value={email} onChange={e=>setEmail(e.target.value)} className="w-full bg-gray-900 border border-gray-700 rounded px-4 py-2 text-white" placeholder="you@example.com"/>
             <div className="text-xs text-gray-500 mt-1">Changing email updates your auth account; you may need to re-verify.</div>
+          </div>
+          <div className="grid md:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm text-gray-300 mb-2">Phone</label>
+              <input value={phone} onChange={e=>setPhone(e.target.value)} className="w-full bg-gray-900 border border-gray-700 rounded px-4 py-2 text-white"/>
+            </div>
+            <div>
+              <label className="block text-sm text-gray-300 mb-2">Address</label>
+              <input value={address} onChange={e=>setAddress(e.target.value)} className="w-full bg-gray-900 border border-gray-700 rounded px-4 py-2 text-white"/>
+            </div>
+            <div>
+              <label className="block text-sm text-gray-300 mb-2">Address 2</label>
+              <input value={address2} onChange={e=>setAddress2(e.target.value)} className="w-full bg-gray-900 border border-gray-700 rounded px-4 py-2 text-white"/>
+            </div>
+            <div>
+              <label className="block text-sm text-gray-300 mb-2">City</label>
+              <input value={city} onChange={e=>setCity(e.target.value)} className="w-full bg-gray-900 border border-gray-700 rounded px-4 py-2 text-white"/>
+            </div>
+            <div>
+              <label className="block text-sm text-gray-300 mb-2">State/Province</label>
+              <input value={state} onChange={e=>setState(e.target.value)} className="w-full bg-gray-900 border border-gray-700 rounded px-4 py-2 text-white"/>
+            </div>
+            <div>
+              <label className="block text-sm text-gray-300 mb-2">Postal/Zip</label>
+              <input value={zip} onChange={e=>setZip(e.target.value)} className="w-full bg-gray-900 border border-gray-700 rounded px-4 py-2 text-white"/>
+            </div>
+            <div>
+              <label className="block text-sm text-gray-300 mb-2">Country</label>
+              <input value={country} onChange={e=>setCountry(e.target.value)} className="w-full bg-gray-900 border border-gray-700 rounded px-4 py-2 text-white"/>
+            </div>
           </div>
           <div>
             <button onClick={save} disabled={saving} className="px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded text-white flex items-center gap-2">

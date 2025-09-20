@@ -15,6 +15,13 @@ export default function ProfilePage() {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
+    phone: '',
+    address: '',
+    address2: '',
+    city: '',
+    state: '',
+    zip: '',
+    country: '',
   });
 
   useEffect(() => {
@@ -23,7 +30,17 @@ export default function ProfilePage() {
       try {
         const r = await fetch('/api/me/account', { cache: 'no-store' });
         const j = await r.json();
-        setFormData({ name: j?.name || '', email: j?.email || user.email || '' });
+        setFormData({
+          name: j?.name || '',
+          email: j?.email || user.email || '',
+          phone: j?.phone || '',
+          address: j?.address || '',
+          address2: j?.address2 || '',
+          city: j?.city || '',
+          state: j?.state || '',
+          zip: j?.zip || '',
+          country: j?.country || '',
+        });
       } catch {
         setFormData({ name: '', email: user.email || '' });
       }
@@ -43,7 +60,7 @@ export default function ProfilePage() {
     setIsLoading(true);
 
     try {
-      const r = await fetch('/api/me/account', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: formData.name, email: formData.email }) });
+      const r = await fetch('/api/me/account', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(formData) });
       const j = await r.json().catch(()=>({}));
       if (!r.ok) throw new Error(j?.error || 'Update failed');
       toast.success('Profile updated successfully!');
@@ -92,7 +109,7 @@ export default function ProfilePage() {
 
           {/* Profile Form */}
           <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="grid grid-cols-1 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">
                   Full Name
@@ -110,7 +127,7 @@ export default function ProfilePage() {
                 </div>
               </div>
 
-              <div>
+              <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-300 mb-2">
                   Email Address
                 </label>
@@ -128,6 +145,34 @@ export default function ProfilePage() {
                 <p className="text-xs text-gray-500 mt-1">
                   Email changes require verification
                 </p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">Phone</label>
+                <input type="tel" name="phone" value={formData.phone} onChange={handleInputChange} disabled={!isEditing} className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:border-purple-500 disabled:opacity-60 transition-colors duration-300" />
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-300 mb-2">Address</label>
+                <input name="address" value={formData.address} onChange={handleInputChange} disabled={!isEditing} className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:border-purple-500 disabled:opacity-60 transition-colors duration-300" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">Address 2</label>
+                <input name="address2" value={formData.address2} onChange={handleInputChange} disabled={!isEditing} className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:border-purple-500 disabled:opacity-60 transition-colors duration-300" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">City</label>
+                <input name="city" value={formData.city} onChange={handleInputChange} disabled={!isEditing} className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:border-purple-500 disabled:opacity-60 transition-colors duration-300" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">State/Province</label>
+                <input name="state" value={formData.state} onChange={handleInputChange} disabled={!isEditing} className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:border-purple-500 disabled:opacity-60 transition-colors duration-300" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">Postal/Zip</label>
+                <input name="zip" value={formData.zip} onChange={handleInputChange} disabled={!isEditing} className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:border-purple-500 disabled:opacity-60 transition-colors duration-300" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">Country</label>
+                <input name="country" value={formData.country} onChange={handleInputChange} disabled={!isEditing} className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:border-purple-500 disabled:opacity-60 transition-colors duration-300" />
               </div>
             </div>
 
