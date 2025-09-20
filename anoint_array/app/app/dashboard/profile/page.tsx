@@ -42,7 +42,11 @@ export default function ProfilePage() {
           country: j?.country || '',
         });
       } catch {
-        setFormData({ name: '', email: user.email || '' });
+        setFormData(prev => ({
+          ...prev,
+          name: '',
+          email: user.email || prev.email,
+        }));
       }
     };
     load();
