@@ -19,6 +19,8 @@ const targets = (process.env.TARGETS || 'preview,production')
   .split(',')
   .map(t => t.trim())
   .filter(Boolean) as Target[];
+// Optional team scope (helps when PAT default scope is personal and project is under a team)
+const teamId = process.env.ORG_ID || process.env.VERCEL_TEAM_ID || '';
 
 if (!token || !projectId) {
   console.error('Missing VERCEL_API_TOKEN or PROJECT_ID');
@@ -53,7 +55,8 @@ const entries = rawLines
   .filter(Boolean) as { key: string; value: string }[];
 
 async function vercel(pathname: string, init?: RequestInit): Promise<Response> {
-  const url = `https://api.vercel.com${pathname}`;
+  const sep = pathname.includes('?') ? '&' : '?';
+  const url = `https://api.vercel.com${pathname}${teamId ? `${sep}teamId=${encodeURIComponent(teamId)}` : ''}`;
   const headers: Record<string, string> = {
     Authorization: `Bearer ${token}`,
     'Content-Type': 'application/json',
