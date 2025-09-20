@@ -227,7 +227,7 @@ export default function AdminSettingsPage() {
             <TabsTrigger value="emails" className="text-white"><FileText className="h-4 w-4 mr-2"/>Emails</TabsTrigger>
             <TabsTrigger value="currency" className="text-white"><span className="mr-2">$</span>Currency</TabsTrigger>
             <TabsTrigger value="shipping" className="text-white"><Truck className="h-4 w-4 mr-2"/>Shipping</TabsTrigger>
-            <TabsTrigger value="admin-passwords" className="text-white"><Shield className="h-4 w-4 mr-2"/>Admin Passwords</TabsTrigger>
+            <TabsTrigger value="admin-profile" className="text-white"><Shield className="h-4 w-4 mr-2"/>Admin Profile</TabsTrigger>
             <TabsTrigger value="mcp" className="text-white"><Server className="h-4 w-4 mr-2"/>MCP Servers</TabsTrigger>
           </TabsList>
 
@@ -373,9 +373,12 @@ export default function AdminSettingsPage() {
             </div>
           </TabsContent>
 
-          {/* Admin Passwords */}
-          <TabsContent value="admin-passwords" className="mt-4">
-            <AdminPasswordsPanel />
+          {/* Admin Profile */}
+          <TabsContent value="admin-profile" className="mt-4">
+            <div className="grid md:grid-cols-2 gap-6">
+              <AdminProfilePanel />
+              <AdminPasswordsPanel />
+            </div>
           </TabsContent>
 
           <TabsContent value="currency" className="mt-4">
@@ -936,6 +939,64 @@ function AdminPasswordsPanel() {
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+function AdminProfilePanel() {
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const r = await fetch('/api/me/account', { cache: 'no-store' });
+        const j = await r.json();
+        if (r.ok) { setName(j?.name || ''); setEmail(j?.email || ''); }
+      } catch {}
+      setLoading(false);
+    })();
+  }, []);
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      const r = await fetch('/api/me/account', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, email }) });
+      const j = await r.json().catch(()=>({}));
+      if (!r.ok) throw new Error(j?.error || 'Update failed');
+      toast.success('Profile updated');
+    } catch (e: any) {
+      toast.error(e?.message || 'Update failed');
+    } finally { setSaving(false); }
+  };
+
+  return (
+    <div className="bg-gray-800 rounded-lg p-6">
+      <h3 className="text-white font-semibold mb-2">Admin Profile</h3>
+      <p className="text-gray-400 text-sm mb-4">Update your name and email. Email changes may require verification.</p>
+      {loading ? (
+        <div className="text-gray-400">Loading…</div>
+      ) : (
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm text-gray-300 mb-2">Full Name</label>
+            <input value={name} onChange={e=>setName(e.target.value)} className="w-full bg-gray-900 border border-gray-700 rounded px-4 py-2 text-white" placeholder="Your name"/>
+          </div>
+          <div>
+            <label className="block text-sm text-gray-300 mb-2">Email</label>
+            <input value={email} onChange={e=>setEmail(e.target.value)} className="w-full bg-gray-900 border border-gray-700 rounded px-4 py-2 text-white" placeholder="you@example.com"/>
+            <div className="text-xs text-gray-500 mt-1">Changing email updates your auth account; you may need to re-verify.</div>
+          </div>
+          <div>
+            <button onClick={save} disabled={saving} className="px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded text-white flex items-center gap-2">
+              {saving ? <RefreshCw className="h-4 w-4 animate-spin"/> : <Save className="h-4 w-4"/>}
+              {saving ? 'Saving…' : 'Save Profile'}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

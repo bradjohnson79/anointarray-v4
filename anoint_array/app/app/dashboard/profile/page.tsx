@@ -18,12 +18,17 @@ export default function ProfilePage() {
   });
 
   useEffect(() => {
-    if (user) {
-      setFormData({
-        name: '',
-        email: user.email || '',
-      });
-    }
+    const load = async () => {
+      if (!user) return;
+      try {
+        const r = await fetch('/api/me/account', { cache: 'no-store' });
+        const j = await r.json();
+        setFormData({ name: j?.name || '', email: j?.email || user.email || '' });
+      } catch {
+        setFormData({ name: '', email: user.email || '' });
+      }
+    };
+    load();
   }, [user]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -38,10 +43,12 @@ export default function ProfilePage() {
     setIsLoading(true);
 
     try {
-      // TODO: Implement profile update API
+      const r = await fetch('/api/me/account', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: formData.name, email: formData.email }) });
+      const j = await r.json().catch(()=>({}));
+      if (!r.ok) throw new Error(j?.error || 'Update failed');
       toast.success('Profile updated successfully!');
       setIsEditing(false);
-    } catch (error) {
+    } catch (error: any) {
       toast.error('Failed to update profile');
     } finally {
       setIsLoading(false);
