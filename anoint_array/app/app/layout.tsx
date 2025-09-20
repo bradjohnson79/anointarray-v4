@@ -7,6 +7,7 @@ import { ThemeProvider } from '@/components/theme-provider';
 import { Providers } from '@/components/providers';
 import { Toaster } from 'sonner';
 import FloatingCartButton from '@/components/floating-cart-button';
+import CookieBanner from '@/components/cookie-banner';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -42,6 +43,7 @@ export default function RootLayout({
             <Script src="https://api.goaffpro.com/loader.js?shop=ihmumhbevz" strategy="afterInteractive" />
             {children}
             <FloatingCartButton />
+            <CookieBanner />
             <Toaster position="bottom-left" />
           </ThemeProvider>
         </Providers>
