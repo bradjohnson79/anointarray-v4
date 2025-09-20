@@ -18,7 +18,7 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
-  const { login } = useAuth();
+  const { login, refresh } = useAuth();
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData(prev => ({
@@ -37,6 +37,17 @@ export default function LoginPage() {
         toast.error('Invalid email or password');
       } else {
         toast.success('Login successful!');
+        // Sync client auth state from server cookie
+        try { await refresh(); } catch {}
+        // Determine destination based on role
+        try {
+          const acct = await fetch('/api/me/account', { cache: 'no-store' });
+          if (acct.ok) {
+            const j = await acct.json();
+            const role = String(j?.role || '').toUpperCase();
+            if (role === 'ADMIN') { router.push('/admin'); return; }
+          }
+        } catch {}
         router.push('/dashboard');
       }
     } catch (error) {

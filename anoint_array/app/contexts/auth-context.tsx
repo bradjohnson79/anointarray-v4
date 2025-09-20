@@ -7,6 +7,7 @@ type AuthState = {
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
+  refresh: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthState | undefined>(undefined);
@@ -21,7 +22,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     (async () => {
       const { data } = await supabase.auth.getUser();
       if (!isMounted) return;
-      setUser(data.user ? { id: data.user.id, email: data.user.email || null } : null);
+      if (data.user) {
+        setUser({ id: data.user.id, email: data.user.email || null });
+      } else {
+        // Fallback: read from server cookie via API (covers server-side login)
+        try {
+          const res = await fetch('/api/me/account', { cache: 'no-store' });
+          if (res.ok) {
+            const j = await res.json();
+            if (j?.id) setUser({ id: String(j.id), email: j.email || null });
+          }
+        } catch {}
+      }
       setLoading(false);
     })();
     const { data: sub } = supabase.auth.onAuthStateChange((_evt, session) => {
@@ -43,8 +55,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setLoading(false);
   }
 
+  async function refresh() {
+    try {
+      const res = await fetch('/api/me/account', { cache: 'no-store' });
+      if (res.ok) {
+        const j = await res.json();
+        if (j?.id) setUser({ id: String(j.id), email: j.email || null });
+      }
+    } catch {}
+  }
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, refresh }}>
       {children}
     </AuthContext.Provider>
   );
