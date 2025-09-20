@@ -13,19 +13,32 @@ export async function GET() {
     // First try exact auth id, then fall back to email match (legacy rows use a separate id key)
     let { data: row } = await s
       .from('users')
-      .select('id, email, role, name, isActive')
+      .select('id, email, role, name, isActive, phone, address, address2, city, state, zip, country')
       .eq('id', user.id)
       .maybeSingle();
     if (!row && user.email) {
       const byEmail = await s
         .from('users')
-        .select('id, email, role, name, isActive')
+        .select('id, email, role, name, isActive, phone, address, address2, city, state, zip, country')
         .eq('email', String(user.email).toLowerCase())
         .maybeSingle();
       row = byEmail.data as any || null;
     }
     if (!row) return NextResponse.json({ id: user.id, email: user.email, role: 'USER' });
-    return NextResponse.json({ id: user.id, email: (row as any).email, role: (row as any).role, name: (row as any).name || null, isActive: (row as any).isActive });
+    return NextResponse.json({
+      id: user.id,
+      email: (row as any).email,
+      role: (row as any).role,
+      name: (row as any).name || null,
+      isActive: (row as any).isActive,
+      phone: (row as any).phone || null,
+      address: (row as any).address || null,
+      address2: (row as any).address2 || null,
+      city: (row as any).city || null,
+      state: (row as any).state || null,
+      zip: (row as any).zip || null,
+      country: (row as any).country || null,
+    });
   } catch (e: any) {
     return NextResponse.json({ error: e?.message || 'Failed to load account' }, { status: 500 });
   }
@@ -50,10 +63,9 @@ export async function PATCH(req: Request) {
     const s = createSupabaseAdminClient();
     let nextEmail = user.email || undefined;
     if (email && email !== (user.email || '').toLowerCase()) {
-      // Try to update auth email first (may require verification depending on project settings)
+      // Try to update auth email first; if it fails (e.g., email in use), continue updating other fields.
       const u = await s.auth.admin.updateUserById(user.id, { email });
-      if (u.error) return NextResponse.json({ error: `Email update failed: ${u.error.message}` }, { status: 400 });
-      nextEmail = email;
+      if (!u.error) nextEmail = email; // success
     }
 
     // Upsert profile row by email (fallback) to avoid legacy id mismatch
@@ -83,6 +95,12 @@ export async function PATCH(req: Request) {
       if (e2) return NextResponse.json({ error: (upErr?.message || e2.message || 'Update failed') }, { status: 400 });
     }
 
+    // Optional cleanup: if email changed successfully, remove stale profile row under old email
+    try {
+      if (email && nextEmail === email && user.email && email !== (user.email || '').toLowerCase()) {
+        await s.from('users').delete().eq('email', String(user.email).toLowerCase());
+      }
+    } catch {}
     return NextResponse.json({ ok: true, name: name ?? null, email: nextEmail ?? null, phone: phone ?? null, address, address2, city, state, zip, country });
   } catch (e: any) {
     return NextResponse.json({ error: e?.message || 'Failed to update account' }, { status: 500 });
