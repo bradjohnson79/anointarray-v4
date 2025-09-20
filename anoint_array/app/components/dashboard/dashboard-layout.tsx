@@ -4,7 +4,7 @@
 import { useState } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { 
   Home, 
@@ -37,9 +37,17 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const { user, logout } = useAuth();
   const pathname = usePathname();
+  const router = useRouter();
 
   const handleSignOut = async () => {
-    await logout();
+    try {
+      await logout();
+    } catch (e) {
+      // Best-effort logging; non-blocking
+      try { console.error('Sign out failed:', (e as any)?.message || e); } catch {}
+    } finally {
+      router.push('/auth/login');
+    }
   };
 
   return (
