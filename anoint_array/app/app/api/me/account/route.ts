@@ -1,12 +1,14 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getAuthUserFromRequest } from '@/lib/supabase-auth';
 import { createSupabaseAdminClient } from '@/lib/supabaseClient';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
+    const url = new URL(req.url);
+    const diag = url.searchParams.get('diag') === '1';
     const user = await getAuthUserFromRequest();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     const s = createSupabaseAdminClient();
@@ -25,7 +27,7 @@ export async function GET() {
       row = byEmail.data as any || null;
     }
     if (!row) return NextResponse.json({ id: user.id, email: user.email, role: 'USER' });
-    return NextResponse.json({
+    const payload: any = {
       id: user.id,
       email: (row as any).email,
       role: (row as any).role,
@@ -38,7 +40,16 @@ export async function GET() {
       state: (row as any).state || null,
       zip: (row as any).zip || null,
       country: (row as any).country || null,
-    });
+    };
+    if (diag) {
+      payload.diag = {
+        serviceKeyPresent: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+        sessionEmail: (user.email || null),
+        rowEmail: (row as any).email || null,
+        matchedBy: (row && user.id === (row as any).id) ? 'id' : 'email',
+      };
+    }
+    return NextResponse.json(payload);
   } catch (e: any) {
     return NextResponse.json({ error: e?.message || 'Failed to load account' }, { status: 500 });
   }
@@ -46,6 +57,8 @@ export async function GET() {
 
 export async function PATCH(req: Request) {
   try {
+    const url = new URL(req.url);
+    const diag = url.searchParams.get('diag') === '1';
     const user = await getAuthUserFromRequest();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     const body = await req.json().catch(()=>({}));
@@ -97,7 +110,9 @@ export async function PATCH(req: Request) {
       }
     } catch (e: any) {
       try { console.error('[me/account] persist error:', e?.message || e); } catch {}
-      return NextResponse.json({ error: e?.message || 'Update failed' }, { status: 400 });
+      const resp: any = { error: e?.message || 'Update failed' };
+      if (diag) resp.diag = { serviceKeyPresent: !!process.env.SUPABASE_SERVICE_ROLE_KEY, sessionEmail: user.email || null, targetEmail: nextEmail || null };
+      return NextResponse.json(resp, { status: 400 });
     }
 
     // Optional cleanup: if email changed successfully, remove stale profile row under old email
@@ -106,7 +121,9 @@ export async function PATCH(req: Request) {
         await s.from('users').delete().eq('email', String(user.email).toLowerCase());
       }
     } catch {}
-    return NextResponse.json({ ok: true, name: name ?? null, email: nextEmail ?? null });
+    const resp: any = { ok: true, name: name ?? null, email: nextEmail ?? null };
+    if (diag) resp.diag = { serviceKeyPresent: !!process.env.SUPABASE_SERVICE_ROLE_KEY, sessionEmail: user.email || null };
+    return NextResponse.json(resp);
   } catch (e: any) {
     return NextResponse.json({ error: e?.message || 'Failed to update account' }, { status: 500 });
   }
