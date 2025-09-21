@@ -60,7 +60,8 @@ export async function PATCH(req: Request) {
     const name = typeof safeData?.name === 'string' ? safeData.name.trim() : undefined;
     const email = typeof safeData?.email === 'string' ? safeData.email.trim().toLowerCase() : undefined;
     if (!name && !email) {
-      return NextResponse.json({ error: 'Nothing to update' }, { status: 400 });
+      // No allowed fields were provided/changed; treat as a no‑op success
+      return NextResponse.json({ ok: true, note: 'No changes' });
     }
 
     const s = createSupabaseAdminClient();
