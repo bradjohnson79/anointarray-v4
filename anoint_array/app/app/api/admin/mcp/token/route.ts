@@ -74,12 +74,16 @@ export async function POST(req: NextRequest) {
       return (raw.trimEnd() + `\n` + newSection + `\n`).replace(/^\s+$/,'');
     };
 
-    // Local path exists (dev)
+    // Try to write local (dev); fallback to Supabase snapshot on failure (e.g., Vercel read-only)
     if (fsSync.existsSync(configPath)) {
-      const raw = await fs.readFile(configPath, 'utf8');
-      const updated = updateToml(raw);
-      await fs.writeFile(configPath, updated, 'utf8');
-      return NextResponse.json({ ok: true, configPath, name, mode: 'local' });
+      try {
+        const raw = await fs.readFile(configPath, 'utf8');
+        const updated = updateToml(raw);
+        await fs.writeFile(configPath, updated, 'utf8');
+        return NextResponse.json({ ok: true, configPath, name, mode: 'local' });
+      } catch (e: any) {
+        // fall through to Supabase snapshot
+      }
     }
 
     // Fall back to Supabase storage snapshot (production)

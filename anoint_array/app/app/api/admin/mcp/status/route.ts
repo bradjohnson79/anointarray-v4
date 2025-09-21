@@ -156,26 +156,28 @@ export async function GET() {
       // ignore; fallback
     }
 
+    // Prefer Supabase snapshot (production), then local file (dev)
     let raw: string | null = null;
-    if (fsSync.existsSync(configPath)) {
-      raw = await fs.readFile(configPath, 'utf8');
-    } else {
-      // Try Supabase storage snapshot
-      try {
-        const { createSupabaseServerClient, CONFIGS_BUCKET } = await import('@/lib/supabase-server');
-        const supabase = createSupabaseServerClient();
-        const dl = await supabase.storage.from(CONFIGS_BUCKET).download('configs/mcp/config.toml');
-        if (!dl.error && dl.data) {
-          raw = await (dl.data as any).text();
-          configPath = `supabase://${CONFIGS_BUCKET}/configs/mcp/config.toml`;
-        }
-      } catch {}
-      if (!raw) {
-        return NextResponse.json({ ok: false, configPath, servers: [], issues: [
-          `Config not found at ${configPath}`,
-          'Ensure .codex/config.toml exists and includes [mcpServers.*] sections, or save a snapshot via the UI.',
-        ] }, { status: 200 });
+    let origin: 'supabase' | 'local' | 'none' = 'none';
+    try {
+      const { createSupabaseServerClient, CONFIGS_BUCKET } = await import('@/lib/supabase-server');
+      const supabase = createSupabaseServerClient();
+      const dl = await supabase.storage.from(CONFIGS_BUCKET).download('configs/mcp/config.toml');
+      if (!dl.error && dl.data) {
+        raw = await (dl.data as any).text();
+        configPath = `supabase://${CONFIGS_BUCKET}/configs/mcp/config.toml`;
+        origin = 'supabase';
       }
+    } catch {}
+    if (!raw && fsSync.existsSync(configPath)) {
+      raw = await fs.readFile(configPath, 'utf8');
+      origin = 'local';
+    }
+    if (!raw) {
+      return NextResponse.json({ ok: false, configPath, servers: [], issues: [
+        'MCP config not found in Supabase snapshot or local file.',
+        'Use Save Token to create a snapshot, or add .codex/config.toml in the repo.',
+      ], origin }, { status: 200 });
     }
     const parsed = safeParseToml(raw);
     const servers: any[] = [];
@@ -189,7 +191,7 @@ export async function GET() {
     }
 
     const ok = servers.every(s => s.ok) && issues.length === 0;
-    return NextResponse.json({ ok, configPath, servers, issues });
+    return NextResponse.json({ ok, configPath, servers, issues, origin });
   } catch (e: any) {
     return NextResponse.json({ ok: false, error: e?.message || 'Failed to read MCP config' }, { status: 500 });
   }
