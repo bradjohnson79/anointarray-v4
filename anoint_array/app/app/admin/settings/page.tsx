@@ -997,36 +997,7 @@ function AdminProfilePanel() {
             <input value={email} onChange={e=>setEmail(e.target.value)} className="w-full bg-gray-900 border border-gray-700 rounded px-4 py-2 text-white" placeholder="you@example.com"/>
             <div className="text-xs text-gray-500 mt-1">Changing email updates your auth account; you may need to re-verify.</div>
           </div>
-          <div className="grid md:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-sm text-gray-300 mb-2">Phone</label>
-              <input value={phone} onChange={e=>setPhone(e.target.value)} className="w-full bg-gray-900 border border-gray-700 rounded px-4 py-2 text-white"/>
-            </div>
-            <div>
-              <label className="block text-sm text-gray-300 mb-2">Address</label>
-              <input value={address} onChange={e=>setAddress(e.target.value)} className="w-full bg-gray-900 border border-gray-700 rounded px-4 py-2 text-white"/>
-            </div>
-            <div>
-              <label className="block text-sm text-gray-300 mb-2">Address 2</label>
-              <input value={address2} onChange={e=>setAddress2(e.target.value)} className="w-full bg-gray-900 border border-gray-700 rounded px-4 py-2 text-white"/>
-            </div>
-            <div>
-              <label className="block text-sm text-gray-300 mb-2">City</label>
-              <input value={city} onChange={e=>setCity(e.target.value)} className="w-full bg-gray-900 border border-gray-700 rounded px-4 py-2 text-white"/>
-            </div>
-            <div>
-              <label className="block text-sm text-gray-300 mb-2">State/Province</label>
-              <input value={state} onChange={e=>setState(e.target.value)} className="w-full bg-gray-900 border border-gray-700 rounded px-4 py-2 text-white"/>
-            </div>
-            <div>
-              <label className="block text-sm text-gray-300 mb-2">Postal/Zip</label>
-              <input value={zip} onChange={e=>setZip(e.target.value)} className="w-full bg-gray-900 border border-gray-700 rounded px-4 py-2 text-white"/>
-            </div>
-            <div>
-              <label className="block text-sm text-gray-300 mb-2">Country</label>
-              <input value={country} onChange={e=>setCountry(e.target.value)} className="w-full bg-gray-900 border border-gray-700 rounded px-4 py-2 text-white"/>
-            </div>
-          </div>
+          {/* Extra profile fields are temporarily disabled (name/email only) */}
           <div>
             <button onClick={save} disabled={saving} className="px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded text-white flex items-center gap-2">
               {saving ? <RefreshCw className="h-4 w-4 animate-spin"/> : <Save className="h-4 w-4"/>}
