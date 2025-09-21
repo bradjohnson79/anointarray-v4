@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthUserFromRequest } from '@/lib/supabase-auth';
-import { createSupabaseAdminClient } from '@/lib/supabaseClient';
+import { supabaseAdmin } from '@/lib/supabaseAdmin';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
     const diag = url.searchParams.get('diag') === '1';
     const user = await getAuthUserFromRequest();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    const s = createSupabaseAdminClient();
+    const s = supabaseAdmin();
     // First try exact auth id, then fall back to email match (legacy rows use a separate id key)
     let { data: row } = await s
       .from('users')
@@ -57,6 +57,9 @@ export async function GET(req: NextRequest) {
 
 export async function PATCH(req: Request) {
   try {
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      return NextResponse.json({ error: 'Missing SUPABASE_SERVICE_ROLE_KEY', keyType: 'anon' }, { status: 500 });
+    }
     const url = new URL(req.url);
     const diag = url.searchParams.get('diag') === '1';
     const user = await getAuthUserFromRequest();
@@ -77,7 +80,7 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ ok: true, note: 'No changes' });
     }
 
-    const s = createSupabaseAdminClient();
+    const s = supabaseAdmin();
     let nextEmail = user.email || undefined;
     if (email && email !== (user.email || '').toLowerCase()) {
       // Try to update auth email first; if it fails (e.g., email in use), continue updating other fields.
@@ -90,23 +93,13 @@ export async function PATCH(req: Request) {
     if (name !== undefined) updateVals.name = name;
     if (nextEmail) updateVals.email = nextEmail;
     try {
-      // Try to find by email; if present, update; else insert (avoid onConflict)
-      let existing: any = null;
-      if (nextEmail) {
-        const q = await s
-          .from('users')
-          .select('id, email')
-          .eq('email', nextEmail)
-          .order('createdAt', { ascending: false })
-          .limit(1);
-        existing = (q.data && q.data[0]) || null;
-      }
-      if (existing?.id) {
-        const { error } = await s.from('users').update(updateVals).eq('id', existing.id);
-        if (error) throw error;
-      } else {
-        const { error } = await s.from('users').insert(updateVals);
-        if (error) throw error;
+      // Primary path: UPDATE by email using service role (bypass RLS)
+      const upd = await s.from('users').update(updateVals).eq('email', nextEmail as string);
+      if (upd.error) throw upd.error;
+      if ((upd as any).data && Array.isArray((upd as any).data) && (upd as any).data.length === 0) {
+        // Fallback: if UPDATE affected nothing, INSERT minimal payload
+        const ins = await s.from('users').insert(updateVals);
+        if (ins.error) throw ins.error;
       }
     } catch (e: any) {
       try { console.error('[me/account] persist error:', e?.message || e); } catch {}
@@ -121,7 +114,7 @@ export async function PATCH(req: Request) {
         await s.from('users').delete().eq('email', String(user.email).toLowerCase());
       }
     } catch {}
-    const resp: any = { ok: true, name: name ?? null, email: nextEmail ?? null };
+    const resp: any = { ok: true, name: name ?? null, email: nextEmail ?? null, keyType: 'service' };
     if (diag) resp.diag = { serviceKeyPresent: !!process.env.SUPABASE_SERVICE_ROLE_KEY, sessionEmail: user.email || null };
     return NextResponse.json(resp);
   } catch (e: any) {
