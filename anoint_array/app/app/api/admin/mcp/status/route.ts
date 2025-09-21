@@ -156,15 +156,27 @@ export async function GET() {
       // ignore; fallback
     }
 
-    const exists = fsSync.existsSync(configPath);
-    if (!exists) {
-      return NextResponse.json({ ok: false, configPath, servers: [], issues: [
-        `Config not found at ${configPath}`,
-        'Ensure .codex/config.toml exists and includes [mcpServers.*] sections.',
-      ] }, { status: 200 });
+    let raw: string | null = null;
+    if (fsSync.existsSync(configPath)) {
+      raw = await fs.readFile(configPath, 'utf8');
+    } else {
+      // Try Supabase storage snapshot
+      try {
+        const { createSupabaseServerClient, CONFIGS_BUCKET } = await import('@/lib/supabase-server');
+        const supabase = createSupabaseServerClient();
+        const dl = await supabase.storage.from(CONFIGS_BUCKET).download('configs/mcp/config.toml');
+        if (!dl.error && dl.data) {
+          raw = await (dl.data as any).text();
+          configPath = `supabase://${CONFIGS_BUCKET}/configs/mcp/config.toml`;
+        }
+      } catch {}
+      if (!raw) {
+        return NextResponse.json({ ok: false, configPath, servers: [], issues: [
+          `Config not found at ${configPath}`,
+          'Ensure .codex/config.toml exists and includes [mcpServers.*] sections, or save a snapshot via the UI.',
+        ] }, { status: 200 });
+      }
     }
-
-    const raw = await fs.readFile(configPath, 'utf8');
     const parsed = safeParseToml(raw);
     const servers: any[] = [];
     const issues: string[] = [];
@@ -182,4 +194,3 @@ export async function GET() {
     return NextResponse.json({ ok: false, error: e?.message || 'Failed to read MCP config' }, { status: 500 });
   }
 }
-

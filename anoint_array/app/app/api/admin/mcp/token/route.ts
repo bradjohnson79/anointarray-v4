@@ -4,6 +4,7 @@ import fs from 'fs/promises';
 import fsSync from 'fs';
 import path from 'path';
 import os from 'os';
+import { createSupabaseServerClient, CONFIGS_BUCKET } from '@/lib/supabase-server';
 
 export const dynamic = 'force-dynamic';
 
@@ -45,47 +46,56 @@ export async function POST(req: NextRequest) {
       if (typeof cfg === 'string' && cfg.trim()) configPath = path.resolve(process.cwd(), cfg);
     } catch {}
 
-    if (!fsSync.existsSync(configPath)) {
-      return NextResponse.json({ error: `Config not found at ${configPath}` }, { status: 404 });
-    }
-
-    const raw = await fs.readFile(configPath, 'utf8');
-    const sectRe = new RegExp(String.raw`(^\[mcpServers\.${name}\][\s\S]*?)(?=^\[|\Z)`, 'm');
-    const sectMatch = raw.match(sectRe);
-    if (!sectMatch) {
-      return NextResponse.json({ error: `Server section mcpServers.${name} not found` }, { status: 404 });
-    }
-    const section = sectMatch[1];
-
-    // Find args array in section
-    const argsRe = /^args\s*=\s*\[([^\]]*)\]/m;
-    const argsMatch = section.match(argsRe);
-    let args: string[] = [];
-    let newArgsLine = '';
-    if (argsMatch) {
-      args = parseQuotedArray(argsMatch[1]);
-      // Update token after --access-token or append pair
-      let idx = args.findIndex((a) => a === '--access-token');
-      if (idx !== -1) {
-        if (idx + 1 < args.length) args[idx + 1] = token; else args.push(token);
+    const updateToml = (raw: string) => {
+      const sectRe = new RegExp(String.raw`(^\[mcpServers\.${name}\][\s\S]*?)(?=^\[|\Z)`, 'm');
+      const sectMatch = raw.match(sectRe);
+      let section = sectMatch ? sectMatch[1] : `\n[mcpServers.${name}]\n`;
+      const argsRe = /^args\s*=\s*\[([^\]]*)\]/m;
+      const argsMatch = section.match(argsRe);
+      let args: string[] = [];
+      let newArgsLine = '';
+      if (argsMatch) {
+        args = parseQuotedArray(argsMatch[1]);
+        let idx = args.findIndex((a) => a === '--access-token');
+        if (idx !== -1) {
+          if (idx + 1 < args.length) args[idx + 1] = token; else args.push(token);
+        } else {
+          args.push('--access-token', token);
+        }
+        newArgsLine = stringifyArgs(args);
       } else {
-        args.push('--access-token', token);
+        args = ['--access-token', token];
+        newArgsLine = stringifyArgs(args);
       }
-      newArgsLine = stringifyArgs(args);
-    } else {
-      // Insert new args line with just the token; preserves existing lines
-      args = ['--access-token', token];
-      newArgsLine = stringifyArgs(args);
+      let newSection: string;
+      if (argsMatch) newSection = section.replace(argsRe, newArgsLine);
+      else newSection = section.trimEnd() + `\n` + newArgsLine + `\n`;
+      if (sectMatch) return raw.replace(sectRe, newSection);
+      return (raw.trimEnd() + `\n` + newSection + `\n`).replace(/^\s+$/,'');
+    };
+
+    // Local path exists (dev)
+    if (fsSync.existsSync(configPath)) {
+      const raw = await fs.readFile(configPath, 'utf8');
+      const updated = updateToml(raw);
+      await fs.writeFile(configPath, updated, 'utf8');
+      return NextResponse.json({ ok: true, configPath, name, mode: 'local' });
     }
 
-    // Replace in section
-    let newSection: string;
-    if (argsMatch) newSection = section.replace(argsRe, newArgsLine);
-    else newSection = section.trimEnd() + `\n` + newArgsLine + `\n`;
-
-    const updated = raw.replace(sectRe, newSection);
-    await fs.writeFile(configPath, updated, 'utf8');
-    return NextResponse.json({ ok: true, configPath, name });
+    // Fall back to Supabase storage snapshot (production)
+    const supabase = createSupabaseServerClient();
+    const objectPath = 'configs/mcp/config.toml';
+    let existing = '';
+    try {
+      const dl = await supabase.storage.from(CONFIGS_BUCKET).download(objectPath);
+      if (!dl.error && dl.data) existing = await (dl.data as any).text();
+    } catch {}
+    const base = existing || `# MCP config snapshot\n[mcpServers.${name}]\ncommand = \"pnpm\"\n`;
+    const updated = updateToml(base);
+    const blob = new Blob([updated], { type: 'text/plain' });
+    const up = await supabase.storage.from(CONFIGS_BUCKET).upload(objectPath, blob, { upsert: true, contentType: 'text/plain' });
+    if (up.error) return NextResponse.json({ error: up.error.message || 'Failed to save config snapshot' }, { status: 500 });
+    return NextResponse.json({ ok: true, configPath: `supabase://${CONFIGS_BUCKET}/${objectPath}`, name, mode: 'supabase' });
   } catch (e: any) {
     return NextResponse.json({ error: e?.message || 'Failed to update token' }, { status: 500 });
   }
