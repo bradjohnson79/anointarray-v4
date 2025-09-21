@@ -6,8 +6,9 @@ import { uploadFile, getPublicUrl } from '@/lib/s3';
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
-export async function POST() {
-  try { await requireAdmin(); } catch { return NextResponse.json({ error: 'Unauthorized' }, { status: 401 }); }
+export async function POST(req: Request) {
+  const internal = process.env.MIGRATION_TOKEN && (req.headers.get('x-internal-token') === process.env.MIGRATION_TOKEN);
+  if (!internal) { try { await requireAdmin(); } catch { return NextResponse.json({ error: 'Unauthorized' }, { status: 401 }); } }
   try {
     const bucket = process.env.SUPABASE_PRODUCT_IMAGES_BUCKET || 'product-images';
     const s = createSupabaseAdminClient();
@@ -34,4 +35,3 @@ export async function POST() {
     return NextResponse.json({ error: e?.message || 'Migration failed' }, { status: 500 });
   }
 }
-
