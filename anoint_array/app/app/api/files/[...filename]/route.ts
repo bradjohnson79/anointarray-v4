@@ -4,6 +4,8 @@ import { withApiErrorHandlingCtx } from '@/lib/api-handler';
 import { BadRequestError, NotFoundError } from '@/lib/http-errors';
 import { readFile } from 'fs/promises';
 import { getConfig } from '@/lib/app-config';
+import { getPublicUrl } from '@/lib/s3';
+import { getBucketConfig } from '@/lib/aws-config';
 import path from 'path';
 import { existsSync } from 'fs';
 
@@ -50,37 +52,21 @@ async function handler(request: NextRequest, { params }: RouteParams) {
   let filePath = candidates.find(p => existsSync(p));
   let fileBuffer: Buffer | null = null;
   if (!filePath) {
-    // Fallback to Supabase Storage if local candidates missing
-    try {
-      const { createSupabaseServerClient, PRODUCT_IMAGES_BUCKET } = await import('@/lib/supabase-server');
-      const supabase = createSupabaseServerClient();
-      const tryKeys = [
-        filename,
-        cleanUploads,
-        cleanAssets,
-        `product-images/${cleanAssets}`,
-        `uploads/${cleanUploads}`,
-      ].filter(Boolean);
-      try { console.log('[files] supabase.tryKeys', tryKeys, 'bucket', PRODUCT_IMAGES_BUCKET); } catch {}
-      let dl: any = null;
-      for (const key of tryKeys) {
-        const { data, error } = await supabase.storage.from(PRODUCT_IMAGES_BUCKET).download(key);
-        if (!error && data) { dl = data; break; }
-        if (error) { try { console.warn('[files] supabase.download error', key, error?.message || error); } catch {} }
-      }
-      if (dl) {
-        const ab = await (dl as any).arrayBuffer();
-        fileBuffer = Buffer.from(ab);
-        try { console.log('[files] served-from', 'supabase'); } catch {}
-      } else {
-        try { console.warn('[files] not found in storage', { bucket: PRODUCT_IMAGES_BUCKET, filename }); } catch {}
-        throw new NotFoundError('File not found');
-      }
-    } catch (e) {
-      if (e instanceof NotFoundError) throw e;
-      try { const msg = (e as any)?.message || String(e); console.warn('[files] supabase fetch failed', msg); } catch {}
-      throw new NotFoundError('File not found');
+    // Redirect to S3 public URL (preferred in production)
+    const { folderPrefix } = getBucketConfig();
+    const baseCandidates = [filename, cleanUploads, cleanAssets].filter(Boolean) as string[];
+    const candidates: string[] = [];
+    for (const c of baseCandidates) {
+      candidates.push(c);
+      candidates.push(`${folderPrefix}${c.replace(/^\//,'')}`);
     }
+    for (const key of candidates) {
+      const url = getPublicUrl(key);
+      if (url) {
+        return NextResponse.redirect(url, { status: 302 });
+      }
+    }
+    throw new NotFoundError('File not found');
   }
 
     // Read file if resolved locally
