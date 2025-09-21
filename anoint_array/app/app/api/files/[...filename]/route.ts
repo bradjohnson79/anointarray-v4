@@ -54,7 +54,13 @@ async function handler(request: NextRequest, { params }: RouteParams) {
     try {
       const { createSupabaseServerClient, PRODUCT_IMAGES_BUCKET } = await import('@/lib/supabase-server');
       const supabase = createSupabaseServerClient();
-      const tryKeys = [filename, cleanUploads, cleanAssets].filter(Boolean);
+      const tryKeys = [
+        filename,
+        cleanUploads,
+        cleanAssets,
+        `product-images/${cleanAssets}`,
+        `uploads/${cleanUploads}`,
+      ].filter(Boolean);
       try { console.log('[files] supabase.tryKeys', tryKeys, 'bucket', PRODUCT_IMAGES_BUCKET); } catch {}
       let dl: any = null;
       for (const key of tryKeys) {
@@ -67,6 +73,7 @@ async function handler(request: NextRequest, { params }: RouteParams) {
         fileBuffer = Buffer.from(ab);
         try { console.log('[files] served-from', 'supabase'); } catch {}
       } else {
+        try { console.warn('[files] not found in storage', { bucket: PRODUCT_IMAGES_BUCKET, filename }); } catch {}
         throw new NotFoundError('File not found');
       }
     } catch (e) {

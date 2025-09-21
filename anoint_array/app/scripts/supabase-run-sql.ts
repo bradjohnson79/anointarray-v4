@@ -27,20 +27,34 @@ if (!accessToken) die('Missing SUPABASE_ACCESS_TOKEN (sbp_...)');
 if (!projectRef) die('Missing SUPABASE_PROJECT_REF (or NEXT_PUBLIC_SUPABASE_URL to derive it)');
 
 async function runSql(query: string) {
-  const res = await fetch(`https://api.supabase.com/v1/projects/${projectRef}/sql`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ query }),
-  });
-  const text = await res.text();
-  if (!res.ok) {
-    die(`SQL failed [${res.status}]: ${text}`);
+  // Try multiple endpoints to account for API versions
+  const endpoints = [
+    `https://api.supabase.com/v2/projects/${projectRef}/database/query`,
+    `https://api.supabase.com/v1/projects/${projectRef}/database/query`,
+    `https://api.supabase.com/v2/projects/${projectRef}/database/sql`,
+    `https://api.supabase.com/v1/projects/${projectRef}/database/sql`,
+    `https://api.supabase.com/v2/projects/${projectRef}/sql`,
+    `https://api.supabase.com/v1/projects/${projectRef}/sql`,
+  ];
+  let lastText = '';
+  for (const url of endpoints) {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ query }),
+    });
+    const text = await res.text();
+    lastText = text;
+    if (res.ok) {
+      try { console.log(JSON.stringify(JSON.parse(text), null, 2)); }
+      catch { console.log(text); }
+      return;
+    }
   }
-  try { console.log(JSON.stringify(JSON.parse(text), null, 2)); }
-  catch { console.log(text); }
+  die(`SQL failed: ${lastText}`);
 }
 
 (async () => {
@@ -48,4 +62,3 @@ async function runSql(query: string) {
   if (!arg) die('Usage: pnpm tsx scripts/supabase-run-sql.ts "<SQL>"');
   await runSql(arg);
 })();
-
