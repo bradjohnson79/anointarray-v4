@@ -71,15 +71,27 @@ export async function PATCH(req: Request) {
       if (!u.error) nextEmail = email; // success
     }
 
-    // Upsert profile row by email (fallback) to avoid legacy id mismatch
-    const upvals: any = {};
-    if (name !== undefined) upvals.name = name;
-    if (nextEmail) upvals.email = nextEmail;
-    upvals.isActive = true;
-    const { error: upErr } = await s.from('users').upsert(upvals, { onConflict: 'email' });
-    if (upErr) {
-      try { console.error('[me/account] upsert error:', upErr?.message || upErr); } catch {}
-      return NextResponse.json({ error: upErr.message || 'Update failed' }, { status: 400 });
+    // Persist profile row by email in a way that doesn't require a unique constraint
+    const updateVals: any = { isActive: true };
+    if (name !== undefined) updateVals.name = name;
+    if (nextEmail) updateVals.email = nextEmail;
+    try {
+      // Try to find by email; if present, update; else insert
+      let existing: any = null;
+      if (nextEmail) {
+        const q = await s.from('users').select('id, email').eq('email', nextEmail).maybeSingle();
+        existing = q.data || null;
+      }
+      if (existing?.id) {
+        const { error } = await s.from('users').update(updateVals).eq('id', existing.id);
+        if (error) throw error;
+      } else {
+        const { error } = await s.from('users').insert(updateVals);
+        if (error) throw error;
+      }
+    } catch (e: any) {
+      try { console.error('[me/account] persist error:', e?.message || e); } catch {}
+      return NextResponse.json({ error: e?.message || 'Update failed' }, { status: 400 });
     }
 
     // Optional cleanup: if email changed successfully, remove stale profile row under old email
