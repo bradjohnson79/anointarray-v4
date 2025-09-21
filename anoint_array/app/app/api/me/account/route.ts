@@ -57,9 +57,8 @@ export async function GET(req: NextRequest) {
 
 export async function PATCH(req: Request) {
   try {
-    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
-      return NextResponse.json({ error: 'Missing SUPABASE_SERVICE_ROLE_KEY', keyType: 'anon' }, { status: 500 });
-    }
+    // If Convex is configured, use it for profile updates
+    const convexReady = !!(process.env.CONVEX_URL && (process.env.CONVEX_ADMIN_KEY || process.env.CONVEX_TEAM_ACCESS_TOKEN));
     const url = new URL(req.url);
     const diag = url.searchParams.get('diag') === '1';
     const user = await getAuthUserFromRequest();
@@ -80,6 +79,21 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ ok: true, note: 'No changes' });
     }
 
+    // If Convex available, do minimal upsert by email+name and return
+    if (convexReady) {
+      try {
+        const { callConvex } = await import('@/lib/convexHttp');
+        const emailForConvex = (email || user.email || '').toLowerCase();
+        const out = await callConvex({ functionPath: 'users:upsertByEmail', args: { email: emailForConvex, name } });
+        return NextResponse.json({ ok: true, provider: 'convex', result: out });
+      } catch (e:any) {
+        return NextResponse.json({ error: e?.message || 'Convex update failed', provider: 'convex' }, { status: 500 });
+      }
+    }
+
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      return NextResponse.json({ error: 'Missing SUPABASE_SERVICE_ROLE_KEY', keyType: 'anon' }, { status: 500 });
+    }
     const s = supabaseAdmin();
     let nextEmail = user.email || undefined;
     if (email && email !== (user.email || '').toLowerCase()) {

@@ -1,6 +1,6 @@
 export async function callConvex(params: { functionPath: string; args: any }) {
   const url = process.env.CONVEX_URL || '';
-  const adminKey = process.env.CONVEX_ADMIN_KEY || '';
+  const adminKey = process.env.CONVEX_ADMIN_KEY || process.env.CONVEX_TEAM_ACCESS_TOKEN || '';
   if (!url || !adminKey) {
     throw new Error('Convex is not configured (missing CONVEX_URL or CONVEX_ADMIN_KEY)');
   }
@@ -18,4 +18,3 @@ export async function callConvex(params: { functionPath: string; args: any }) {
   }
   return json;
 }
-

@@ -31,10 +31,21 @@ args = ["${pkg}", "--access-token", "${tok}"]
 `;
 }
 
+const convexPat = process.env.CONVEX_ADMIN_KEY || '';
+function sectConvex(token: string) {
+  const tok = token ? token : '***';
+  return `
+[mcpServers.convex]
+command = "npx"
+args = ["convex@latest", "mcp", "start", "--access-token", "${tok}"]
+`;
+}
+
 const content = `# Generated MCP config snapshot\n` +
   sect('supabase', supaPat, '@supabase/mcp-server-supabase@latest') +
   sect('vercel', vercelPat, '@vercel/mcp-server-vercel@latest') +
-  sect('github', githubPat, '@github/mcp-server-github@latest');
+  sect('github', githubPat, '@github/mcp-server-github@latest') +
+  sectConvex(convexPat);
 
 (async () => {
   const blob = new Blob([content], { type: 'text/plain' });
