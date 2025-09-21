@@ -970,7 +970,8 @@ function AdminProfilePanel() {
   const save = async () => {
     setSaving(true);
     try {
-      const r = await fetch('/api/me/account', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, email, phone, address, address2, city, state, zip, country }) });
+      // For now, only save name + email
+      const r = await fetch('/api/me/account', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, email }) });
       const j = await r.json().catch(()=>({}));
       if (!r.ok) throw new Error(j?.error || 'Update failed');
       toast.success('Profile updated');

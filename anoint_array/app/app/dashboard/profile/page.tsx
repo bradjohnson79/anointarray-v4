@@ -64,13 +64,15 @@ export default function ProfilePage() {
     setIsLoading(true);
 
     try {
-      const r = await fetch('/api/me/account', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(formData) });
+      // For now, only save name + email
+      const payload = { name: formData.name, email: formData.email };
+      const r = await fetch('/api/me/account', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       const j = await r.json().catch(()=>({}));
       if (!r.ok) throw new Error(j?.error || 'Update failed');
       toast.success('Profile updated successfully!');
       setIsEditing(false);
     } catch (error: any) {
-      toast.error('Failed to update profile');
+      toast.error(error?.message || 'Failed to update profile');
     } finally {
       setIsLoading(false);
     }

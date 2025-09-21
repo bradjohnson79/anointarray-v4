@@ -77,11 +77,16 @@ export async function PATCH(req: Request) {
     if (name !== undefined) updateVals.name = name;
     if (nextEmail) updateVals.email = nextEmail;
     try {
-      // Try to find by email; if present, update; else insert
+      // Try to find by email; if present, update; else insert (avoid onConflict)
       let existing: any = null;
       if (nextEmail) {
-        const q = await s.from('users').select('id, email').eq('email', nextEmail).maybeSingle();
-        existing = q.data || null;
+        const q = await s
+          .from('users')
+          .select('id, email')
+          .eq('email', nextEmail)
+          .order('createdAt', { ascending: false })
+          .limit(1);
+        existing = (q.data && q.data[0]) || null;
       }
       if (existing?.id) {
         const { error } = await s.from('users').update(updateVals).eq('id', existing.id);
