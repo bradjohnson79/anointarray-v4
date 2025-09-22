@@ -47,3 +47,16 @@ export const list = query({
     return await ctx.db.query('products').collect();
   }
 });
+
+export const updateImages = mutation({
+  args: { slug: v.string(), imageUrl: v.optional(v.union(v.string(), v.null())), imageGallery: v.optional(v.array(v.string())) },
+  handler: async (ctx, { slug, imageUrl, imageGallery }) => {
+    const p = await ctx.db.query('products').withIndex('by_slug', q=> q.eq('slug', slug)).unique();
+    if (!p) return { ok: false, error: 'not_found' };
+    const patch: any = {};
+    if (imageUrl !== undefined) patch.imageUrl = imageUrl;
+    if (imageGallery !== undefined) patch.imageGallery = imageGallery;
+    await ctx.db.patch(p._id, patch);
+    return { ok: true };
+  }
+});

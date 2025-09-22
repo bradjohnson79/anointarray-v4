@@ -119,9 +119,9 @@ export default function ProductManagementPage() {
         next.list = { ok: false, note: e?.message || 'Failed to list products' };
       }
 
-      // 3) Admin auth sanity (any admin‑only endpoint)
+      // 3) Admin auth sanity (use DB health which is admin-protected and Convex-backed)
       try {
-        const r = await fetch('/api/admin/users?limit=1', { cache: 'no-store' });
+        const r = await fetch('/api/admin/db/health', { cache: 'no-store' });
         next.admin = { ok: r.ok, note: r.ok ? undefined : `Admin endpoint returned ${r.status}` };
       } catch (e: any) {
         next.admin = { ok: false, note: e?.message || 'Admin check failed' };
