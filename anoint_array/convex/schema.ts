@@ -15,6 +15,8 @@ export default defineSchema({
     name: v.string(),
     price: v.number(),
     createdAt: v.number(),
+    teaserDescription: v.optional(v.string()),
+    fullDescription: v.optional(v.string()),
     category: v.optional(v.string()),
     featured: v.optional(v.boolean()),
     sortOrder: v.optional(v.number()),

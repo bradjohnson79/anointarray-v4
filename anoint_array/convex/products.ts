@@ -16,7 +16,19 @@ export const importSnapshot = mutation({
       const name = String(p.name || '').trim();
       const price = Number(p.price || 0);
       if (!slug || !name) continue;
-      const pid = await ctx.db.insert('products', { slug, name, price, createdAt: Date.now() });
+      const pid = await ctx.db.insert('products', {
+        slug,
+        name,
+        price,
+        createdAt: Date.now(),
+        teaserDescription: p?.teaserDescription || p?.shortDescription || null,
+        fullDescription: p?.fullDescription || p?.description || null,
+        category: p?.category || null,
+        featured: !!p?.featured,
+        sortOrder: typeof p?.sortOrder === 'number' ? p.sortOrder : 9999,
+        imageUrl: p?.imageUrl || null,
+        imageGallery: Array.isArray(p?.imageGallery) ? p.imageGallery : [],
+      } as any);
       const variants = Array.isArray(p.variants) ? p.variants : [];
       for (const vnt of variants) {
         await ctx.db.insert('productVariants', {
@@ -136,9 +148,31 @@ export const backfillFields = mutation({
       const patch: any = {};
       if (p.featured === undefined) patch.featured = false;
       if (p.sortOrder === undefined) patch.sortOrder = 9999;
+      if (p.teaserDescription === undefined) patch.teaserDescription = null as any;
+      if (p.fullDescription === undefined) patch.fullDescription = null as any;
       if (Object.keys(patch).length) { await ctx.db.patch(p._id, patch); updated++; }
     }
     return { ok: true, updated };
+  }
+});
+
+export const applyDescriptions = mutation({
+  args: { items: v.array(v.object({ slug: v.string(), teaserDescription: v.optional(v.string()), fullDescription: v.optional(v.string()) })), force: v.optional(v.boolean()) },
+  handler: async (ctx, { items, force }) => {
+    let updated = 0; const missing: string[] = [];
+    for (const it of items) {
+      const p = await ctx.db.query('products').withIndex('by_slug', q=> q.eq('slug', it.slug)).unique();
+      if (!p) { missing.push(it.slug); continue; }
+      const patch: any = {};
+      if (it.teaserDescription !== undefined) {
+        if (force || !p.teaserDescription) patch.teaserDescription = it.teaserDescription;
+      }
+      if (it.fullDescription !== undefined) {
+        if (force || !p.fullDescription) patch.fullDescription = it.fullDescription;
+      }
+      if (Object.keys(patch).length) { await ctx.db.patch(p._id, patch); updated++; }
+    }
+    return { ok: true, updated, missing };
   }
 });
 
