@@ -9,6 +9,7 @@
     "vercel:push-env": "tsx scripts/push-vercel-env.ts",
     "vercel:redeploy": "tsx scripts/vercel-redeploy.ts",
     "convex:restore": "tsx scripts/restore-convex-from-supabase.ts",
+    "puppeteer:products": "tsx scripts/puppeteer-products-smoke.ts",
     "guard:env": "tsx scripts/audit-env.ts",
     "guard:routes": "tsx scripts/audit-routes.ts",
     "guard:db": "tsx scripts/audit-db.ts",

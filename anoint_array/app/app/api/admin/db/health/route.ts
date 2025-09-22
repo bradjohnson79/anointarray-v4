@@ -21,6 +21,10 @@ export async function GET() {
       const list = await runConvex<any>('products:list', {});
       const items = Array.isArray(list) ? list : (Array.isArray((list as any)?.result) ? (list as any).result : []);
       details.convex.products = { count: items.length, sample: items.slice(0, 3) };
+      try {
+        const totals = await runConvex<any>('stats:totals', {});
+        details.convex.totals = totals;
+      } catch {}
     } catch (e: any) {
       details.convex.error = e?.message || String(e);
       ok = false;

@@ -21,8 +21,8 @@ export async function runConvex<T=any>(functionPath: string, args: any): Promise
       if (err) return reject(new Error(stderr || err.message));
       try {
         const trimmed = stdout.trim();
-        const firstBrace = trimmed.indexOf('{');
-        const jsonText = firstBrace >= 0 ? trimmed.slice(firstBrace) : trimmed;
+        const firstIdx = trimmed.search(/[\{\[]/);
+        const jsonText = firstIdx >= 0 ? trimmed.slice(firstIdx) : trimmed;
         const parsed = JSON.parse(jsonText);
         resolve(parsed as T);
       } catch (e: any) {
@@ -36,4 +36,3 @@ export async function runConvex<T=any>(functionPath: string, args: any): Promise
     }, 60_000);
   });
 }
-

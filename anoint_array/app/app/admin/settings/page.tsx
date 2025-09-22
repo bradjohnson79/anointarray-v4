@@ -350,6 +350,11 @@ export default function AdminSettingsPage() {
                       {dbHealth?.details?.convex?.products && (
                         <div className="mt-2 text-xs">Products in Convex: {dbHealth.details.convex.products.count}</div>
                       )}
+                      {dbHealth?.details?.convex?.totals && (
+                        <div className="mt-2 text-xs text-gray-300">
+                          <div>Totals — Products: {dbHealth.details.convex.totals.products}, Variants: {dbHealth.details.convex.totals.productVariants}, Users: {dbHealth.details.convex.totals.users}</div>
+                        </div>
+                      )}
                       {dbHealth?.details?.convex?.error && (
                         <div className="mt-2 text-xs text-red-400">{dbHealth.details.convex.error}</div>
                       )}
