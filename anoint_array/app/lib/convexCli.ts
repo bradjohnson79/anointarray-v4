@@ -11,6 +11,11 @@ export async function runConvex<T=any>(functionPath: string, args: any): Promise
     const deployKey = process.env.CONVEX_DEPLOY_KEY || null;
     const deployment = process.env.CONVEX_DEPLOYMENT || getDeploymentFromKey(deployKey) || null;
     const env = { ...process.env } as NodeJS.ProcessEnv;
+    // Make npx usable in serverless (e.g., Vercel): write caches to /tmp
+    env.HOME = env.HOME || '/tmp';
+    env.TMPDIR = env.TMPDIR || '/tmp';
+    env.npm_config_cache = env.npm_config_cache || '/tmp/.npm';
+    env.NPM_CONFIG_CACHE = env.NPM_CONFIG_CACHE || '/tmp/.npm';
     if (deployKey) env.CONVEX_DEPLOY_KEY = deployKey;
     if (deployment) env.CONVEX_DEPLOYMENT = deployment;
     // Stringify args safely
