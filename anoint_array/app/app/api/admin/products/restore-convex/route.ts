@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/supabase-auth';
 import { createSupabaseAdminClient } from '@/lib/supabaseClient';
-import { callConvex } from '@/lib/convexHttp';
+import { runConvex } from '@/lib/convexCli';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -25,7 +25,7 @@ export async function POST(req: Request) {
     const text = await (dl.data as any).text?.() || Buffer.from(await (dl.data as any).arrayBuffer()).toString('utf8');
     const snapshot = JSON.parse(text || '{}');
     const products = Array.isArray(snapshot?.products) ? snapshot.products : [];
-    const out = await callConvex({ functionPath: 'products:importSnapshot', args: { products } });
+    const out = await runConvex('products:importSnapshot', { products });
     return NextResponse.json({ ok: true, backup: latest, convex: out });
   } catch (e:any) {
     return NextResponse.json({ error: e?.message || 'Restore to Convex failed' }, { status: 500 });

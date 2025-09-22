@@ -37,6 +37,13 @@ async function main() {
   const snapshot = JSON.parse(text || '{}');
   const products = Array.isArray(snapshot?.products) ? snapshot.products : [];
 
+  if (process.env.PRODUCE_JSON === '1') {
+    const argsPath = process.env.ARGS_PATH || '/tmp/convex_products_args.json';
+    const payload = { products } as any;
+    fs.writeFileSync(argsPath, JSON.stringify(payload));
+    console.log(JSON.stringify({ ok: true, backup: latest, argsPath, count: products.length }, null, 2));
+    return;
+  }
   if (!process.env.CONVEX_URL || !(process.env.CONVEX_ADMIN_KEY || process.env.CONVEX_TEAM_ACCESS_TOKEN)) {
     throw new Error('Convex not configured (missing CONVEX_URL and admin/team token)');
   }

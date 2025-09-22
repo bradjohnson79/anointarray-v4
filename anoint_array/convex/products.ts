@@ -21,10 +21,10 @@ export const importSnapshot = mutation({
       for (const vnt of variants) {
         await ctx.db.insert('productVariants', {
           productId: pid,
-          style: vnt?.style || null,
+          style: (vnt?.style === undefined || vnt?.style === null) ? undefined : vnt.style,
           price: Number(vnt?.price || 0),
-          quantity: Number(vnt?.quantity || 0),
-          sku: vnt?.sku || null,
+          quantity: (vnt?.quantity === undefined || vnt?.quantity === null) ? undefined : Number(vnt.quantity),
+          sku: (vnt?.sku === undefined || vnt?.sku === null) ? undefined : vnt.sku,
           createdAt: Date.now(),
         });
       }

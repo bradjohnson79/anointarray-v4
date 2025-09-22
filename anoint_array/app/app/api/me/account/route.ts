@@ -82,9 +82,9 @@ export async function PATCH(req: Request) {
     // If Convex available, do minimal upsert by email+name and return
     if (convexReady) {
       try {
-        const { callConvex } = await import('@/lib/convexHttp');
+        const { runConvex } = await import('@/lib/convexCli');
         const emailForConvex = (email || user.email || '').toLowerCase();
-        const out = await callConvex({ functionPath: 'users:upsertByEmail', args: { email: emailForConvex, name } });
+        const out = await runConvex('users:upsertByEmail', { email: emailForConvex, name });
         return NextResponse.json({ ok: true, provider: 'convex', result: out });
       } catch (e:any) {
         return NextResponse.json({ error: e?.message || 'Convex update failed', provider: 'convex' }, { status: 500 });

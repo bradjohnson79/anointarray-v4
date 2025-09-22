@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/supabase-auth';
-import { callConvex } from '@/lib/convexHttp';
+import { runConvex } from '@/lib/convexCli';
 import { getBucketConfig, createS3Client } from '@/lib/aws-config';
 import { ListObjectsV2Command } from '@aws-sdk/client-s3';
 import { createSupabaseServerClient, PRODUCT_IMAGES_BUCKET, CONFIGS_BUCKET, GLYPHS_BUCKET } from '@/lib/supabase-server';
@@ -18,7 +18,7 @@ export async function GET() {
   details.convex = { url: process.env.CONVEX_URL || null, adminKey: !!process.env.CONVEX_ADMIN_KEY, teamToken: !!process.env.CONVEX_TEAM_ACCESS_TOKEN, ready: convexReady };
   if (convexReady) {
     try {
-      const list = await callConvex({ functionPath: 'products:list', args: {} });
+      const list = await runConvex<any>('products:list', {});
       const items = Array.isArray(list) ? list : (Array.isArray((list as any)?.result) ? (list as any).result : []);
       details.convex.products = { count: items.length, sample: items.slice(0, 3) };
     } catch (e: any) {

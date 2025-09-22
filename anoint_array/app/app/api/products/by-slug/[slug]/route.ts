@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
-import { callConvex } from '@/lib/convexHttp';
+import { runConvex } from '@/lib/convexCli';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -10,7 +10,7 @@ export async function GET(_req: NextRequest, { params }: { params: { slug: strin
     const slug = decodeURIComponent(params.slug);
     const convexReady = !!(process.env.CONVEX_URL && (process.env.CONVEX_ADMIN_KEY || process.env.CONVEX_TEAM_ACCESS_TOKEN));
     if (convexReady) {
-      const out = await callConvex({ functionPath: 'products:bySlug', args: { slug } });
+      const out = await runConvex('products:bySlug', { slug });
       if (!out) return NextResponse.json({ error: 'Not found' }, { status: 404 });
       // Ensure numeric fields are numbers
       const data: any = { ...out, price: Number(out.price || 0) };
