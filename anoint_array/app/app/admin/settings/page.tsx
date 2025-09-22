@@ -366,6 +366,21 @@ export default function AdminSettingsPage() {
                     <div className="font-semibold text-white mb-1">Migration Config</div>
                     <div className="text-xs">AUTO_MIGRATE_CONVEX: {dbHealth?.details?.migration?.autoMigrate ? 'on' : 'off'}</div>
                     <div className="text-xs">MIGRATION_TOKEN: {dbHealth?.details?.migration?.migrationToken ? 'present' : 'missing'}</div>
+                    {dbHealth?.details?.migration?.s3 && (
+                      <div className="mt-2 text-xs text-gray-300">
+                        <div className="font-medium text-white mb-1">S3 Mirrors ({dbHealth.details.migration.s3.bucket || '—'})</div>
+                        <div className="grid md:grid-cols-3 gap-2">
+                          {(dbHealth.details.migration.s3.mirrors || []).map((m: any)=> (
+                            <div key={m.key} className="rounded border border-gray-700 p-2">
+                              <div className="text-white font-semibold text-xs mb-1">{m.key}</div>
+                              <div>Supabase: <span className="text-gray-300">{m.supabaseBucket}</span> (<span className="text-gray-400">{m.supabaseCount ?? '—'}</span>)</div>
+                              <div>S3 Prefix: <span className="text-gray-300">{m.s3Prefix}</span> (<span className="text-gray-400">{m.s3Count ?? '—'}</span>)</div>
+                              <div>Status: <span className={(m.ok===true ? 'text-green-400' : (m.ok===false ? 'text-yellow-400' : 'text-gray-400'))}>{m.ok===true ? 'OK' : (m.ok===false ? 'Needs sync' : 'Unknown')}</span></div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                   <div className="bg-gray-900 border border-gray-700 rounded p-3">
                     <div className="font-semibold text-white mb-1">Legacy Supabase (for removal)</div>

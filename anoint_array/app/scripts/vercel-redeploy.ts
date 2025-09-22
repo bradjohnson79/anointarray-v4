@@ -4,8 +4,9 @@
 
 type Target = 'development' | 'preview' | 'production';
 
-const token = process.env.VERCEL_API_TOKEN || '';
-const projectId = process.env.PROJECT_ID || '';
+const token = process.env.VERCEL_API_TOKEN || process.env.VERCEL_PERSONAL_ACCESS_TOKEN || '';
+const projectId = process.env.PROJECT_ID || process.env.VERCEL_PROJECT_ID || '';
+const teamId = process.env.VERCEL_TEAM_ID || '';
 const targets = (process.env.TARGETS || 'preview,production').split(',').map(s => s.trim()).filter(Boolean) as Target[];
 
 if (!token || !projectId) {
@@ -13,8 +14,13 @@ if (!token || !projectId) {
   process.exit(1);
 }
 
+function withTeam(pathname: string) {
+  if (!teamId) return pathname;
+  return pathname + (pathname.includes('?') ? `&teamId=${encodeURIComponent(teamId)}` : `?teamId=${encodeURIComponent(teamId)}`);
+}
+
 async function vercel(pathname: string, init?: RequestInit): Promise<Response> {
-  const url = `https://api.vercel.com${pathname}`;
+  const url = `https://api.vercel.com${withTeam(pathname)}`;
   const headers: Record<string, string> = {
     Authorization: `Bearer ${token}`,
     'Content-Type': 'application/json',

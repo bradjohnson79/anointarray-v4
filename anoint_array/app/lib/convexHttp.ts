@@ -8,7 +8,7 @@ export async function callConvex(params: { functionPath: string; args: any }) {
   const res = await fetch(endpoint, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + adminKey },
-    body: JSON.stringify(params.args || {}),
+    body: JSON.stringify({ args: params.args || {} }),
   });
   const text = await res.text();
   let json: any = null;
