@@ -324,6 +324,60 @@ export default function AdminSettingsPage() {
             </div>
           </TabsContent>
 
+          <TabsContent value="db" className="mt-4">
+            <div className="bg-gray-800 rounded-lg p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-white font-semibold">Database Health</h3>
+                <button onClick={loadDbHealth} disabled={dbLoading} className="px-3 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-md flex items-center text-sm">
+                  {dbLoading ? <RefreshCw className="h-4 w-4 mr-2 animate-spin"/> : <RefreshCw className="h-4 w-4 mr-2"/>}
+                  Refresh
+                </button>
+              </div>
+              {!dbHealth ? (
+                <div className="text-gray-400">Loading…</div>
+              ) : (
+                <div className="space-y-3 text-sm text-gray-300">
+                  <div>
+                    <div className="text-gray-400">Overall</div>
+                    <div className={dbHealth.ok ? 'text-green-400' : 'text-yellow-400'}>{dbHealth.ok ? 'OK' : 'Issues detected'}</div>
+                  </div>
+                  <div className="grid md:grid-cols-2 gap-3">
+                    <div className="bg-gray-900 border border-gray-700 rounded p-3">
+                      <div className="font-semibold text-white mb-1">Convex</div>
+                      <div className="text-xs">URL: {dbHealth?.details?.convex?.url || '—'}</div>
+                      <div className="text-xs">Admin Key: {dbHealth?.details?.convex?.adminKey ? 'present' : 'missing'}</div>
+                      <div className="text-xs">Team Token: {dbHealth?.details?.convex?.teamToken ? 'present' : 'missing'}</div>
+                      {dbHealth?.details?.convex?.products && (
+                        <div className="mt-2 text-xs">Products in Convex: {dbHealth.details.convex.products.count}</div>
+                      )}
+                      {dbHealth?.details?.convex?.error && (
+                        <div className="mt-2 text-xs text-red-400">{dbHealth.details.convex.error}</div>
+                      )}
+                    </div>
+                    <div className="bg-gray-900 border border-gray-700 rounded p-3">
+                      <div className="font-semibold text-white mb-1">S3 Storage</div>
+                      <div className="text-xs">Bucket: {dbHealth?.details?.s3?.bucketName}</div>
+                      <div className="text-xs">Prefix: {dbHealth?.details?.s3?.folderPrefix}</div>
+                      <div className="text-xs">Region: {dbHealth?.details?.s3?.region}</div>
+                      <div className="text-xs">Access Key: {dbHealth?.details?.s3?.accessKey ? 'present' : 'missing'}</div>
+                    </div>
+                  </div>
+                  <div className="bg-gray-900 border border-gray-700 rounded p-3">
+                    <div className="font-semibold text-white mb-1">Migration Config</div>
+                    <div className="text-xs">AUTO_MIGRATE_CONVEX: {dbHealth?.details?.migration?.autoMigrate ? 'on' : 'off'}</div>
+                    <div className="text-xs">MIGRATION_TOKEN: {dbHealth?.details?.migration?.migrationToken ? 'present' : 'missing'}</div>
+                  </div>
+                  <div className="bg-gray-900 border border-gray-700 rounded p-3">
+                    <div className="font-semibold text-white mb-1">Legacy Supabase (for removal)</div>
+                    <div className="text-xs">URL: {dbHealth?.details?.supabase?.url}</div>
+                    <div className="text-xs">Anon Key: {dbHealth?.details?.supabase?.anonKey}</div>
+                    <div className="text-xs">Service Key: {dbHealth?.details?.supabase?.serviceKey}</div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </TabsContent>
+
           {/* MCP Servers */}
           <TabsContent value="mcp" className="mt-4">
             <div className="bg-gray-800 rounded-lg p-6 space-y-4">
@@ -397,10 +451,7 @@ export default function AdminSettingsPage() {
             </div>
           </TabsContent>
 
-          {/* Database Health */}
-          <TabsContent value="db" className="mt-4">
-            <DbHealthPanel />
-          </TabsContent>
+          
 
           <TabsContent value="currency" className="mt-4">
             <div className="bg-gray-800 rounded-lg p-6">
@@ -570,6 +621,8 @@ export default function AdminSettingsPage() {
               )}
             </div>
           </TabsContent>
+
+          
 
           <TabsContent value="support" className="mt-4">
             <div className="bg-gray-800 rounded-lg p-6 space-y-4">
@@ -1030,56 +1083,3 @@ function AdminProfilePanel() {
     </div>
   );
 }
-          <TabsContent value="db" className="mt-4">
-            <div className="bg-gray-800 rounded-lg p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-white font-semibold">Database Health</h3>
-                <button onClick={loadDbHealth} disabled={dbLoading} className="px-3 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-md flex items-center text-sm">
-                  {dbLoading ? <RefreshCw className="h-4 w-4 mr-2 animate-spin"/> : <RefreshCw className="h-4 w-4 mr-2"/>}
-                  Refresh
-                </button>
-              </div>
-              {!dbHealth ? (
-                <div className="text-gray-400">Loading…</div>
-              ) : (
-                <div className="space-y-3 text-sm text-gray-300">
-                  <div>
-                    <div className="text-gray-400">Overall</div>
-                    <div className={dbHealth.ok ? 'text-green-400' : 'text-yellow-400'}>{dbHealth.ok ? 'OK' : 'Issues detected'}</div>
-                  </div>
-                  <div className="grid md:grid-cols-2 gap-3">
-                    <div className="bg-gray-900 border border-gray-700 rounded p-3">
-                      <div className="font-semibold text-white mb-1">Convex</div>
-                      <div className="text-xs">URL: {dbHealth?.details?.convex?.url || '—'}</div>
-                      <div className="text-xs">Admin Key: {dbHealth?.details?.convex?.adminKey ? 'present' : 'missing'}</div>
-                      <div className="text-xs">Team Token: {dbHealth?.details?.convex?.teamToken ? 'present' : 'missing'}</div>
-                      {dbHealth?.details?.convex?.products && (
-                        <div className="mt-2 text-xs">Products in Convex: {dbHealth.details.convex.products.count}</div>
-                      )}
-                      {dbHealth?.details?.convex?.error && (
-                        <div className="mt-2 text-xs text-red-400">{dbHealth.details.convex.error}</div>
-                      )}
-                    </div>
-                    <div className="bg-gray-900 border border-gray-700 rounded p-3">
-                      <div className="font-semibold text-white mb-1">S3 Storage</div>
-                      <div className="text-xs">Bucket: {dbHealth?.details?.s3?.bucketName}</div>
-                      <div className="text-xs">Prefix: {dbHealth?.details?.s3?.folderPrefix}</div>
-                      <div className="text-xs">Region: {dbHealth?.details?.s3?.region}</div>
-                      <div className="text-xs">Access Key: {dbHealth?.details?.s3?.accessKey ? 'present' : 'missing'}</div>
-                    </div>
-                  </div>
-                  <div className="bg-gray-900 border border-gray-700 rounded p-3">
-                    <div className="font-semibold text-white mb-1">Migration Config</div>
-                    <div className="text-xs">AUTO_MIGRATE_CONVEX: {dbHealth?.details?.migration?.autoMigrate ? 'on' : 'off'}</div>
-                    <div className="text-xs">MIGRATION_TOKEN: {dbHealth?.details?.migration?.migrationToken ? 'present' : 'missing'}</div>
-                  </div>
-                  <div className="bg-gray-900 border border-gray-700 rounded p-3">
-                    <div className="font-semibold text-white mb-1">Legacy Supabase (for removal)</div>
-                    <div className="text-xs">URL: {dbHealth?.details?.supabase?.url}</div>
-                    <div className="text-xs">Anon Key: {dbHealth?.details?.supabase?.anonKey}</div>
-                    <div className="text-xs">Service Key: {dbHealth?.details?.supabase?.serviceKey}</div>
-                  </div>
-                </div>
-              )}
-            </div>
-          </TabsContent>

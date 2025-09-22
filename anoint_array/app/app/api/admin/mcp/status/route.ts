@@ -172,6 +172,18 @@ export async function GET() {
       ], origin }, { status: 200 });
     }
     const parsed = safeParseToml(raw);
+    // Also attempt to merge local user config (~/.codex/config.toml) so newly added servers show up without a snapshot
+    try {
+      const localPath = path.join(os.homedir(), '.codex', 'config.toml');
+      if (fsSync.existsSync(localPath)) {
+        const localRaw = await fs.readFile(localPath, 'utf8');
+        const localParsed = safeParseToml(localRaw);
+        if (localParsed?.mcpServers && typeof localParsed.mcpServers === 'object') {
+          parsed.mcpServers = { ...(parsed.mcpServers || {}), ...localParsed.mcpServers };
+        }
+      }
+    } catch {}
+
     const servers: any[] = [];
     const issues: string[] = [];
     if (!parsed || !parsed.mcpServers || typeof parsed.mcpServers !== 'object') {

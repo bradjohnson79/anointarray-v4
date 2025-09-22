@@ -1,4 +1,4 @@
-import { mutation, query } from "convex/server";
+import { mutationGeneric as mutation, queryGeneric as query } from "convex/server";
 import { v } from "convex/values";
 
 export const importSnapshot = mutation({
@@ -47,4 +47,3 @@ export const list = query({
     return await ctx.db.query('products').collect();
   }
 });
-

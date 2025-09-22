@@ -1,1 +1,10 @@
 .vercel
+# Generated vendor docs
+app/data/vendor/convex-docs/
+# Convex generated
+convex/_generated/
+# Temporary copies
+app/convex/
+# Local env files (do not commit secrets)
+app/.env.local
+app/.env

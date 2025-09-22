@@ -1,4 +1,4 @@
-import { mutation } from "convex/server";
+import { mutationGeneric as mutation } from "convex/server";
 import { v } from "convex/values";
 
 export const upsertByEmail = mutation({
@@ -23,4 +23,3 @@ export const upsertByEmail = mutation({
     return { ok: true, created: true };
   },
 });
-
