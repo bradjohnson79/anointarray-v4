@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/supabase-auth';
 import { runConvex } from '@/lib/convexCli';
+import { callConvex } from '@/lib/convexHttp';
 import { getBucketConfig, createS3Client } from '@/lib/aws-config';
 import { ListObjectsV2Command } from '@aws-sdk/client-s3';
 import { createSupabaseServerClient, PRODUCT_IMAGES_BUCKET, CONFIGS_BUCKET, GLYPHS_BUCKET } from '@/lib/supabase-server';
@@ -18,11 +19,27 @@ export async function GET() {
   details.convex = { url: process.env.CONVEX_URL || null, adminKey: !!process.env.CONVEX_ADMIN_KEY, teamToken: !!process.env.CONVEX_TEAM_ACCESS_TOKEN, ready: convexReady };
   if (convexReady) {
     try {
-      const list = await runConvex<any>('products:list', {});
+      // Prefer Convex CLI per policy; on serverless (e.g., Vercel) fall back to HTTP client
+      let list: any;
+      try {
+        // Some serverless providers don't allow npx to write to $HOME. This may throw (ENOENT).
+        list = await runConvex<any>('products:list', {});
+      } catch (cliErr: any) {
+        // Fallback strictly for health check only
+        const http = await callConvex({ functionPath: 'products:list', args: {} });
+        list = http;
+        // Attach the CLI error so it’s visible for diagnostics
+        details.convex.cliError = (cliErr?.message || String(cliErr)).slice(0, 600);
+      }
       const items = Array.isArray(list) ? list : (Array.isArray((list as any)?.result) ? (list as any).result : []);
       details.convex.products = { count: items.length, sample: items.slice(0, 3) };
       try {
-        const totals = await runConvex<any>('stats:totals', {});
+        let totals: any;
+        try {
+          totals = await runConvex<any>('stats:totals', {});
+        } catch {
+          totals = await callConvex({ functionPath: 'stats:totals', args: {} });
+        }
         details.convex.totals = totals;
       } catch {}
     } catch (e: any) {
