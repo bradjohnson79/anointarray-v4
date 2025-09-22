@@ -15,6 +15,11 @@ export default defineSchema({
     name: v.string(),
     price: v.number(),
     createdAt: v.number(),
+    category: v.optional(v.string()),
+    featured: v.optional(v.boolean()),
+    sortOrder: v.optional(v.number()),
+    imageUrl: v.optional(v.string()),
+    imageGallery: v.optional(v.array(v.string())),
   }).index("by_slug", ["slug"]),
 
   productVariants: defineTable({
@@ -42,4 +47,3 @@ export default defineSchema({
     price: v.number(),
   }).index("by_order", ["orderId"]),
 });
-

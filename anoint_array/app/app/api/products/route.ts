@@ -41,12 +41,12 @@ async function getHandler(request: NextRequest) {
         const r = await callConvex({ functionPath: 'products:list', args: {} });
         list = Array.isArray(r) ? r : (Array.isArray((r as any)?.result) ? (r as any).result : []);
       }
-      // Optional filters (category/featured not yet stored in Convex schema)
+      // Optional filters using Convex fields
       let items = list;
-      // If "featured" requested, return top 10 newest as a stand-in until Convex adds a featured flag
-      if (featured === 'true') items = [...list].slice(0, 10);
+      if (featured === 'true') items = list.filter((p: any)=> !!p.featured).slice(0, 50);
+      if (category) items = items.filter((p: any)=> String(p.category||'').toLowerCase()===String(category).toLowerCase());
       const processed = items.map((p: any) => ({
-        id: String(p._id || p.id || p.slug),
+        id: String(p.slug),
         name: p.name,
         slug: p.slug,
         teaserDescription: p.teaserDescription || '',
@@ -143,21 +143,25 @@ async function postHandler(request: NextRequest) {
       slug = 'product';
     }
 
-    // Check if slug already exists and make it unique - only select necessary fields
+    // Make slug unique using Convex create attempts
     let slugCounter = 0;
     let finalSlug = slug;
-    while (true) {
-      const { createSupabaseServerClient } = await import('@/lib/supabase-server');
-      const supabase = createSupabaseServerClient();
-      const { data: existingProduct } = await supabase
-        .from('products')
-        .select('id, slug')
-        .eq('slug', finalSlug)
-        .maybeSingle();
-      if (!existingProduct) break;
-      slugCounter++;
-      finalSlug = `${slug}-${slugCounter}`;
-    }
+    const tryCreate = async (s: string) => {
+      const imageUrlConv = imageUrl ? normalizeSupabasePublicUrl(imageUrl) : undefined;
+      const galleryConv = Array.isArray(imageGallery) ? imageGallery.map((u:string)=> normalizeSupabasePublicUrl(u)) : undefined;
+      try {
+        return await runConvex<any>('products:create', {
+          slug: s,
+          name,
+          price: toNumber(price) || 0,
+          category,
+          featured: !!featured,
+          sortOrder: toNumber(sortOrder) ?? 9999,
+          imageUrl: imageUrlConv,
+          imageGallery: galleryConv,
+        });
+      } catch (e:any) { return { ok:false, error: e?.message || 'create_failed' }; }
+    };
 
     // Build the data object with only essential fields for database compatibility
     const toNumber = (v: any) => {
@@ -232,8 +236,35 @@ async function postHandler(request: NextRequest) {
           }))
       : [{ style: 'Default', price: toNumber(price), quantity: toNumber(inventory) ?? 0, sku: genSku(name, 'DEFAULT') }];
 
-    // Convex write path not yet implemented after Supabase removal
-    return NextResponse.json({ error: 'Product creation via Convex not yet enabled' }, { status: 501 });
+    // Convex create
+    let created: any = await tryCreate(finalSlug);
+    while (!created?.ok && created?.error === 'slug_exists') {
+      slugCounter++; finalSlug = `${slug}-${slugCounter}`; created = await tryCreate(finalSlug);
+    }
+    if (!created?.ok) return NextResponse.json({ error: created?.error || 'Create failed' }, { status: 400 });
+    const id = finalSlug;
+    const serializedProduct = {
+      id,
+      slug: id,
+      name,
+      teaserDescription,
+      fullDescription,
+      price: toNumber(price) || 0,
+      category,
+      isVip,
+      inStock,
+      isPhysical,
+      isDigital,
+      featured,
+      comingSoon,
+      sortOrder: toNumber(sortOrder) ?? 9999,
+      imageUrl: imageUrl ? normalizeSupabasePublicUrl(imageUrl) : null,
+      imageGallery: Array.isArray(imageGallery) ? imageGallery.map((u:string)=> normalizeSupabasePublicUrl(u)) : [],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      variants: createVariants || [],
+    } as any;
+    return NextResponse.json(serializedProduct, { status: 201 });
 }
 
 async function deleteHandler(request: NextRequest) {
