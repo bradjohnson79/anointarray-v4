@@ -42,6 +42,20 @@ export default function AdminSettingsPage() {
   const [shippingSaving, setShippingSaving] = useState(false);
   const [shippoStatus, setShippoStatus] = useState<{ ok: boolean; checks: Array<{ key: string; label: string; ok?: boolean; detail?: any }> } | null>(null);
   const [shippoStatusLoading, setShippoStatusLoading] = useState(false);
+  // DB Health
+  const [dbHealth, setDbHealth] = useState<any | null>(null);
+  const [dbLoading, setDbLoading] = useState(false);
+
+  const loadDbHealth = async () => {
+    setDbLoading(true);
+    try {
+      const r = await fetch('/api/admin/db/health');
+      const j = await r.json();
+      setDbHealth(j);
+    } catch (e) {
+      setDbHealth({ ok: false, error: (e as any)?.message || 'Failed to load' });
+    } finally { setDbLoading(false); }
+  };
 
   const runShippoStatus = async () => {
     setShippoStatusLoading(true);
@@ -77,6 +91,7 @@ export default function AdminSettingsPage() {
         const shipCfg = await fetch('/api/admin/shipping/config');
         if (shipCfg.ok) setShipping(await shipCfg.json());
         await runMcpStatus(false);
+        await loadDbHealth();
       } catch (e) {
         console.error(e);
       } finally {
@@ -227,6 +242,7 @@ export default function AdminSettingsPage() {
             <TabsTrigger value="emails" className="text-white"><FileText className="h-4 w-4 mr-2"/>Emails</TabsTrigger>
             <TabsTrigger value="currency" className="text-white"><span className="mr-2">$</span>Currency</TabsTrigger>
             <TabsTrigger value="shipping" className="text-white"><Truck className="h-4 w-4 mr-2"/>Shipping</TabsTrigger>
+            <TabsTrigger value="db" className="text-white"><Server className="h-4 w-4 mr-2"/>Database Health</TabsTrigger>
             <TabsTrigger value="admin-profile" className="text-white"><Shield className="h-4 w-4 mr-2"/>Admin Profile</TabsTrigger>
             <TabsTrigger value="mcp" className="text-white"><Server className="h-4 w-4 mr-2"/>MCP Servers</TabsTrigger>
           </TabsList>
@@ -379,6 +395,11 @@ export default function AdminSettingsPage() {
               <AdminProfilePanel />
               <AdminPasswordsPanel />
             </div>
+          </TabsContent>
+
+          {/* Database Health */}
+          <TabsContent value="db" className="mt-4">
+            <DbHealthPanel />
           </TabsContent>
 
           <TabsContent value="currency" className="mt-4">
@@ -1009,3 +1030,56 @@ function AdminProfilePanel() {
     </div>
   );
 }
+          <TabsContent value="db" className="mt-4">
+            <div className="bg-gray-800 rounded-lg p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-white font-semibold">Database Health</h3>
+                <button onClick={loadDbHealth} disabled={dbLoading} className="px-3 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-md flex items-center text-sm">
+                  {dbLoading ? <RefreshCw className="h-4 w-4 mr-2 animate-spin"/> : <RefreshCw className="h-4 w-4 mr-2"/>}
+                  Refresh
+                </button>
+              </div>
+              {!dbHealth ? (
+                <div className="text-gray-400">Loading…</div>
+              ) : (
+                <div className="space-y-3 text-sm text-gray-300">
+                  <div>
+                    <div className="text-gray-400">Overall</div>
+                    <div className={dbHealth.ok ? 'text-green-400' : 'text-yellow-400'}>{dbHealth.ok ? 'OK' : 'Issues detected'}</div>
+                  </div>
+                  <div className="grid md:grid-cols-2 gap-3">
+                    <div className="bg-gray-900 border border-gray-700 rounded p-3">
+                      <div className="font-semibold text-white mb-1">Convex</div>
+                      <div className="text-xs">URL: {dbHealth?.details?.convex?.url || '—'}</div>
+                      <div className="text-xs">Admin Key: {dbHealth?.details?.convex?.adminKey ? 'present' : 'missing'}</div>
+                      <div className="text-xs">Team Token: {dbHealth?.details?.convex?.teamToken ? 'present' : 'missing'}</div>
+                      {dbHealth?.details?.convex?.products && (
+                        <div className="mt-2 text-xs">Products in Convex: {dbHealth.details.convex.products.count}</div>
+                      )}
+                      {dbHealth?.details?.convex?.error && (
+                        <div className="mt-2 text-xs text-red-400">{dbHealth.details.convex.error}</div>
+                      )}
+                    </div>
+                    <div className="bg-gray-900 border border-gray-700 rounded p-3">
+                      <div className="font-semibold text-white mb-1">S3 Storage</div>
+                      <div className="text-xs">Bucket: {dbHealth?.details?.s3?.bucketName}</div>
+                      <div className="text-xs">Prefix: {dbHealth?.details?.s3?.folderPrefix}</div>
+                      <div className="text-xs">Region: {dbHealth?.details?.s3?.region}</div>
+                      <div className="text-xs">Access Key: {dbHealth?.details?.s3?.accessKey ? 'present' : 'missing'}</div>
+                    </div>
+                  </div>
+                  <div className="bg-gray-900 border border-gray-700 rounded p-3">
+                    <div className="font-semibold text-white mb-1">Migration Config</div>
+                    <div className="text-xs">AUTO_MIGRATE_CONVEX: {dbHealth?.details?.migration?.autoMigrate ? 'on' : 'off'}</div>
+                    <div className="text-xs">MIGRATION_TOKEN: {dbHealth?.details?.migration?.migrationToken ? 'present' : 'missing'}</div>
+                  </div>
+                  <div className="bg-gray-900 border border-gray-700 rounded p-3">
+                    <div className="font-semibold text-white mb-1">Legacy Supabase (for removal)</div>
+                    <div className="text-xs">URL: {dbHealth?.details?.supabase?.url}</div>
+                    <div className="text-xs">Anon Key: {dbHealth?.details?.supabase?.anonKey}</div>
+                    <div className="text-xs">Service Key: {dbHealth?.details?.supabase?.serviceKey}</div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </TabsContent>
