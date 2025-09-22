@@ -3,6 +3,8 @@ import fs from 'fs/promises';
 import fsSync from 'fs';
 import path from 'path';
 import { createSupabaseServerClient, useSupabaseStorage, PRODUCT_IMAGES_BUCKET } from '@/lib/supabase-server';
+import { createS3Client, getBucketConfig } from '@/lib/aws-config';
+import { GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
 import { requireAdmin } from '@/lib/supabase-auth';
 
 type ServiceKey = 'basic' | 'full' | 'environmental';
@@ -18,6 +20,20 @@ const DEFAULTS: ServiceSettings = {
 
 async function readSettings(): Promise<ServiceSettings> {
   try {
+    // Prefer S3 configs when available
+    try {
+      const s3 = createS3Client();
+      const { bucketName } = getBucketConfig();
+      const key = 'configs/service-settings.json';
+      const obj = await s3.send(new GetObjectCommand({ Bucket: bucketName, Key: key }));
+      const text = await (obj.Body as any).transformToString();
+      const parsed = JSON.parse(text || '{}');
+      return {
+        basic: { price: Number(parsed?.basic?.price ?? DEFAULTS.basic.price), description: String(parsed?.basic?.description ?? DEFAULTS.basic.description) },
+        full: { price: Number(parsed?.full?.price ?? DEFAULTS.full.price), description: String(parsed?.full?.description ?? DEFAULTS.full.description) },
+        environmental: { price: Number(parsed?.environmental?.price ?? DEFAULTS.environmental.price), description: String(parsed?.environmental?.description ?? DEFAULTS.environmental.description) },
+      };
+    } catch {}
     if (!fsSync.existsSync(FILE)) return DEFAULTS;
     const raw = await fs.readFile(FILE, 'utf8');
     const parsed = JSON.parse(raw);
@@ -71,23 +87,31 @@ export async function POST(req: NextRequest) {
       full: { price: isFinite(incoming.full.price) ? incoming.full.price : DEFAULTS.full.price, description: incoming.full.description || DEFAULTS.full.description },
       environmental: { price: isFinite(incoming.environmental.price) ? incoming.environmental.price : DEFAULTS.environmental.price, description: incoming.environmental.description || DEFAULTS.environmental.description },
     };
-    // Prefer local file in dev; in production (read-only), use Blob storage
+    // Prefer S3; fallback to local file; finally Supabase
     try {
-      await fs.mkdir(path.dirname(FILE), { recursive: true });
-      await fs.writeFile(FILE, JSON.stringify(clean, null, 2), 'utf8');
-      return NextResponse.json({ ok: true, saved: clean, storage: 'file' });
+      const s3 = createS3Client();
+      const { bucketName } = getBucketConfig();
+      const key = 'configs/service-settings.json';
+      const body = Buffer.from(JSON.stringify(clean, null, 2));
+      await s3.send(new PutObjectCommand({ Bucket: bucketName, Key: key, Body: body, ContentType: 'application/json', ACL: 'private' as any }));
+      return NextResponse.json({ ok: true, saved: clean, storage: 's3' });
     } catch (e: any) {
-      // Fallback to Supabase Storage (private by default)
       try {
-        if (!useSupabaseStorage()) throw new Error('Supabase storage not configured');
-        const supabase = createSupabaseServerClient();
-        const bucket = process.env.SUPABASE_CONFIGS_BUCKET || 'configs' || PRODUCT_IMAGES_BUCKET || 'Storage';
-        const blob = new Blob([JSON.stringify(clean)], { type: 'application/json' });
-        const { error } = await supabase.storage.from(bucket).upload('configs/service-settings.json', blob, { upsert: true, contentType: 'application/json' });
-        if (error) throw error;
-        return NextResponse.json({ ok: true, saved: clean, storage: 'supabase' });
-      } catch (be: any) {
-        return NextResponse.json({ error: be?.message || e?.message || 'Failed to save' }, { status: 500 });
+        await fs.mkdir(path.dirname(FILE), { recursive: true });
+        await fs.writeFile(FILE, JSON.stringify(clean, null, 2), 'utf8');
+        return NextResponse.json({ ok: true, saved: clean, storage: 'file' });
+      } catch (fe: any) {
+        try {
+          if (!useSupabaseStorage()) throw new Error('Supabase storage not configured');
+          const supabase = createSupabaseServerClient();
+          const bucket = process.env.SUPABASE_CONFIGS_BUCKET || 'configs' || PRODUCT_IMAGES_BUCKET || 'Storage';
+          const blob = new Blob([JSON.stringify(clean)], { type: 'application/json' });
+          const { error } = await supabase.storage.from(bucket).upload('configs/service-settings.json', blob, { upsert: true, contentType: 'application/json' });
+          if (error) throw error;
+          return NextResponse.json({ ok: true, saved: clean, storage: 'supabase' });
+        } catch (be: any) {
+          return NextResponse.json({ error: be?.message || fe?.message || e?.message || 'Failed to save' }, { status: 500 });
+        }
       }
     }
   } catch (e: any) {

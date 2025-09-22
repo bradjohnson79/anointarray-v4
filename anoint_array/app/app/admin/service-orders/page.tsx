@@ -103,7 +103,8 @@ export default function ServiceOrdersPage() {
                   <textarea rows={4} value={svc[k]?.description || ''} onChange={(e)=>setSvc((v:any)=>({ ...v, [k]: { ...v[k], description: e.target.value } }))} className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white"/>
                 </div>
               ))}
-              <div className="flex justify-end">
+              <div className="flex justify-between items-center">
+                <button onClick={async()=>{ try { const r = await fetch('/api/admin/services/restore-descriptions', { method: 'POST' }); const j = await r.json(); if (!r.ok) throw new Error(j?.error || 'Restore failed'); toast.success('Service descriptions restored'); const ss = await fetch('/api/services/settings'); if (ss.ok) setSvc(await ss.json()); } catch(e:any){ toast.error(e?.message || 'Restore failed'); } }} className="px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded text-white text-sm">Restore Descriptions</button>
                 <button disabled={saving} onClick={async()=>{ setSaving(true); try { const r = await fetch('/api/services/settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(svc) }); const j = await r.json(); if (!r.ok) throw new Error(j?.error || 'Save failed'); toast.success('Service settings saved'); } catch (e:any) { toast.error(e?.message || 'Save failed'); } finally { setSaving(false); } }} className="px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded text-white flex items-center gap-2">
                   {saving ? <RefreshCw className="h-4 w-4 animate-spin"/> : <Save className="h-4 w-4"/>}
                   {saving ? 'Saving…' : 'Save Settings'}
