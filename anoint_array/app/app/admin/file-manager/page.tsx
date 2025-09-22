@@ -40,6 +40,56 @@ interface FileWithName {
   customName: string;
 }
 
+function S3MigrationWidget() {
+  const [running, setRunning] = useState(false);
+  const [result, setResult] = useState<any | null>(null);
+  const [limit, setLimit] = useState<number>(200);
+  const [dry, setDry] = useState(false);
+  const start = async () => {
+    setRunning(true); setResult(null);
+    try {
+      const r = await fetch('/api/admin/products/images/migrate-to-s3', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ limit, dry })});
+      const j = await r.json();
+      setResult(j);
+      if (r.ok) toast.success(`Migrated ${j.migrated||0} item(s)${dry?' (dry run)':''}`); else toast.error(j?.error || 'Migration failed');
+      if (r.ok && !dry) { try { localStorage.setItem('s3_migrated_v1', '1'); } catch {} }
+    } catch (e:any) {
+      toast.error(e?.message || 'Migration failed');
+    } finally { setRunning(false); }
+  };
+  return (
+    <div className="bg-gray-800 border border-gray-700 rounded-lg p-4 mt-3">
+      <div className="flex items-center justify-between">
+        <div className="text-white font-semibold">Image Migration (Convex → S3)</div>
+        <div className="text-xs text-gray-400">Mirror external product images to S3 and rewrite in Convex</div>
+      </div>
+      <div className="mt-3 flex items-center gap-3 text-sm">
+        <label className="flex items-center gap-2 text-gray-300">
+          <span>Limit</span>
+          <input type="number" value={limit} onChange={(e)=>setLimit(parseInt(e.target.value||'0',10)||0)} className="w-24 bg-gray-700 border border-gray-600 rounded px-2 py-1 text-white" />
+        </label>
+        <label className="flex items-center gap-2 text-gray-300">
+          <input type="checkbox" checked={dry} onChange={(e)=>setDry(e.target.checked)} /> Dry run
+        </label>
+        <button onClick={start} disabled={running} className="px-3 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg flex items-center">
+          {running ? <RefreshCw className="h-4 w-4 mr-2 animate-spin"/> : <RefreshCw className="h-4 w-4 mr-2"/>}
+          {running ? 'Migrating…' : 'Start Migration'}
+        </button>
+      </div>
+      <div className="mt-3">
+        {running && (
+          <div className="h-2 bg-gray-700 rounded overflow-hidden">
+            <div className="h-2 bg-green-500 animate-pulse" style={{ width: '66%' }} />
+          </div>
+        )}
+        {result && (
+          <div className="text-xs text-gray-300 mt-2">Migrated: <span className="text-green-400">{result.migrated||0}</span>, Skipped: {result.skipped||0}{Array.isArray(result.errors)&&result.errors.length?`, Errors: ${result.errors.length}`:''}</div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function FileManager() {
   const [images, setImages] = useState<UploadedImage[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -83,6 +133,9 @@ export default function FileManager() {
   useEffect(() => {
     fetchImages();
   }, [fetchImages]);
+
+  // Auto‑migrate once per browser if desired (commented out by default)
+  // useEffect(()=>{ if (!localStorage.getItem('s3_migrated_v1')) { /* trigger widget start */ } },[]);
 
   const handleSyncSupabase = async () => {
     try {
@@ -382,6 +435,7 @@ export default function FileManager() {
           <p className="text-gray-400">
             Upload and manage product images. Upload up to 10 images at once (JPG/PNG only, max 5MB each).
           </p>
+          <div className="mt-4"><S3MigrationWidget /></div>
           {/* Supabase status indicator */}
           <div className="mt-3">
             {storageMode === 'supabase' && !fmError ? (
