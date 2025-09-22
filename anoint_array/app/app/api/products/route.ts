@@ -2,7 +2,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/supabase-auth';
 import { withApiErrorHandling } from '@/lib/api-handler';
-import { BadRequestError, ForbiddenError, UnauthorizedError } from '@/lib/http-errors';
+import { BadRequestError } from '@/lib/http-errors';
+import { runConvex } from '@/lib/convexCli';
+import { callConvex } from '@/lib/convexHttp';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -28,60 +30,70 @@ async function getHandler(request: NextRequest) {
     const featured = searchParams.get('featured');
     const admin = searchParams.get('admin');
 
-    const where: any = {};
-    
-    if (category) {
-      where.category = category;
-    }
-    
-    if (featured === 'true') {
-      where.featured = true;
+    // Convex-backed implementation
+    const useConvex = !!process.env.CONVEX_URL;
+    if (useConvex) {
+      let list: any[] = [];
+      try {
+        const r = await runConvex<any>('products:list', {});
+        list = Array.isArray(r) ? r : (Array.isArray((r as any)?.result) ? (r as any).result : []);
+      } catch {
+        const r = await callConvex({ functionPath: 'products:list', args: {} });
+        list = Array.isArray(r) ? r : (Array.isArray((r as any)?.result) ? (r as any).result : []);
+      }
+      // Optional filters (category/featured not yet stored in Convex schema)
+      let items = list;
+      // If "featured" requested, return top 10 newest as a stand-in until Convex adds a featured flag
+      if (featured === 'true') items = [...list].slice(0, 10);
+      const processed = items.map((p: any) => ({
+        id: String(p._id || p.id || p.slug),
+        name: p.name,
+        slug: p.slug,
+        teaserDescription: p.teaserDescription || '',
+        fullDescription: p.fullDescription || '',
+        price: Number(p.price || 0),
+        category: p.category || 'unclassified',
+        isVip: !!p.isVip,
+        inStock: p.inStock !== false,
+        isPhysical: p.isPhysical !== false,
+        isDigital: !!p.isDigital,
+        featured: !!p.featured,
+        comingSoon: !!p.comingSoon,
+        imageUrl: p.imageUrl || null,
+        imageGallery: Array.isArray(p.imageGallery) ? p.imageGallery : [],
+        inventory: typeof p.inventory === 'number' ? p.inventory : null,
+        sortOrder: typeof p.sortOrder === 'number' ? p.sortOrder : 9999,
+        createdAt: p.createdAt || null,
+        updatedAt: p.updatedAt || null,
+      }));
+      if (admin === 'true') return NextResponse.json(processed);
+      return NextResponse.json({ success: true, products: processed });
     }
 
-    // Supabase-only implementation for both public and admin
+    // Legacy Supabase fallback (kept for local dev only)
     const { createSupabaseServerClient } = await import('@/lib/supabase-server');
     const supabase = createSupabaseServerClient();
     const baseCols = [
       'id','name','slug','teaserDescription','fullDescription','price','category','isVip','inStock','isPhysical','isDigital','imageUrl','imageGallery','featured','comingSoon','sortOrder','inventory','weight','dimensions','digitalFileUrl','instructionManualUrl','videoEmbedCode','createdAt','updatedAt'
     ];
-    const adminCols = ['hsCode','countryOfOrigin','customsDescription','defaultCustomsValueCad','massGrams'];
     let cols = baseCols.join(',');
-    if (admin === 'true') cols = cols + ',' + adminCols.join(',') + ',variants(*)';
     let q = supabase.from('products').select(cols);
     if (category) q = q.eq('category', category);
     if (featured === 'true') q = q.eq('featured', true);
     const { data, error } = await q.order('featured', { ascending: false }).order('sortOrder', { ascending: true }).order('createdAt', { ascending: false });
     if (error) throw error;
-    let products: any[] = (data || []) as any[];
-
-    // (Optional) order item counts could be added via a view/ RPC later.
-    const countsMap: Record<string, number> = {};
-
-    // Convert Decimal fields to numbers for JSON serialization and add missing fields
-    const processedProducts = products.map((product: any) => ({
+    const products = (data || []).map((product: any) => ({
       ...product,
       imageUrl: normalizeSupabasePublicUrl(product?.imageUrl),
       imageGallery: Array.isArray(product?.imageGallery)
         ? product.imageGallery.map((u: string) => normalizeSupabasePublicUrl(u))
         : [],
       price: Number(product?.price || 0),
-      weight: product?.weight ? Number(product.weight) : null,
       sortOrder: Number((product as any)?.sortOrder ?? 9999),
-      youtubeUrl: null, // Add this field for frontend compatibility
-      ...(admin === 'true' ? { orderItemCount: countsMap[product.id] || 0 } : {}),
-      ...(admin === 'true' ? { defaultCustomsValueCad: (product as any).defaultCustomsValueCad != null ? Number((product as any).defaultCustomsValueCad) : null } : {}),
-      ...(admin === 'true' && (product as any).variants ? {
-        variants: (product as any).variants.map((v: any) => ({
-          ...v,
-          price: Number(v.price),
-        }))
-      } : {}),
+      youtubeUrl: null,
     }));
-
-    // Return different format for admin vs public API
-    if (admin === 'true') return NextResponse.json(processedProducts);
-
-    return NextResponse.json({ success: true, products: processedProducts });
+    if (admin === 'true') return NextResponse.json(products);
+    return NextResponse.json({ success: true, products });
 }
 
 async function postHandler(request: NextRequest) {
@@ -220,43 +232,12 @@ async function postHandler(request: NextRequest) {
           }))
       : [{ style: 'Default', price: toNumber(price), quantity: toNumber(inventory) ?? 0, sku: genSku(name, 'DEFAULT') }];
 
-    // Insert product via Supabase then variants
-    const { createSupabaseServerClient } = await import('@/lib/supabase-server');
-    const supabase = createSupabaseServerClient();
-    const { data: created, error: cErr } = await supabase.from('products').insert(productData).select('*').single();
-    if (cErr) throw new Error(cErr.message || 'Create failed');
-    if (Array.isArray(createVariants) && createVariants.length) {
-      const rows = createVariants.map((v: any) => ({ ...v, productId: created.id }));
-      const { error: vErr } = await supabase.from('product_variants').insert(rows);
-      if (vErr) throw new Error(vErr.message || 'Variants create failed');
-    }
-
-    // Convert Decimal fields to numbers for JSON serialization and add missing fields for frontend compatibility
-    const p: any = created;
-    const serializedProduct = {
-      ...p,
-      price: Number(p.price),
-      weight: p.weight ? Number(p.weight) : null,
-      youtubeUrl: null, // Add this field for frontend compatibility (not available in current DB)
-      defaultCustomsValueCad: p.defaultCustomsValueCad != null ? Number(p.defaultCustomsValueCad) : null,
-      variants: (p.variants as any[] | undefined)?.map((v: any) => ({ ...v, price: Number(v.price) })) || [],
-    };
-
-  return NextResponse.json(serializedProduct, { status: 201 });
+    // Convex write path not yet implemented after Supabase removal
+    return NextResponse.json({ error: 'Product creation via Convex not yet enabled' }, { status: 501 });
 }
 
 async function deleteHandler(request: NextRequest) {
-  const { searchParams } = new URL(request.url);
-  const clearAll = searchParams.get('clear_all');
-  if (clearAll === 'true') {
-    const { createSupabaseServerClient } = await import('@/lib/supabase-server');
-    const supabase = createSupabaseServerClient();
-    // Delete all variants then products (if cascade not defined)
-    await supabase.from('product_variants').delete().neq('id', '');
-    await supabase.from('products').delete().neq('id', '');
-    return NextResponse.json({ message: 'All products cleared successfully' });
-  }
-  return NextResponse.json({ error: 'Invalid request' }, { status: 400 });
+  return NextResponse.json({ error: 'Not implemented for Convex' }, { status: 501 });
 }
 
 export const GET = withApiErrorHandling(getHandler, '/api/products');
