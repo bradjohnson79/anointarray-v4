@@ -13,14 +13,14 @@ export async function POST(req: Request) {
     const lower = String(email || '').toLowerCase();
     if (!lower || !password) return NextResponse.json({ error: 'Email and password required' }, { status: 400 });
     let user: any;
-    try { user = await runConvex('users:byEmail', { email: lower }); }
-    catch { user = await callConvex({ functionPath: 'users:byEmail', args: { email: lower } }); }
+    try { user = await callConvex({ functionPath: 'users:byEmail', args: { email: lower } }); }
+    catch { user = await runConvex('users:byEmail', { email: lower }); }
     // Bootstrap default admin if not exists
     if (!user && lower === 'info@anoint.me') {
       const hash = await bcrypt.hash('Admin123', 10);
-      try { await runConvex('users:setPasswordHash', { email: lower, passwordHash: hash }); }
-      catch { await callConvex({ functionPath: 'users:setPasswordHash', args: { email: lower, passwordHash: hash } }); }
-      try { user = await runConvex('users:byEmail', { email: lower }); } catch { user = await callConvex({ functionPath: 'users:byEmail', args: { email: lower } }); }
+      try { await callConvex({ functionPath: 'users:setPasswordHash', args: { email: lower, passwordHash: hash } }); }
+      catch { await runConvex('users:setPasswordHash', { email: lower, passwordHash: hash }); }
+      try { user = await callConvex({ functionPath: 'users:byEmail', args: { email: lower } }); } catch { user = await runConvex('users:byEmail', { email: lower }); }
     }
     if (!user || !user.passwordHash) return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
     const ok = await bcrypt.compare(String(password), String(user.passwordHash));
@@ -32,4 +32,3 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: e?.message || 'Login failed' }, { status: 500 });
   }
 }
-

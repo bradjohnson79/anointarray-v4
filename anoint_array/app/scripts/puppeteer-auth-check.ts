@@ -19,12 +19,14 @@ async function main() {
 
   const browser = await puppeteer.launch({ headless: 'new', args: ['--no-sandbox','--disable-setuid-sandbox'] });
   const page = await browser.newPage();
+  page.setDefaultTimeout(60000);
   const report: any = { base, steps: [] };
   try {
     // Optionally create a new user (safe only if non-admin email)
     if (doCreate && email !== 'info@anoint.me') {
       const signupUrl = `${base}/auth/signup`;
-      await page.goto(signupUrl, { waitUntil: 'domcontentloaded' });
+      await page.goto(signupUrl, { waitUntil: 'networkidle2' });
+      await page.waitForSelector('input[name="fullName"], #fullName', { timeout: 15000 });
       await page.type('input[name="fullName"]', 'Test User');
       await page.type('input[name="email"]', email);
       await page.type('input[name="password"]', password);
@@ -39,7 +41,9 @@ async function main() {
 
     // Login
     const loginUrl = `${base}/auth/login`;
-    await page.goto(loginUrl, { waitUntil: 'domcontentloaded' });
+    await page.goto(loginUrl, { waitUntil: 'networkidle2' });
+    await page.waitForSelector('input[name="email"], #email, [data-test="login-email"]', { timeout: 15000 });
+    await page.waitForSelector('input[name="password"], #password, [data-test="login-password"]', { timeout: 15000 });
     await page.type('input[name="email"]', email);
     await page.type('input[name="password"]', password);
     const respPromise = page.waitForResponse((resp) => resp.url().includes('/api/auth/login'));
