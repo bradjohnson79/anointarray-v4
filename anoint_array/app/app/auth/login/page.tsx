@@ -87,12 +87,15 @@ export default function LoginPage() {
                 <div className="relative">
                   <Mail className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
                   <input
+                    id="email"
                     type="email"
                     name="email"
+                    autoComplete="email"
                     placeholder="Email Address"
                     value={formData.email}
                     onChange={handleInputChange}
                     required
+                    data-test="login-email"
                     className="w-full bg-gray-800 border border-gray-700 rounded-lg px-12 py-3 text-white placeholder-gray-400 focus:outline-none focus:border-purple-500 transition-colors duration-300"
                   />
                 </div>
@@ -100,12 +103,15 @@ export default function LoginPage() {
                 <div className="relative">
                   <Lock className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
                   <input
+                    id="password"
                     type={showPassword ? 'text' : 'password'}
                     name="password"
+                    autoComplete="current-password"
                     placeholder="Password"
                     value={formData.password}
                     onChange={handleInputChange}
                     required
+                    data-test="login-password"
                     className="w-full bg-gray-800 border border-gray-700 rounded-lg px-12 py-3 pr-12 text-white placeholder-gray-400 focus:outline-none focus:border-purple-500 transition-colors duration-300"
                   />
                   <button
