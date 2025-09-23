@@ -1,6 +1,6 @@
 
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAdmin } from '@/lib/supabase-auth';
+import { requireAdmin } from '@/lib/auth';
 import { uploadFile } from '@/lib/s3';
 import fs from 'fs/promises';
 import path from 'path';

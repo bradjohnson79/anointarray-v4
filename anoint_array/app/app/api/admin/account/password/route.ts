@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAdmin } from '@/lib/supabase-auth';
+import { requireAdmin } from '@/lib/auth';
 import { createSupabaseAdminClient } from '@/lib/supabaseClient';
 import { withApiErrorHandling } from '@/lib/api-handler';
 import bcrypt from 'bcryptjs';

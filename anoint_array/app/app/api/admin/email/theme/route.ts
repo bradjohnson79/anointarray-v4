@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import fs from 'fs/promises';
 import fsSync from 'fs';
 import path from 'path';
-import { requireAdmin } from '@/lib/supabase-auth';
+import { requireAdmin } from '@/lib/auth';
 
 const FILE = path.join(process.cwd(), 'data', 'email-theme.html');
 

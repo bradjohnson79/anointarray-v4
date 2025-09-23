@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireAdmin } from '@/lib/supabase-auth';
+import { requireAdmin } from '@/lib/auth';
 import { createSupabaseAdminClient } from '@/lib/supabaseClient';
 import fs from 'fs/promises';
 import path from 'path';

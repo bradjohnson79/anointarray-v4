@@ -1,6 +1,6 @@
 
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAdmin } from '@/lib/supabase-auth';
+import { requireAdmin } from '@/lib/auth';
 import fs from 'fs/promises';
 import path from 'path';
 import { getConfig } from '@/lib/app-config';

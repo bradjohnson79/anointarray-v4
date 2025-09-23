@@ -1,6 +1,6 @@
 
 import { NextRequest, NextResponse } from 'next/server';
-import { requireUser } from '@/lib/supabase-auth';
+import { requireUser } from '@/lib/auth';
 import fs from 'fs/promises';
 import path from 'path';
 import { getAffiliateCodeFromHeaders } from '@/lib/affiliates';

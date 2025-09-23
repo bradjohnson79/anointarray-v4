@@ -1,6 +1,6 @@
 
 import { NextResponse } from 'next/server';
-import { getAuthUserFromRequest } from '@/lib/supabase-auth';
+import { getAuthUserFromRequest } from '@/lib/auth';
 import fs from 'fs/promises';
 import { calculateCanadianTaxes } from '@/lib/canadian-taxes';
 import path from 'path';

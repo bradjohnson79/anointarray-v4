@@ -5,7 +5,7 @@ import path from 'path';
 import { createSupabaseServerClient, useSupabaseStorage, PRODUCT_IMAGES_BUCKET } from '@/lib/supabase-server';
 import { createS3Client, getBucketConfig } from '@/lib/aws-config';
 import { GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
-import { requireAdmin } from '@/lib/supabase-auth';
+import { requireAdmin } from '@/lib/auth';
 
 type ServiceKey = 'basic' | 'full' | 'environmental';
 type ServiceSettings = Record<ServiceKey, { price: number; description: string }>;

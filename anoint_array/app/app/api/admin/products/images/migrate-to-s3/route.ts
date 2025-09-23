@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireAdmin } from '@/lib/supabase-auth';
+import { requireAdmin } from '@/lib/auth';
 import { runConvex } from '@/lib/convexCli';
 import { createS3Client, getBucketConfig } from '@/lib/aws-config';
 import { PutObjectCommand } from '@aws-sdk/client-s3';

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { withApiErrorHandling } from '@/lib/api-handler';
-import { requireAdmin } from '@/lib/supabase-auth';
+import { requireAdmin } from '@/lib/auth';
 import { runConvex } from '@/lib/convexCli';
 import { callConvex } from '@/lib/convexHttp';
 

@@ -1,6 +1,6 @@
 
 import { NextResponse } from 'next/server';
-import { getAuthUserFromRequest } from '@/lib/supabase-auth';
+import { getAuthUserFromRequest } from '@/lib/auth';
 import { calculateCanadianTaxes } from '@/lib/canadian-taxes';
 import { getFxRate } from '@/lib/currency';
 import { resolvePaypalConfig, getPaypalAccessToken, createPaypalOrder } from '@/lib/paypal';

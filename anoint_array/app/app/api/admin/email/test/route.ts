@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAdmin } from '@/lib/supabase-auth';
+import { requireAdmin } from '@/lib/auth';
 import { sendReceiptEmail, sendSignupConfirmationEmail, sendNewsletterOptInEmail } from '@/lib/email';
 
 export async function POST(request: NextRequest) {
