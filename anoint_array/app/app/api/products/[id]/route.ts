@@ -25,8 +25,15 @@ async function getHandler(request: NextRequest, { params }: { params: { id: stri
 async function patchHandler(request: NextRequest, { params }: { params: { id: string } }) {
   await requireAdmin();
   const slug = params.id;
-  const patch = await request.json().catch(()=>({}));
-  const out: any = await runConvex('products:updateBySlug', { slug, patch });
+  const raw = await request.json().catch(()=>({}));
+  const patch: any = { ...raw };
+  if (patch.sortOrder !== undefined) {
+    const n = Number(patch.sortOrder);
+    if (Number.isFinite(n)) patch.sortOrder = n; else delete patch.sortOrder;
+  }
+  let out: any;
+  try { out = await runConvex('products:updateBySlug', { slug, patch }); }
+  catch { out = await callConvex({ functionPath: 'products:updateBySlug', args: { slug, patch } }); }
   if (!out?.ok) return NextResponse.json({ error: out?.error || 'Update failed' }, { status: 400 });
   return NextResponse.json({ id: slug, slug, ...patch });
 }
@@ -34,7 +41,9 @@ async function patchHandler(request: NextRequest, { params }: { params: { id: st
 async function deleteHandler(request: NextRequest, { params }: { params: { id: string } }) {
   await requireAdmin();
   const slug = params.id;
-  const out: any = await runConvex('products:deleteBySlug', { slug });
+  let out: any;
+  try { out = await runConvex('products:deleteBySlug', { slug }); }
+  catch { out = await callConvex({ functionPath: 'products:deleteBySlug', args: { slug } }); }
   if (!out?.ok) return NextResponse.json({ error: out?.error || 'Delete failed' }, { status: 400 });
   return NextResponse.json({ ok: true });
 }
