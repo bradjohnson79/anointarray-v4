@@ -176,6 +176,17 @@ export const applyDescriptions = mutation({
   }
 });
 
+export const normalizeSort = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const items = await ctx.db.query('products').collect();
+    const sorted = [...items].sort((a,b)=> (Number(b.featured||0)-Number(a.featured||0)) || ((a.name||'').localeCompare(b.name||'')) || (Number(a.createdAt||0)-Number(b.createdAt||0)) );
+    let order = 100; let count = 0;
+    for (const p of sorted) { await ctx.db.patch(p._id, { sortOrder: order }); order += 10; count++; }
+    return { ok: true, count, from: 100, step: 10 };
+  }
+});
+
 export const repairSkus = mutation({
   args: {},
   handler: async (ctx) => {

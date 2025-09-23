@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/supabase-auth';
 import { runConvex } from '@/lib/convexCli';
+import { callConvex } from '@/lib/convexHttp';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -15,7 +16,9 @@ function genSku(name: string, style?: string | null) {
 export async function POST() {
   await requireAdmin();
   try {
-    const out: any = await runConvex('products:repairSkus', {});
+    let out: any;
+    try { out = await runConvex('products:repairSkus', {}); }
+    catch { out = await callConvex({ functionPath: 'products:repairSkus', args: {} }); }
     if (!out?.ok) return NextResponse.json({ error: out?.error || 'Failed' }, { status: 500 });
     return NextResponse.json({ ok: true, updated: out.updated });
   } catch (e: any) {
