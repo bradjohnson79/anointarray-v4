@@ -8,8 +8,8 @@
     "lint": "next lint",
     "vercel:push-env": "tsx scripts/push-vercel-env.ts",
     "vercel:redeploy": "tsx scripts/vercel-redeploy.ts",
-    
     "puppeteer:products": "tsx scripts/puppeteer-products-smoke.ts",
+    "puppeteer:auth": "tsx scripts/puppeteer-auth-check.ts",
     "guard:env": "tsx scripts/audit-env.ts",
     "guard:routes": "tsx scripts/audit-routes.ts",
     "guard:db": "tsx scripts/audit-db.ts",
@@ -19,7 +19,6 @@
     "qa:sweep": "tsx scripts/qa-engineer.ts",
     "agent:fullstack": "tsx scripts/fullstack-scan.ts",
     "mcp:check": "tsx scripts/mcp-check.ts",
-    
     "stripe:login": "stripe login",
     "stripe:listen:test": "stripe listen --events checkout.session.completed --forward-to http://localhost:3002/api/payment/stripe/webhook --latest",
     "stripe:listen:all": "stripe listen --forward-to http://localhost:3002/api/payment/stripe/webhook",
@@ -43,6 +42,7 @@
     "eslint-plugin-react-hooks": "4.6.0",
     "jest": "^30.1.1",
     "postcss": "8.4.30",
+    "puppeteer": "^24.22.2",
     "tailwind-merge": "2.5.2",
     "tailwindcss": "3.3.3",
     "tailwindcss-animate": "1.0.7",
@@ -87,7 +87,6 @@
     "@radix-ui/react-toggle-group": "1.1.0",
     "@radix-ui/react-tooltip": "1.1.2",
     "@stripe/stripe-js": "^7.9.0",
-    
     "@tanstack/react-query": "5.0.0",
     "@types/bcryptjs": "2.4.6",
     "@types/jsonwebtoken": "9.0.5",

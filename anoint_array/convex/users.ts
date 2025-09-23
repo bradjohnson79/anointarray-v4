@@ -46,3 +46,8 @@ export const setPasswordHash = mutation({
   }
 });
 export const updateByEmail = mutation({ args: { email: v.string(), name: v.optional(v.union(v.string(), v.null())), role: v.optional(v.string()), isActive: v.optional(v.boolean()) }, handler: async (ctx, { email, name, role, isActive }) => { const lower = email.toLowerCase(); const existing = await ctx.db.query('users').withIndex('by_email', q=> q.eq('email', lower)).unique(); if (!existing) return { ok: false, error: 'not_found' }; const patch: any = {}; if (name !== undefined) patch.name = name; if (role !== undefined) patch.role = role; if (isActive !== undefined) patch.isActive = isActive; if (Object.keys(patch).length) await ctx.db.patch(existing._id, patch); return { ok: true }; } });
+
+export const list = query({ args: {}, handler: async (ctx) => {
+  const users = await ctx.db.query('users').collect();
+  return users.map((u: any) => ({ _id: u._id, email: u.email, name: u.name || null, role: u.role || 'USER', isActive: u.isActive !== false, createdAt: u.createdAt || null }));
+} });
