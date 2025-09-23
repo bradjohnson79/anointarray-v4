@@ -2,7 +2,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/auth';
-import { createSupabaseAdminClient } from '@/lib/supabaseClient';
+import { callConvex } from '@/lib/convexHttp';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,13 +20,9 @@ export async function POST(request: NextRequest) {
   try {
     await requireAdmin();
 
-    // Get all products that have empty slugs
-    const supabase = createSupabaseAdminClient();
-    const { data: productsWithoutSlugs, error } = await supabase
-      .from('products')
-      .select('id, name, slug')
-      .eq('slug', '');
-    if (error) throw error;
+    // Get products via Convex and filter those missing slugs
+    const all: any[] = await callConvex({ functionPath: 'products:list', args: {} });
+    const productsWithoutSlugs = (all || []).filter((p:any)=> !p.slug);
 
     const updatedProducts = [];
 
@@ -36,29 +32,11 @@ export async function POST(request: NextRequest) {
       let counter = 0;
 
       // Check for uniqueness
-      while (true) {
-        const { data: existingProduct } = await supabase
-          .from('products')
-          .select('id')
-          .eq('slug', finalSlug)
-          .maybeSingle();
-
-        if (!existingProduct || existingProduct.id === product.id) break;
-        
-        counter++;
-        finalSlug = `${baseSlug}-${counter}`;
-      }
-
-      // Update the product with the new slug
-      const { data: updatedProduct, error: uErr } = await supabase
-        .from('products')
-        .update({ slug: finalSlug })
-        .eq('id', (product as any).id)
-        .select('id, name, slug')
-        .single();
-      if (uErr) throw uErr;
-
-      updatedProducts.push(updatedProduct);
+      // Ensure unique among existing convex slugs
+      const existingSlugs = new Set((all || []).map((p:any)=> p.slug));
+      while (existingSlugs.has(finalSlug)) { counter++; finalSlug = `${baseSlug}-${counter}`; }
+      await callConvex({ functionPath: 'products:updateBySlug', args: { slug: product.slug || baseSlug, patch: { slug: finalSlug } as any } });
+      updatedProducts.push({ id: product._id || product.slug, name: product.name, slug: finalSlug });
     }
 
     return NextResponse.json({

@@ -107,9 +107,6 @@ function analyzeServer(name: string, def: ServerDef) {
   }
 
   // Heuristic checks by server name
-  if (/supabase/i.test(name)) {
-    if (!token) issues.push('Supabase access token not set');
-  }
   if (/vercel/i.test(name)) {
     if (!token) issues.push('Vercel access token not set');
   }
@@ -148,27 +145,16 @@ export async function GET() {
       // ignore; fallback
     }
 
-    // Prefer Supabase snapshot (production), then local file (dev)
+    // Prefer local file (dev)
     let raw: string | null = null;
-    let origin: 'supabase' | 'local' | 'none' = 'none';
-    try {
-      const { createSupabaseServerClient, CONFIGS_BUCKET } = await import('@/lib/supabase-server');
-      const supabase = createSupabaseServerClient();
-      const dl = await supabase.storage.from(CONFIGS_BUCKET).download('configs/mcp/config.toml');
-      if (!dl.error && dl.data) {
-        raw = await (dl.data as any).text();
-        configPath = `supabase://${CONFIGS_BUCKET}/configs/mcp/config.toml`;
-        origin = 'supabase';
-      }
-    } catch {}
+    let origin: 'local' | 'none' = 'none';
     if (!raw && fsSync.existsSync(configPath)) {
       raw = await fs.readFile(configPath, 'utf8');
       origin = 'local';
     }
     if (!raw) {
       return NextResponse.json({ ok: false, configPath, servers: [], issues: [
-        'MCP config not found in Supabase snapshot or local file.',
-        'Use Save Token to create a snapshot, or add .codex/config.toml in the repo.',
+        'MCP config not found. Add .codex/config.toml in the repo.',
       ], origin }, { status: 200 });
     }
     const parsed = safeParseToml(raw);
@@ -196,11 +182,10 @@ export async function GET() {
 
     // Enrich/override from environment tokens so status reflects provided secrets without manual save
     const envTokens: Record<string,string|undefined> = {
-      supabase: process.env.SUPABASE_ACCESS_TOKEN || process.env.SUPABASE_PAT,
       vercel: process.env.VERCEL_PERSONAL_ACCESS_TOKEN || process.env.VERCEL_API_TOKEN,
       github: process.env.GIT_PERSONAL_ACCESS_TOKEN || process.env.GITHUB_TOKEN,
     };
-    const names = ['supabase','vercel','github'];
+    const names = ['vercel','github'];
     for (const n of names) {
       const tok = envTokens[n];
       if (!tok) continue;

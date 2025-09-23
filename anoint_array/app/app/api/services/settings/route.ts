@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import fs from 'fs/promises';
 import fsSync from 'fs';
 import path from 'path';
-import { createSupabaseServerClient, useSupabaseStorage, PRODUCT_IMAGES_BUCKET } from '@/lib/supabase-server';
 import { createS3Client, getBucketConfig } from '@/lib/aws-config';
 import { GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
 import { requireAdmin } from '@/lib/auth';
@@ -43,27 +42,7 @@ async function readSettings(): Promise<ServiceSettings> {
       environmental: { price: Number(parsed?.environmental?.price ?? DEFAULTS.environmental.price), description: String(parsed?.environmental?.description ?? DEFAULTS.environmental.description) },
     };
   } catch {
-    // Try Supabase Storage fallback
-    try {
-      if (useSupabaseStorage()) {
-        const supabase = createSupabaseServerClient();
-        const bucket = process.env.SUPABASE_CONFIGS_BUCKET || 'configs' || PRODUCT_IMAGES_BUCKET || 'Storage';
-        const { data, error } = await supabase.storage.from(bucket).download('configs/service-settings.json');
-        if (!error && data) {
-          let text: string = '';
-          if (typeof (data as any).text === 'function') text = await (data as any).text();
-          else if (typeof (data as any).arrayBuffer === 'function') {
-            const buf = Buffer.from(await (data as any).arrayBuffer()); text = buf.toString('utf8');
-          }
-          const parsed = JSON.parse(text || '{}');
-          return {
-            basic: { price: Number(parsed?.basic?.price ?? DEFAULTS.basic.price), description: String(parsed?.basic?.description ?? DEFAULTS.basic.description) },
-            full: { price: Number(parsed?.full?.price ?? DEFAULTS.full.price), description: String(parsed?.full?.description ?? DEFAULTS.full.description) },
-            environmental: { price: Number(parsed?.environmental?.price ?? DEFAULTS.environmental.price), description: String(parsed?.environmental?.description ?? DEFAULTS.environmental.description) },
-          };
-        }
-      }
-    } catch {}
+    // Supabase removed; return defaults
     return DEFAULTS;
   }
 }
@@ -87,7 +66,7 @@ export async function POST(req: NextRequest) {
       full: { price: isFinite(incoming.full.price) ? incoming.full.price : DEFAULTS.full.price, description: incoming.full.description || DEFAULTS.full.description },
       environmental: { price: isFinite(incoming.environmental.price) ? incoming.environmental.price : DEFAULTS.environmental.price, description: incoming.environmental.description || DEFAULTS.environmental.description },
     };
-    // Prefer S3; fallback to local file; finally Supabase
+    // Prefer S3; fallback to local file
     try {
       const s3 = createS3Client();
       const { bucketName } = getBucketConfig();
@@ -101,17 +80,7 @@ export async function POST(req: NextRequest) {
         await fs.writeFile(FILE, JSON.stringify(clean, null, 2), 'utf8');
         return NextResponse.json({ ok: true, saved: clean, storage: 'file' });
       } catch (fe: any) {
-        try {
-          if (!useSupabaseStorage()) throw new Error('Supabase storage not configured');
-          const supabase = createSupabaseServerClient();
-          const bucket = process.env.SUPABASE_CONFIGS_BUCKET || 'configs' || PRODUCT_IMAGES_BUCKET || 'Storage';
-          const blob = new Blob([JSON.stringify(clean)], { type: 'application/json' });
-          const { error } = await supabase.storage.from(bucket).upload('configs/service-settings.json', blob, { upsert: true, contentType: 'application/json' });
-          if (error) throw error;
-          return NextResponse.json({ ok: true, saved: clean, storage: 'supabase' });
-        } catch (be: any) {
-          return NextResponse.json({ error: be?.message || fe?.message || e?.message || 'Failed to save' }, { status: 500 });
-        }
+        return NextResponse.json({ error: fe?.message || e?.message || 'Failed to save' }, { status: 500 });
       }
     }
   } catch (e: any) {

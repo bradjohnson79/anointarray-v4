@@ -137,69 +137,12 @@ export default function FileManager() {
   // Auto‑migrate once per browser if desired (commented out by default)
   // useEffect(()=>{ if (!localStorage.getItem('s3_migrated_v1')) { /* trigger widget start */ } },[]);
 
-  const handleSyncSupabase = async () => {
-    try {
-      setSyncing(true);
-      const r = await fetch('/api/file-manager/supabase/sync', { method: 'POST' });
-      const j = await r.json();
-      if (r.ok) {
-        toast.success(`Synced ${j.uploaded} image(s) to Supabase${j.failed?`, ${j.failed} failed`:''}`);
-        await fetchImages();
-      } else {
-        toast.error(j?.error || 'Sync failed');
-      }
-    } catch (e) {
-      toast.error('Sync failed');
-    } finally {
-      setSyncing(false);
-    }
-  };
+  // Legacy Supabase sync removed
 
-  async function handleSyncGlyphs() {
-    try {
-      setSyncing(true);
-      const r = await fetch('/api/file-manager/supabase/sync-glyphs', { method: 'POST' });
-      const j = await r.json();
-      if (r.ok) {
-        toast.success(`Glyphs synced: ${j.uploaded} uploaded${j.failed?`, ${j.failed} failed`:''}`);
-      } else {
-        toast.error(j?.error || 'Glyph sync failed');
-      }
-    } catch (e) {
-      toast.error('Glyph sync failed');
-    } finally {
-      setSyncing(false);
-    }
-  }
+  // Legacy Supabase glyph sync removed
 
   // One-time auto sync on first admin visit (per-browser) when Supabase is enabled
-  useEffect(() => {
-    const key = 'supabaseAutoSyncDone';
-    if (typeof window === 'undefined') return;
-    if (autoSyncAttempted) return;
-    const done = window.localStorage.getItem(key);
-    if (done === '1') return;
-    // Attempt sync; if Supabase not configured, API returns 400; we show error once.
-    (async () => {
-      try {
-        setAutoSyncAttempted(true);
-        const r = await fetch('/api/file-manager/supabase/sync', { method: 'POST' });
-        const j = await r.json().catch(()=>({}));
-        if (r.ok) {
-          window.localStorage.setItem(key, '1');
-          if (typeof j?.uploaded === 'number') {
-            toast.success(`Synced ${j.uploaded} image(s) to Supabase${j.failed?`, ${j.failed} failed`:''}`);
-            await fetchImages();
-          }
-        } else if (j?.error) {
-          // Surface once; user can configure and retry via the button
-          toast.error(j.error);
-        }
-      } catch {
-        // ignore
-      }
-    })();
-  }, [autoSyncAttempted, fetchImages]);
+  // Legacy Supabase auto‑sync removed
 
   // Handle file selection
   const handleFileSelect = (files: FileList | File[]) => {
@@ -333,7 +276,7 @@ export default function FileManager() {
           ));
           
           // Optimistic update: add the uploaded image to the gallery immediately if URL present
-          if (data?.url && data?.storage === 'supabase') {
+          if (data?.url) {
             setImages(prev => [
               {
                 filename: data.cloudStoragePath || fileWithName.customName,
@@ -436,19 +379,12 @@ export default function FileManager() {
             Upload and manage product images. Upload up to 10 images at once (JPG/PNG only, max 5MB each).
           </p>
           <div className="mt-4"><S3MigrationWidget /></div>
-          {/* Supabase status indicator */}
+          {/* Storage status indicator */}
           <div className="mt-3">
-            {storageMode === 'supabase' && !fmError ? (
-              <div className="inline-flex items-center px-3 py-1 rounded bg-emerald-700/30 border border-emerald-600 text-emerald-300 text-xs">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 mr-2"></span>
-                Supabase Connected (bucket: product-images)
-              </div>
-            ) : (
-              <div className="inline-flex items-center px-3 py-1 rounded bg-red-700/30 border border-red-600 text-red-300 text-xs">
-                <span className="w-2 h-2 rounded-full bg-red-400 mr-2"></span>
-                {fmError ? `File Manager error: ${fmError}` : 'Supabase not configured'}
-              </div>
-            )}
+            <div className={`inline-flex items-center px-3 py-1 rounded border text-xs ${fmError ? 'bg-red-700/30 border-red-600 text-red-300' : 'bg-emerald-700/30 border-emerald-600 text-emerald-300'}`}>
+              <span className={`w-2 h-2 rounded-full mr-2 ${fmError ? 'bg-red-400' : 'bg-emerald-400'}`}></span>
+              {fmError ? `File Manager error: ${fmError}` : `Storage: ${storageMode || 'local'}`}
+            </div>
           </div>
         </div>
 
@@ -611,14 +547,7 @@ export default function FileManager() {
           )}
         </div>
 
-      {/* Glyphs */}
-      <div className="bg-gray-800 rounded-lg p-6">
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-xl font-semibold text-white flex items-center"><Folder className="h-5 w-5 mr-2"/>Glyphs</h2>
-          <button onClick={handleSyncGlyphs} disabled={syncing} className="bg-green-700 hover:bg-green-600 disabled:opacity-50 text-white px-3 py-2 rounded-lg transition-colors duration-200">{syncing ? 'Syncing…' : 'Sync Glyphs to Supabase'}</button>
-        </div>
-        <p className="text-sm text-gray-300">Uploads local glyph images from <code>uploads/glyphs</code>, <code>public/glyphs</code>, or <code>data/ai-resources/glyphs</code> to your Supabase bucket.</p>
-      </div>
+      {/* Glyphs sync removed (legacy Supabase) */}
 
       {/* Image Gallery */}
       <div className="bg-gray-800 rounded-lg p-6">
@@ -638,11 +567,7 @@ export default function FileManager() {
                 <RefreshCw className="h-4 w-4 mr-2" />
                 Refresh
               </button>
-              <button
-                onClick={handleSyncSupabase}
-                disabled={syncing}
-                className="bg-green-700 hover:bg-green-600 disabled:opacity-50 text-white px-3 py-2 rounded-lg transition-colors duration-200"
-              >{syncing ? 'Syncing...' : 'Sync to Supabase'}</button>
+              {/* Legacy Supabase sync button removed */}
             </div>
           </div>
 

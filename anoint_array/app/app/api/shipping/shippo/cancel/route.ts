@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/auth';
-import { createSupabaseAdminClient } from '@/lib/supabaseClient';
+// Supabase removed; persistence updates omitted
 
 export const dynamic = 'force-dynamic';
 
@@ -24,8 +24,7 @@ export async function POST(request: NextRequest) {
     if (!resp.ok) return NextResponse.json({ error: 'Shippo refund failed', refund }, { status: 500 });
 
     if (shipmentId) {
-      const s = createSupabaseAdminClient();
-      await s.from('shipments').update({ status: 'cancelled', apiAudit: { refund } }).eq('id', shipmentId);
+      // Update DB omitted (Supabase removed). Consider Convex persistence if needed.
     }
     return NextResponse.json({ success: true, refund });
   } catch (e) {

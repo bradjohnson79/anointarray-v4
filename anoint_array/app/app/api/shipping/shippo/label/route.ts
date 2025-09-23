@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/auth';
-import { createSupabaseAdminClient } from '@/lib/supabaseClient';
+import { callConvex } from '@/lib/convexHttp';
 
 export const dynamic = 'force-dynamic';
 
@@ -130,28 +130,25 @@ export async function POST(request: NextRequest) {
     const transaction = await shippo.transaction.create({ rate: preferred?.object_id, label_file_type: 'PDF', async: false });
     if (transaction?.status !== 'SUCCESS') return NextResponse.json({ error: 'Shippo purchase failed', transaction }, { status: 500 });
 
-    // Persist shipment in DB when connected to an order
-    if (body.orderId) {
-      try {
-        const s = createSupabaseAdminClient();
-        await s.from('shipments').insert({
-            orderId: body.orderId,
-            carrier: 'canadapost',
-            incoterm: (String(address_to.country).toUpperCase() !== 'CA') ? 'DDP' : 'DDP',
-            customsReason: 'SOLD',
-            labelMeta: preferred,
-            apiAudit: { shipment, transaction },
-            trackingNumber: transaction?.tracking_number || null,
-            labelUrl: transaction?.label_url || null,
-            cost: preferred?.amount ? Number(preferred.amount) : null,
-            service: preferred?.servicelevel?.name || preferred?.servicelevel?.token || preferred?.servicelevel || 'Canada Post',
-            estimatedDelivery: preferred?.estimated_days ? new Date(Date.now() + preferred.estimated_days * 86400000) : null,
-            status: 'created',
-          });
-      } catch (e) {
-        console.warn('DB persist shipment failed:', e);
+    // Persist shipment in Convex (optional, best effort)
+    try {
+      if (body.orderId) {
+        await callConvex({ functionPath: 'shipments:add', args: {
+          orderId: body.orderId as any,
+          orderNumber: String((body as any).orderNumber || ''),
+          carrier: (/ups/i.test(preferred?.provider||preferred?.carrier||'')?'ups':'canada-post'),
+          trackingNumber: transaction?.tracking_number || undefined,
+          labelUrl: transaction?.label_url || undefined,
+          cost: preferred?.amount ? Number(preferred.amount) : undefined,
+          service: preferred?.servicelevel?.name || preferred?.servicelevel?.token || (preferred?.service || undefined),
+          estimatedDelivery: preferred?.estimated_days ? String(preferred.estimated_days) : undefined,
+          transactionId: transaction?.object_id || undefined,
+          shipmentId: shipment?.object_id || undefined,
+          status: 'created',
+          meta: { rate: preferred },
+        } });
       }
-    }
+    } catch {}
 
     return NextResponse.json({
       success: true,

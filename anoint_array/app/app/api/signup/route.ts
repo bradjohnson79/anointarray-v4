@@ -1,7 +1,9 @@
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createSupabaseAdminClient } from '@/lib/supabaseClient';
 import { withApiErrorHandling } from '@/lib/api-handler';
+import bcrypt from 'bcryptjs';
+import { runConvex } from '@/lib/convexCli';
+import { callConvex } from '@/lib/convexHttp';
 import { BadRequestError, ConflictError } from '@/lib/http-errors';
 
 async function handler(req: NextRequest) {
@@ -17,27 +19,18 @@ async function handler(req: NextRequest) {
     throw new BadRequestError('Email, password, and full name are required');
   }
 
-    const s = createSupabaseAdminClient();
-    // Check if user already exists (profile table)
-    const { data: existingUser } = await s
-      .from('users')
-      .select('id')
-      .eq('email', String(email).toLowerCase())
-      .maybeSingle();
-
-  if (existingUser) {
-    throw new ConflictError('User with this email already exists');
-  }
-
-    // Create Supabase Auth user and profile row
     const emailLower = String(email).toLowerCase();
-    const adminRes = await s.auth.admin.createUser({ email: emailLower, password: String(password), email_confirm: true });
-    if (adminRes.error) throw new BadRequestError(adminRes.error.message || 'Failed to create auth user');
-    const { data: user } = await s
-      .from('users')
-      .upsert({ email: emailLower, name: String(fullName), role: 'USER', isActive: true }, { onConflict: 'email' })
-      .select('id, email, name, role, createdAt')
-      .single();
+    // Check if user exists in Convex
+    let existing: any;
+    try { existing = await runConvex('users:byEmail', { email: emailLower }); } catch { existing = await callConvex({ functionPath: 'users:byEmail', args: { email: emailLower } }); }
+    if (existing) throw new ConflictError('User with this email already exists');
+    // Hash and store
+    const hash = await bcrypt.hash(String(password), 10);
+    try { await runConvex('users:setPasswordHash', { email: emailLower, passwordHash: hash }); }
+    catch { await callConvex({ functionPath: 'users:setPasswordHash', args: { email: emailLower, passwordHash: hash } }); }
+    try { await runConvex('users:upsertByEmail', { email: emailLower, name: String(fullName) }); }
+    catch { await callConvex({ functionPath: 'users:upsertByEmail', args: { email: emailLower, name: String(fullName) } }); }
+    const user = { email: emailLower, name: String(fullName), role: 'USER' };
 
     // Remove password from response
   return NextResponse.json(

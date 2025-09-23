@@ -4,7 +4,7 @@ import { requireAdmin } from '@/lib/auth';
 import { uploadFile } from '@/lib/s3';
 import fs from 'fs/promises';
 import path from 'path';
-import { createSupabaseServerClient, useSupabaseStorage, PRODUCT_IMAGES_BUCKET } from '@/lib/supabase-server';
+// Supabase removed — uploads go to S3 or local fallback
 
 export const dynamic = 'force-dynamic';
 
@@ -98,37 +98,11 @@ export async function POST(request: NextRequest) {
       .replace(/^-|-$/g, '');
     const finalName = `${baseName}.${ext}`;
 
-    if (useSupabaseStorage()) {
-      try {
-        const supabase = createSupabaseServerClient();
-        const objectPath = `${finalName}`; // root of bucket
-        const { error } = await supabase.storage.from(PRODUCT_IMAGES_BUCKET).upload(objectPath, buffer, {
-          upsert: true,
-          contentType: file.type || 'application/octet-stream',
-        });
-        if (error) throw error;
-
-        // Try a signed URL (works even if bucket not public)
-        const signed = await supabase.storage.from(PRODUCT_IMAGES_BUCKET).createSignedUrl(objectPath, 3600);
-        const publicResult = supabase.storage.from(PRODUCT_IMAGES_BUCKET).getPublicUrl(objectPath);
-        const url = (signed.data?.signedUrl) || publicResult.data.publicUrl;
-
-        return NextResponse.json({
-          success: true,
-          url,
-          cloudStoragePath: objectPath,
-          size: file.size,
-          type: file.type,
-          storage: 'supabase',
-          bucket: PRODUCT_IMAGES_BUCKET,
-        });
-      } catch (e: any) {
-        console.error('Supabase upload failed:', e);
-        return NextResponse.json({ error: 'Supabase upload failed', code: 'SUPABASE_UPLOAD_FAILED', message: String(e?.message || e) }, { status: 500 });
-      }
+    const uploaded = await uploadFile(buffer, finalName, file.type);
+    if (!uploaded.success) {
+      return NextResponse.json({ error: uploaded.error || 'Upload failed' }, { status: 500 });
     }
-
-    return NextResponse.json({ error: 'Supabase storage not configured', code: 'SUPABASE_NOT_CONFIGURED' }, { status: 400 });
+    return NextResponse.json({ success: true, url: uploaded.publicUrl, cloudStoragePath: uploaded.cloudStoragePath, size: file.size, type: file.type, storage: process.env.AWS_ACCESS_KEY_ID ? 's3' : 'local' });
 
   } catch (error) {
     console.error('Error uploading file:', error);

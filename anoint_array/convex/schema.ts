@@ -33,6 +33,29 @@ export default defineSchema({
     createdAt: v.number(),
   }).index("by_product", ["productId"]),
 
+  appConfig: defineTable({
+    key: v.string(),
+    value: v.any(),
+    updatedAt: v.number(),
+  }).index('by_key', ['key']),
+
+  vipWaitlist: defineTable({
+    name: v.string(),
+    email: v.string(),
+    phone: v.optional(v.string()),
+    interests: v.optional(v.string()),
+    createdAt: v.number(),
+  }).index('by_email', ['email']),
+
+  contactForms: defineTable({
+    name: v.string(),
+    email: v.string(),
+    subject: v.optional(v.string()),
+    message: v.string(),
+    formType: v.optional(v.string()),
+    createdAt: v.number(),
+  }),
+
   orders: defineTable({
     userEmail: v.string(),
     orderNumber: v.string(),
@@ -40,12 +63,65 @@ export default defineSchema({
     paymentStatus: v.optional(v.string()),
     status: v.optional(v.string()),
     createdAt: v.number(),
-  }).index("by_email", ["userEmail"]),
+    updatedAt: v.optional(v.number()),
+    // Customer + contact
+    customerName: v.optional(v.string()),
+    customerEmail: v.optional(v.string()),
+    customerPhone: v.optional(v.string()),
+    // Payment/shipping totals
+    subtotal: v.optional(v.number()),
+    taxAmount: v.optional(v.number()),
+    shippingAmount: v.optional(v.number()),
+    paymentMethod: v.optional(v.string()),
+    // Addresses
+    shippingAddress: v.optional(v.any()),
+    billingAddress: v.optional(v.any()),
+    trackingNumber: v.optional(v.string()),
+    notes: v.optional(v.string()),
+    refundAmount: v.optional(v.number()),
+    // Tax & customs
+    buyerCountry: v.optional(v.string()),
+    shippingCountry: v.optional(v.string()),
+    taxSubtotalCad: v.optional(v.number()),
+    taxBreakdown: v.optional(v.any()),
+    dutiesEstimatedCad: v.optional(v.number()),
+    taxesEstimatedCad: v.optional(v.number()),
+    dutiesTaxesCurrency: v.optional(v.string()),
+    incoterm: v.optional(v.string()),
+    // Status timestamps
+    shippedAt: v.optional(v.number()),
+    deliveredAt: v.optional(v.number()),
+    cancelledAt: v.optional(v.number()),
+    refundedAt: v.optional(v.number()),
+  }).index("by_email", ["userEmail"]).index('by_orderNumber', ['orderNumber']),
 
   orderItems: defineTable({
     orderId: v.id("orders"),
     productId: v.id("products"),
     quantity: v.number(),
     price: v.number(),
+    // Customs snapshot fields
+    hsCode: v.optional(v.string()),
+    countryOfOrigin: v.optional(v.string()),
+    customsDescription: v.optional(v.string()),
+    unitValueCad: v.optional(v.number()),
+    massGramsEach: v.optional(v.number()),
+    isDigital: v.optional(v.boolean()),
   }).index("by_order", ["orderId"]),
+
+  shipments: defineTable({
+    orderId: v.id('orders'),
+    orderNumber: v.string(),
+    carrier: v.string(),
+    trackingNumber: v.optional(v.string()),
+    labelUrl: v.optional(v.string()),
+    cost: v.optional(v.number()),
+    service: v.optional(v.string()),
+    estimatedDelivery: v.optional(v.string()),
+    transactionId: v.optional(v.string()),
+    shipmentId: v.optional(v.string()),
+    status: v.optional(v.string()),
+    createdAt: v.number(),
+    meta: v.optional(v.any()),
+  }).index('by_order', ['orderId']).index('by_tracking', ['trackingNumber']),
 });

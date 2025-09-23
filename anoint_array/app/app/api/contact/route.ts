@@ -1,6 +1,6 @@
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createSupabaseAdminClient } from '@/lib/supabaseClient';
+import { callConvex } from '@/lib/convexHttp';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,36 +26,30 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Save to database
-    const s = createSupabaseAdminClient();
-    const { data: contactForm, error } = await s
-      .from('contact_forms')
-      .insert({
-        name: name.trim(),
-        email: email.trim().toLowerCase(),
-        subject: subject?.trim() || null,
-        message: message.trim(),
-        formType: formType || 'contact',
-      })
-      .select('id, name, email, subject, message, formType')
-      .single();
-    if (error) throw error;
+    // Save to Convex
+    const addRes: any = await callConvex({ functionPath: 'contact:add', args: {
+      name: name.trim(),
+      email: email.trim().toLowerCase(),
+      subject: subject?.trim() || undefined,
+      message: message.trim(),
+      formType: formType || 'contact',
+    } });
 
     // Send email notification (placeholder - in production would use email service)
     console.log(`New contact form submission:
-      ID: ${contactForm.id}
-      Name: ${contactForm.name}
-      Email: ${contactForm.email}
-      Subject: ${contactForm.subject || 'No subject'}
-      Type: ${contactForm.formType}
-      Message: ${contactForm.message}
+      ID: ${addRes?.id || 'n/a'}
+      Name: ${name}
+      Email: ${email}
+      Subject: ${subject || 'No subject'}
+      Type: ${formType || 'contact'}
+      Message: ${message}
       
       This message should be sent to: info@anoint.me`);
 
     return NextResponse.json({ 
       success: true, 
       message: 'Contact form submitted successfully',
-      id: contactForm.id 
+      id: addRes?.id 
     });
 
   } catch (error) {

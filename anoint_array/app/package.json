@@ -8,7 +8,7 @@
     "lint": "next lint",
     "vercel:push-env": "tsx scripts/push-vercel-env.ts",
     "vercel:redeploy": "tsx scripts/vercel-redeploy.ts",
-    "convex:restore": "tsx scripts/restore-convex-from-supabase.ts",
+    
     "puppeteer:products": "tsx scripts/puppeteer-products-smoke.ts",
     "guard:env": "tsx scripts/audit-env.ts",
     "guard:routes": "tsx scripts/audit-routes.ts",
@@ -19,8 +19,7 @@
     "qa:sweep": "tsx scripts/qa-engineer.ts",
     "agent:fullstack": "tsx scripts/fullstack-scan.ts",
     "mcp:check": "tsx scripts/mcp-check.ts",
-    "admin:promote": "tsx scripts/promote-admin.ts",
-    "admin:upsert": "tsx scripts/upsert-admins.ts",
+    
     "stripe:login": "stripe login",
     "stripe:listen:test": "stripe listen --events checkout.session.completed --forward-to http://localhost:3002/api/payment/stripe/webhook --latest",
     "stripe:listen:all": "stripe listen --forward-to http://localhost:3002/api/payment/stripe/webhook",
@@ -88,8 +87,7 @@
     "@radix-ui/react-toggle-group": "1.1.0",
     "@radix-ui/react-tooltip": "1.1.2",
     "@stripe/stripe-js": "^7.9.0",
-    "@supabase/ssr": "^0.5.1",
-    "@supabase/supabase-js": "^2.57.4",
+    
     "@tanstack/react-query": "5.0.0",
     "@types/bcryptjs": "2.4.6",
     "@types/jsonwebtoken": "9.0.5",

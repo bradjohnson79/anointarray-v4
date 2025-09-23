@@ -1,30 +1,17 @@
-import { createSupabaseAdminClient } from '@/lib/supabaseClient';
+import { callConvex } from '@/lib/convexHttp';
 
 export async function getConfig<T = any>(key: string, fallback?: T): Promise<T | undefined> {
-  const supabase = createSupabaseAdminClient();
-  const { data, error } = await supabase
-    .from('app_config')
-    .select('value')
-    .eq('key', key)
-    .maybeSingle();
-  if (error) return fallback;
-  if (data && (data as any).value != null) return (data as any).value as T;
-  return fallback;
+  try {
+    const value = await callConvex({ functionPath: 'appConfig:get', args: { key } });
+    return (value === undefined ? fallback : (value as T));
+  } catch { return fallback; }
 }
 
 export async function setConfig<T = any>(key: string, value: T): Promise<void> {
-  const supabase = createSupabaseAdminClient();
-  // Upsert by unique key
-  await supabase
-    .from('app_config')
-    .upsert({ key, value: value as any }, { onConflict: 'key' });
+  await callConvex({ functionPath: 'appConfig:set', args: { key, value } });
 }
 
 export async function hasConfig(key: string): Promise<boolean> {
-  const supabase = createSupabaseAdminClient();
-  const { count } = await supabase
-    .from('app_config')
-    .select('*', { count: 'exact', head: true })
-    .eq('key', key);
-  return !!(count && count > 0);
+  try { return !!(await callConvex({ functionPath: 'appConfig:has', args: { key } })); }
+  catch { return false; }
 }

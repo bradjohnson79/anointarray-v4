@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/auth';
-import { createSupabaseAdminClient } from '@/lib/supabaseClient';
 import { getConfig } from '@/lib/app-config';
 import fs from 'fs/promises';
 import path from 'path';
@@ -42,38 +41,20 @@ export async function GET(request: NextRequest) {
 
     const checks: Check[] = [];
 
-    // Database connectivity and counts
+    // Convex connectivity and counts
     try {
-      const s = createSupabaseAdminClient();
-      const res: any = { connected: true };
-      const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
-      if (url) res.target = url;
-      const oc = await s.from('orders').select('*', { count: 'exact', head: true });
-      const pc = await s.from('products').select('*', { count: 'exact', head: true });
-      const uc = await s.from('users').select('*', { count: 'exact', head: true });
-      const ac = await s.from('users').select('*', { count: 'exact', head: true }).eq('role', 'ADMIN').eq('isActive', true);
-      res.ordersCount = oc.count ?? 'n/a';
-      res.productsCount = pc.count ?? 'n/a';
-      res.usersCount = uc.count ?? 'n/a';
-      res.adminsCount = ac.count ?? 'n/a';
-      const status: CheckStatus = (typeof res.ordersCount === 'string' || typeof res.productsCount === 'string' || typeof res.usersCount === 'string') ? 'warn' : 'ok';
-      checks.push({ key: 'db', label: 'Database', status, details: res });
+      const orders: any[] = await (await import('@/lib/convexHttp')).callConvex({ functionPath: 'orders:list', args: {} });
+      const products: any[] = await (await import('@/lib/convexHttp')).callConvex({ functionPath: 'products:list', args: {} });
+      const res: any = { connected: true, target: process.env.CONVEX_URL || null, ordersCount: orders?.length || 0, productsCount: products?.length || 0 };
+      const status: CheckStatus = 'ok';
+      checks.push({ key: 'db', label: 'Convex', status, details: res });
     } catch (e: any) {
       const suggestions: any = { error: String(e?.message || e) };
-      suggestions.howToCheck = 'Verify SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY env vars. Test /api/debug/db';
-      checks.push({ key: 'db', label: 'Database', status: 'error', message: 'Database connection failed', details: suggestions });
+      suggestions.howToCheck = 'Verify CONVEX_URL and CONVEX_ADMIN_KEY env vars.';
+      checks.push({ key: 'db', label: 'Convex', status: 'error', message: 'Convex connection failed', details: suggestions });
     }
 
-    // Supabase Auth
-    const supaUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
-    const service = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    checks.push({
-      key: 'supabase',
-      label: 'Auth (Supabase)',
-      status: (supaUrl && anon) ? 'ok' : 'warn',
-      details: { SUPABASE_URL: !!supaUrl, ANON: !!anon, SERVICE_ROLE: !!service }
-    });
+    // Removed legacy Supabase check
 
     // Payments: storefront config file and envs
     const dataDir = path.join(process.cwd(), 'data');
@@ -134,20 +115,18 @@ export async function GET(request: NextRequest) {
 
     // Orders health
     try {
-      const s = createSupabaseAdminClient();
-      const { count: oc } = await s.from('orders').select('*', { count: 'exact', head: true });
-      checks.push({ key: 'orders', label: 'Orders Read', status: 'ok', details: { hasAny: !!(oc && oc > 0) } });
+      const orders: any[] = await (await import('@/lib/convexHttp')).callConvex({ functionPath: 'orders:list', args: {} });
+      checks.push({ key: 'orders', label: 'Orders Read', status: 'ok', details: { hasAny: Array.isArray(orders) && orders.length > 0 } });
     } catch (e: any) {
-      checks.push({ key: 'orders', label: 'Orders Read', status: 'error', message: 'Cannot query orders table', details: { error: String(e?.message || e) } });
+      checks.push({ key: 'orders', label: 'Orders Read', status: 'error', message: 'Cannot query orders', details: { error: String(e?.message || e) } });
     }
 
     // Products health
     try {
-      const s = createSupabaseAdminClient();
-      const { count: pc } = await s.from('products').select('*', { count: 'exact', head: true });
-      checks.push({ key: 'products', label: 'Products', status: (pc && pc > 0) ? 'ok' : 'warn', details: { hasAny: !!(pc && pc > 0) } });
+      const products: any[] = await (await import('@/lib/convexHttp')).callConvex({ functionPath: 'products:list', args: {} });
+      checks.push({ key: 'products', label: 'Products', status: (Array.isArray(products) && products.length > 0) ? 'ok' : 'warn', details: { hasAny: Array.isArray(products) && products.length > 0 } });
     } catch (e: any) {
-      checks.push({ key: 'products', label: 'Products', status: 'error', message: 'Cannot query products table', details: { error: String(e?.message || e) } });
+      checks.push({ key: 'products', label: 'Products', status: 'error', message: 'Cannot query products', details: { error: String(e?.message || e) } });
     }
 
     // Result

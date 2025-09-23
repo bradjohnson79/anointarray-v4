@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/auth';
 import { readdir, stat } from 'fs/promises';
 import path from 'path';
-import { createSupabaseServerClient, useSupabaseStorage, PRODUCT_IMAGES_BUCKET } from '@/lib/supabase-server';
+// Supabase removed. Listing from local/uploads and assets directories.
 
 export const dynamic = 'force-dynamic';
 
@@ -73,41 +73,8 @@ export async function GET(request: NextRequest) {
   try {
     try { await requireAdmin(); } catch { return NextResponse.json({ error: 'Unauthorized' }, { status: 401 }); }
 
-    // Strict Supabase-only mode
-    const useSupabase = useSupabaseStorage();
-    const useLocalFallback = false;
-
-    if (!useSupabase) {
-      return NextResponse.json({ success: true, images: [], count: 0, error: 'SUPABASE_NOT_CONFIGURED' });
-    } else {
-      // Supabase mode
-      try {
-        const supabase = createSupabaseServerClient();
-        const { data, error } = await supabase.storage.from(PRODUCT_IMAGES_BUCKET).list('', { limit: 1000, sortBy: { column: 'updated_at', order: 'desc' } });
-        if (error) throw error;
-        const imageExtensions = new Set(['.jpg', '.jpeg', '.png']);
-        const out: Array<{ filename: string; originalName: string; url: string; size: number; uploadedAt: string }>= [];
-        for (const obj of data || []) {
-          const ext = path.extname(obj.name).toLowerCase();
-          if (!imageExtensions.has(ext)) continue;
-          const originalName = obj.name;
-          const signed = await supabase.storage.from(PRODUCT_IMAGES_BUCKET).createSignedUrl(obj.name, 3600);
-          const publicUrl = supabase.storage.from(PRODUCT_IMAGES_BUCKET).getPublicUrl(obj.name).data.publicUrl;
-          const url = signed.data?.signedUrl || publicUrl;
-          out.push({
-            filename: obj.name,
-            originalName,
-            url,
-            size: (obj as any).metadata?.size || 0,
-            uploadedAt: obj.updated_at ? new Date(obj.updated_at).toISOString() : new Date().toISOString(),
-          });
-        }
-        return NextResponse.json({ success: true, images: out, count: out.length, mode: 'supabase' });
-      } catch (e) {
-        console.error('Supabase list error:', e);
-        return NextResponse.json({ success: true, images: [], count: 0 });
-      }
-    }
+    const imgs = await listLocalImages();
+    return NextResponse.json({ success: true, images: imgs, count: imgs.length, mode: 'local' });
 
   } catch (error) {
     console.error('Error fetching images:', error);

@@ -4,7 +4,7 @@ import fs from 'fs/promises';
 import fsSync from 'fs';
 import path from 'path';
 import os from 'os';
-import { createSupabaseServerClient, CONFIGS_BUCKET } from '@/lib/supabase-server';
+// Supabase removed; only local config.toml updates are supported
 
 export const dynamic = 'force-dynamic';
 
@@ -74,7 +74,7 @@ export async function POST(req: NextRequest) {
       return (raw.trimEnd() + `\n` + newSection + `\n`).replace(/^\s+$/,'');
     };
 
-    // Try to write local (dev); fallback to Supabase snapshot on failure (e.g., Vercel read-only)
+    // Try to write local (dev)
     if (fsSync.existsSync(configPath)) {
       try {
         const raw = await fs.readFile(configPath, 'utf8');
@@ -86,20 +86,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Fall back to Supabase storage snapshot (production)
-    const supabase = createSupabaseServerClient();
-    const objectPath = 'configs/mcp/config.toml';
-    let existing = '';
-    try {
-      const dl = await supabase.storage.from(CONFIGS_BUCKET).download(objectPath);
-      if (!dl.error && dl.data) existing = await (dl.data as any).text();
-    } catch {}
-    const base = existing || `# MCP config snapshot\n[mcpServers.${name}]\ncommand = \"pnpm\"\n`;
-    const updated = updateToml(base);
-    const blob = new Blob([updated], { type: 'text/plain' });
-    const up = await supabase.storage.from(CONFIGS_BUCKET).upload(objectPath, blob, { upsert: true, contentType: 'text/plain' });
-    if (up.error) return NextResponse.json({ error: up.error.message || 'Failed to save config snapshot' }, { status: 500 });
-    return NextResponse.json({ ok: true, configPath: `supabase://${CONFIGS_BUCKET}/${objectPath}`, name, mode: 'supabase' });
+    return NextResponse.json({ error: 'Unable to update config file (read-only filesystem)' }, { status: 500 });
   } catch (e: any) {
     return NextResponse.json({ error: e?.message || 'Failed to update token' }, { status: 500 });
   }

@@ -1,7 +1,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/auth';
-import { createSupabaseAdminClient } from '@/lib/supabaseClient';
+import { callConvex } from '@/lib/convexHttp';
 
 export const dynamic = 'force-dynamic';
 
@@ -45,45 +45,29 @@ export async function POST(request: NextRequest) {
     await requireAdmin();
 
     const body: CreateOrderRequest = await request.json();
-
-    // Create sequential order number
-    const supabase = createSupabaseAdminClient();
-    const { count: orderCount } = await supabase.from('orders').select('*', { count: 'exact', head: true });
-    const safeCount = typeof orderCount === 'number' ? orderCount : 0;
-    const orderNumber = `ANA-${new Date().getFullYear()}-${String(safeCount + 1).padStart(3, '0')}`;
-
-    // Persist order with items using Supabase
-    const { data: order, error: createErr } = await supabase
-      .from('orders')
-      .insert({
-        orderNumber,
-        customerName: body.customerName,
-        customerEmail: body.customerEmail,
-        customerPhone: body.customerPhone,
-        status: 'pending',
-        paymentStatus: body.paymentStatus || 'pending',
-        paymentMethod: body.paymentMethod,
-        totalAmount: body.totalAmount,
-        subtotal: body.subtotal,
-        taxAmount: body.taxAmount || 0,
-        shippingAmount: body.shippingAmount || 0,
-        shippingAddress: body.shippingAddress,
-        billingAddress: body.billingAddress || body.shippingAddress,
-        notes: body.notes,
-      })
-      .select('*')
-      .single();
-    if (createErr) throw createErr;
-    if (Array.isArray(body.items) && body.items.length > 0) {
-      const rows = body.items.map((it) => ({
-        orderId: (order as any).id,
-        productId: it.productId,
+    await callConvex({ functionPath: 'orders:create', args: {
+      customerName: body.customerName,
+      customerEmail: body.customerEmail,
+      customerPhone: body.customerPhone,
+      status: 'pending',
+      paymentStatus: body.paymentStatus || 'pending',
+      paymentMethod: body.paymentMethod,
+      totalAmount: body.totalAmount,
+      subtotal: body.subtotal,
+      taxAmount: body.taxAmount || 0,
+      shippingAmount: body.shippingAmount || 0,
+      shippingAddress: body.shippingAddress,
+      billingAddress: body.billingAddress || body.shippingAddress,
+      notes: body.notes,
+      items: (Array.isArray(body.items) ? body.items : []).map(it => ({
+        productId: it.productId as any,
         quantity: Number(it.quantity) || 1,
         price: Number(it.price) || 0,
-      }));
-      const { error: itemsErr } = await supabase.from('order_items').insert(rows);
-      if (itemsErr) throw itemsErr;
-    }
+      })),
+    } });
+    // Fetch the latest list or just the newest order is fine; return OK
+    const list = await callConvex({ functionPath: 'orders:list', args: {} });
+    const order = Array.isArray(list) ? list[0] : null;
 
     let shippingLabel = null;
 
@@ -94,11 +78,8 @@ export async function POST(request: NextRequest) {
         shippingLabel = await createShippingLabel(orderForLabel, body.shippingCarrier);
         
         // Update order with tracking number
-        if (shippingLabel.success && shippingLabel.trackingNumber) {
-          await supabase
-            .from('orders')
-            .update({ trackingNumber: shippingLabel.trackingNumber, status: 'processing' })
-            .eq('id', (order as any).id);
+        if (shippingLabel.success && shippingLabel.trackingNumber && order?.id) {
+          await callConvex({ functionPath: 'orders:update', args: { id: order.id, patch: { trackingNumber: shippingLabel.trackingNumber, status: 'processing' } } });
         }
       } catch (labelError) {
         console.error('Error creating shipping label:', labelError);

@@ -389,9 +389,7 @@ export default function AdminSettingsPage() {
                   </div>
                   <div className="bg-gray-900 border border-gray-700 rounded p-3">
                     <div className="font-semibold text-white mb-1">Legacy Supabase (for removal)</div>
-                    <div className="text-xs">URL: {dbHealth?.details?.supabase?.url}</div>
-                    <div className="text-xs">Anon Key: {dbHealth?.details?.supabase?.anonKey}</div>
-                    <div className="text-xs">Service Key: {dbHealth?.details?.supabase?.serviceKey}</div>
+                    <div className="text-xs">Legacy Supabase: removed</div>
                   </div>
                 </div>
               )}

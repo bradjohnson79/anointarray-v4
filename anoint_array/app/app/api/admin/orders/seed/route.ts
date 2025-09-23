@@ -2,7 +2,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/auth';
-import { createSupabaseAdminClient } from '@/lib/supabaseClient';
+import { callConvex } from '@/lib/convexHttp';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,104 +10,45 @@ export async function POST(request: NextRequest) {
   try {
     await requireAdmin();
 
-    // Check if orders already exist
-    const s = createSupabaseAdminClient();
-    const { count: existingOrders } = await s.from('orders').select('*', { count: 'exact', head: true });
-    const existing = typeof existingOrders === 'number' ? existingOrders : 0;
+    // Check if orders already exist in Convex
+    const existingList: any[] = await callConvex({ functionPath: 'orders:list', args: {} });
+    const existing = Array.isArray(existingList) ? existingList.length : 0;
     if (existing > 0) {
       return NextResponse.json({ 
         message: 'Database already has orders',
-        count: existingOrders 
+        count: existing 
       });
     }
 
-    // Create products first (if they don't exist)
-    const { count: existingProducts } = await s.from('products').select('*', { count: 'exact', head: true });
-    if (!existingProducts) {
-      await s.from('products').insert([
-          {
-            name: 'Chakra Balancing Crystal Array',
-            slug: 'chakra-balancing-crystal-array',
-            teaserDescription: 'Sterling silver pendant with healing crystals for chakra alignment',
-            fullDescription: 'A beautifully crafted sterling silver pendant featuring carefully selected crystals for each chakra point.',
-            price: 144.44,
-            category: 'healing-jewelry',
-            isPhysical: true,
-            isDigital: false,
-            inStock: true,
-            hsCode: '7117.11.0000',
-            countryOfOrigin: 'CA',
-            customsDescription: 'Sterling silver chakra healing pendant with crystals',
-            defaultCustomsValueCad: 144.44,
-            massGrams: 45
-          },
-          {
-            name: 'Sacred Frequency Healing Cards',
-            slug: 'sacred-frequency-healing-cards',
-            teaserDescription: 'Printed healing frequency cards set for meditation and energy work',
-            fullDescription: 'A comprehensive set of healing frequency cards with sacred geometry patterns.',
-            price: 100.00,
-            category: 'healing-tools',
-            isPhysical: true,
-            isDigital: false,
-            inStock: true,
-            hsCode: '4901.99.0000',
-            countryOfOrigin: 'CA',
-            customsDescription: 'Printed healing frequency cards set',
-            defaultCustomsValueCad: 100.00,
-            massGrams: 150
-          },
-          {
-            name: 'Digital Healing Frequency Pack',
-            slug: 'digital-healing-frequency-pack',
-            teaserDescription: 'Digital download of healing frequencies for meditation',
-            fullDescription: 'A digital collection of healing frequencies calibrated for optimal energy work.',
-            price: 144.44,
-            category: 'digital-products',
-            isPhysical: false,
-            isDigital: true,
-            inStock: true
-          },
-          {
-            name: 'Sacred Geometry Pendant',
-            slug: 'sacred-geometry-pendant',
-            teaserDescription: 'Gold-plated pendant with healing stones',
-            fullDescription: 'A gold-plated sacred geometry pendant featuring healing stones.',
-            price: 77.77,
-            category: 'healing-jewelry',
-            isPhysical: true,
-            isDigital: false,
-            inStock: true,
-            hsCode: '7117.19.0000',
-            countryOfOrigin: 'CA',
-            customsDescription: 'Gold-plated sacred geometry pendant with healing stones',
-            defaultCustomsValueCad: 77.77,
-            massGrams: 25
-          },
-          {
-            name: 'Incomplete Customs Item',
-            slug: 'incomplete-customs-item',
-            teaserDescription: 'Item missing customs data for testing',
-            fullDescription: 'This item is used to test customs validation.',
-            price: 100.00,
-            category: 'test-items',
-            isPhysical: true,
-            isDigital: false,
-            inStock: true
-            // Missing customs fields intentionally
-          }
-        ]);
+    // Create products first (if they don't exist) in Convex
+    const prodList: any[] = await callConvex({ functionPath: 'products:list', args: {} });
+    if (!Array.isArray(prodList) || prodList.length === 0) {
+      const base = [
+        { name: 'Chakra Balancing Crystal Array', slug: 'chakra-balancing-crystal-array', price: 144.44, category: 'healing-jewelry' },
+        { name: 'Sacred Frequency Healing Cards', slug: 'sacred-frequency-healing-cards', price: 100.00, category: 'healing-tools' },
+        { name: 'Digital Healing Frequency Pack', slug: 'digital-healing-frequency-pack', price: 144.44, category: 'digital-products' },
+        { name: 'Sacred Geometry Pendant', slug: 'sacred-geometry-pendant', price: 77.77, category: 'healing-jewelry' },
+        { name: 'Incomplete Customs Item', slug: 'incomplete-customs-item', price: 100.00, category: 'test-items' },
+      ];
+      for (const p of base) {
+        await callConvex({ functionPath: 'products:create', args: { slug: p.slug, name: p.name, price: p.price, category: p.category } });
+      }
     }
 
-    // Get product IDs
-    const { data: products } = await s
-      .from('products')
-      .select('id, name, hsCode, countryOfOrigin, customsDescription, defaultCustomsValueCad, massGrams, isDigital');
+    // Get product IDs from Convex
+    const products: any[] = await callConvex({ functionPath: 'products:list', args: {} });
 
     const productMap = (products || []).reduce((acc: any, product: any) => {
       acc[product.name] = product;
       return acc;
     }, {} as any);
+
+    function productMapById(map: any, maybeId: any) {
+      // If the incoming item provided a Convex product id already, return as-is
+      if (typeof maybeId === 'string' && maybeId.startsWith('products|')) return maybeId;
+      // Otherwise try to resolve by product.name mapping
+      return maybeId;
+    }
 
     // Sample orders with tax and customs data
     const sampleOrders = [
@@ -141,7 +82,7 @@ export async function POST(request: NextRequest) {
         },
         items: [
           {
-            productId: productMap['Chakra Balancing Crystal Array']?.id,
+            productId: productMap['Chakra Balancing Crystal Array']?._id,
             quantity: 1,
             price: 144.44,
             hsCode: productMap['Chakra Balancing Crystal Array']?.hsCode,
@@ -152,7 +93,7 @@ export async function POST(request: NextRequest) {
             isDigital: false
           },
           {
-            productId: productMap['Sacred Frequency Healing Cards']?.id,
+            productId: productMap['Sacred Frequency Healing Cards']?._id,
             quantity: 1,
             price: 100.00,
             hsCode: productMap['Sacred Frequency Healing Cards']?.hsCode,
@@ -193,7 +134,7 @@ export async function POST(request: NextRequest) {
         },
         items: [
           {
-            productId: productMap['Digital Healing Frequency Pack']?.id,
+            productId: productMap['Digital Healing Frequency Pack']?._id,
             quantity: 1,
             price: 144.44,
             isDigital: true
@@ -229,7 +170,7 @@ export async function POST(request: NextRequest) {
         },
         items: [
           {
-            productId: productMap['Sacred Geometry Pendant']?.id,
+            productId: productMap['Sacred Geometry Pendant']?._id,
             quantity: 1,
             price: 77.77,
             hsCode: productMap['Sacred Geometry Pendant']?.hsCode,
@@ -270,7 +211,7 @@ export async function POST(request: NextRequest) {
         },
         items: [
           {
-            productId: productMap['Incomplete Customs Item']?.id,
+            productId: productMap['Incomplete Customs Item']?._id,
             quantity: 1,
             price: 100.00,
             // Missing customs data - will show in customs issues
@@ -280,19 +221,43 @@ export async function POST(request: NextRequest) {
       }
     ];
 
-    // Create orders with order items
+    // Create orders with order items in Convex
     for (const orderData of sampleOrders) {
-      const { items, ...orderFields } = orderData;
-      
-      const { data: order, error } = await s.from('orders').insert(orderFields).select('id').single();
-      if (error) throw error;
-
-      // Create order items
-      for (const item of items) {
-        if (item.productId) {
-          await s.from('order_items').insert({ orderId: (order as any).id, ...item });
-        }
-      }
+      const { items, ...orderFields } = orderData as any;
+      await callConvex({ functionPath: 'orders:create', args: {
+        customerName: orderFields.customerName,
+        customerEmail: orderFields.customerEmail,
+        customerPhone: orderFields.customerPhone,
+        status: orderFields.status,
+        paymentStatus: orderFields.paymentStatus,
+        paymentMethod: orderFields.paymentMethod,
+        totalAmount: orderFields.totalAmount,
+        subtotal: orderFields.subtotal,
+        taxAmount: orderFields.taxAmount,
+        shippingAmount: orderFields.shippingAmount,
+        shippingAddress: orderFields.shippingAddress,
+        billingAddress: orderFields.shippingAddress,
+        notes: orderFields.notes,
+        buyerCountry: orderFields.buyerCountry,
+        shippingCountry: orderFields.shippingCountry,
+        taxSubtotalCad: orderFields.taxSubtotalCad,
+        taxBreakdown: orderFields.taxBreakdown,
+        dutiesEstimatedCad: orderFields.dutiesEstimatedCad,
+        taxesEstimatedCad: orderFields.taxesEstimatedCad,
+        dutiesTaxesCurrency: orderFields.dutiesTaxesCurrency,
+        incoterm: orderFields.incoterm,
+        items: (items || []).filter((it: any) => it?.productId).map((it: any) => ({
+          productId: productMapById(productMap, it.productId) || it.productId,
+          quantity: Number(it.quantity || 1),
+          price: Number(it.price || 0),
+          hsCode: it.hsCode,
+          countryOfOrigin: it.countryOfOrigin,
+          customsDescription: it.customsDescription,
+          unitValueCad: it.unitValueCad,
+          massGramsEach: it.massGramsEach,
+          isDigital: it.isDigital,
+        })),
+      } });
     }
 
     return NextResponse.json({

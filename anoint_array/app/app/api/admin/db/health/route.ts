@@ -4,7 +4,7 @@ import { runConvex } from '@/lib/convexCli';
 import { callConvex } from '@/lib/convexHttp';
 import { getBucketConfig, createS3Client } from '@/lib/aws-config';
 import { ListObjectsV2Command } from '@aws-sdk/client-s3';
-import { createSupabaseServerClient, PRODUCT_IMAGES_BUCKET, CONFIGS_BUCKET, GLYPHS_BUCKET } from '@/lib/supabase-server';
+// Supabase removed
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -60,7 +60,7 @@ export async function GET() {
   };
 
   // Migration toggles + storage migration snapshot
-  const supa = (()=>{ try { return createSupabaseServerClient(); } catch { return null; }})();
+  const supa = null;
   const s3 = createS3Client();
   async function countS3(prefix: string): Promise<number|null> {
     try {
@@ -70,27 +70,19 @@ export async function GET() {
       return null;
     }
   }
-  async function countSupabase(bucket: string, prefix = ''): Promise<number|null> {
-    if (!supa) return null;
-    try {
-      // Flat listing; good approximation for counts
-      const r = await supa.storage.from(bucket).list(prefix || '', { limit: 1000, offset: 0 });
-      if (r.error) return null;
-      return (r.data || []).length;
-    } catch { return null; }
-  }
+  async function countSupabase(_bucket: string, _prefix = ''): Promise<number|null> { return null; }
 
   // Migration toggles + S3 mirror status for key buckets
   const mirrors: any[] = [];
-  const sProducts = await countSupabase(PRODUCT_IMAGES_BUCKET).catch(()=>null);
-  const sConfigs = await countSupabase(CONFIGS_BUCKET, 'configs').catch(()=>null);
-  const sGlyphs = await countSupabase(GLYPHS_BUCKET).catch(()=>null);
+  const sProducts = null;
+  const sConfigs = null;
+  const sGlyphs = null;
   const s3Products = await countS3(folderPrefix || 'products/');
   const s3Configs = await countS3('configs/');
   const s3Glyphs = await countS3('glyphs/');
-  mirrors.push({ key: 'products', supabaseBucket: PRODUCT_IMAGES_BUCKET, supabaseCount: sProducts, s3Prefix: (folderPrefix || 'products/'), s3Count: s3Products, ok: (sProducts==null||s3Products==null) ? null : (s3Products >= sProducts) });
-  mirrors.push({ key: 'configs', supabaseBucket: CONFIGS_BUCKET, supabaseCount: sConfigs, s3Prefix: 'configs/', s3Count: s3Configs, ok: (sConfigs==null||s3Configs==null) ? null : (s3Configs >= sConfigs) });
-  mirrors.push({ key: 'glyphs', supabaseBucket: GLYPHS_BUCKET, supabaseCount: sGlyphs, s3Prefix: 'glyphs/', s3Count: s3Glyphs, ok: (sGlyphs==null||s3Glyphs==null) ? null : (s3Glyphs >= sGlyphs) });
+  mirrors.push({ key: 'products', supabaseBucket: null as any, supabaseCount: sProducts, s3Prefix: (folderPrefix || 'products/'), s3Count: s3Products, ok: s3Products!=null });
+  mirrors.push({ key: 'configs', supabaseBucket: null as any, supabaseCount: sConfigs, s3Prefix: 'configs/', s3Count: s3Configs, ok: s3Configs!=null });
+  mirrors.push({ key: 'glyphs', supabaseBucket: null as any, supabaseCount: sGlyphs, s3Prefix: 'glyphs/', s3Count: s3Glyphs, ok: s3Glyphs!=null });
 
   details.migration = {
     autoMigrate: process.env.AUTO_MIGRATE_CONVEX === '1',

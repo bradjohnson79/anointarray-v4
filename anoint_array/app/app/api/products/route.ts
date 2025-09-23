@@ -70,30 +70,7 @@ async function getHandler(request: NextRequest) {
       return NextResponse.json({ success: true, products: processed });
     }
 
-    // Legacy Supabase fallback (kept for local dev only)
-    const { createSupabaseServerClient } = await import('@/lib/supabase-server');
-    const supabase = createSupabaseServerClient();
-    const baseCols = [
-      'id','name','slug','teaserDescription','fullDescription','price','category','isVip','inStock','isPhysical','isDigital','imageUrl','imageGallery','featured','comingSoon','sortOrder','inventory','weight','dimensions','digitalFileUrl','instructionManualUrl','videoEmbedCode','createdAt','updatedAt'
-    ];
-    let cols = baseCols.join(',');
-    let q = supabase.from('products').select(cols);
-    if (category) q = q.eq('category', category);
-    if (featured === 'true') q = q.eq('featured', true);
-    const { data, error } = await q.order('featured', { ascending: false }).order('sortOrder', { ascending: true }).order('createdAt', { ascending: false });
-    if (error) throw error;
-    const products = (data || []).map((product: any) => ({
-      ...product,
-      imageUrl: normalizeSupabasePublicUrl(product?.imageUrl),
-      imageGallery: Array.isArray(product?.imageGallery)
-        ? product.imageGallery.map((u: string) => normalizeSupabasePublicUrl(u))
-        : [],
-      price: Number(product?.price || 0),
-      sortOrder: Number((product as any)?.sortOrder ?? 9999),
-      youtubeUrl: null,
-    }));
-    if (admin === 'true') return NextResponse.json(products);
-    return NextResponse.json({ success: true, products });
+    return NextResponse.json({ error: 'Convex not configured' }, { status: 500 });
 }
 
 async function postHandler(request: NextRequest) {

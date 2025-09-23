@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/auth';
-import { createSupabaseAdminClient } from '@/lib/supabaseClient';
 import { runConvex } from '@/lib/convexCli';
 
 export const dynamic = 'force-dynamic';
@@ -12,16 +11,14 @@ export async function POST(req: Request) {
     try { await requireAdmin(); } catch { return NextResponse.json({ error: 'Unauthorized' }, { status: 401 }); }
   }
   try {
-    const s = createSupabaseAdminClient();
-    const bucket = process.env.SUPABASE_CONFIGS_BUCKET || 'configs';
-    const list = await s.storage.from(bucket).list('backups');
-    if (list.error) throw new Error(list.error.message);
-    const backups = (list.data || []).filter((f:any)=> String(f?.name||'').endsWith('.json')).sort((a:any,b:any)=> a.name > b.name ? -1 : 1);
-    if (!backups.length) return NextResponse.json({ error: 'No backups found in configs/backups' }, { status: 404 });
-    const latest = backups[0].name as string;
-    const dl = await s.storage.from(bucket).download('backups/' + latest);
-    if (dl.error || !dl.data) throw new Error(dl.error?.message || 'Download failed');
-    const text = await (dl.data as any).text?.() || Buffer.from(await (dl.data as any).arrayBuffer()).toString('utf8');
+    const fs = await import('fs/promises');
+    const path = await import('path');
+    const dir = path.join(process.cwd(), 'data', 'backups');
+    const files = await fs.readdir(dir).catch(()=>[] as string[]);
+    const backups = files.filter(n=> n.endsWith('.json')).sort((a,b)=> a > b ? -1 : 1);
+    if (!backups.length) return NextResponse.json({ error: 'No backups found in data/backups' }, { status: 404 });
+    const latest = backups[0];
+    const text = await fs.readFile(path.join(dir, latest), 'utf-8').catch(()=> '');
     const snapshot = JSON.parse(text || '{}');
     const products = Array.isArray(snapshot?.products) ? snapshot.products : [];
     const items = products.map((p:any)=> ({ slug: String(p.slug||'').trim(), teaserDescription: p?.teaserDescription || p?.shortDescription, fullDescription: p?.fullDescription || p?.description })).filter((x:any)=> x.slug);
@@ -31,4 +28,3 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: e?.message || 'Restore descriptions failed' }, { status: 500 });
   }
 }
-

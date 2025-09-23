@@ -62,7 +62,7 @@ export default function SignupPage() {
         toast.success('Account created successfully!');
         
         // Auto-login after successful signup
-        const resp = await fetch('/api/supabase/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: formData.email, password: formData.password }) });
+        const resp = await fetch('/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: formData.email, password: formData.password }) });
         if (!resp.ok) toast.error('Account created but login failed. Please try logging in manually.');
         router.push('/dashboard');
       } else {

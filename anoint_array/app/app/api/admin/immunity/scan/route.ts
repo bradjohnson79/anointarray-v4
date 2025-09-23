@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/auth';
-import { createSupabaseAdminClient } from '@/lib/supabaseClient';
+import { callConvex } from '@/lib/convexHttp';
 import fs from 'fs/promises';
 import path from 'path';
 
@@ -12,9 +12,8 @@ export async function POST() {
   const staticPaths = ['/', '/auth/login', '/auth/signup'];
   let productPaths: string[] = [];
   try {
-    const s = createSupabaseAdminClient();
-    const { data: products } = await s.from('products').select('slug');
-    productPaths = (products || []).map((p: any) => `/products/${p.slug}`);
+    const products: any = await callConvex({ functionPath: 'products:list', args: {} });
+    productPaths = (Array.isArray(products) ? products : []).map((p: any) => `/products/${p.slug}`);
   } catch {}
 
   const paths = [...new Set([...staticPaths, ...productPaths])];

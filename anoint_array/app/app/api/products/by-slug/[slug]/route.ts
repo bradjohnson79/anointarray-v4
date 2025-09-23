@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { runConvex } from '@/lib/convexCli';
 
 export const dynamic = 'force-dynamic';
@@ -17,13 +16,7 @@ export async function GET(_req: NextRequest, { params }: { params: { slug: strin
       return NextResponse.json(data);
     }
     // Fallback (legacy) — can be removed once Convex is fully live
-    const supabase = createSupabaseServerClient();
-    const { data: list, error } = await supabase.from('products').select('*, variants(*)').eq('slug', slug).limit(1);
-    if (error) throw new Error(error.message || 'Fetch failed');
-    const p = (list && list[0]) || null;
-    if (!p) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-    const data: any = { ...p, price: Number(p.price || 0), variants: Array.isArray((p as any).variants) ? (p as any).variants.map((v: any) => ({ ...v, price: Number(v.price) })) : [] };
-    return NextResponse.json(data);
+    return NextResponse.json({ error: 'Convex not configured' }, { status: 500 });
   } catch (e: any) {
     return NextResponse.json({ error: e?.message || 'Failed' }, { status: 500 });
   }

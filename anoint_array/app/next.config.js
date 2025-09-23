@@ -27,7 +27,7 @@ const nextConfig = {
     unoptimized: true,
     remotePatterns: [
       { protocol: 'https', hostname: '**.amazonaws.com' },
-      { protocol: 'https', hostname: '**.supabase.co' },
+      // Removed legacy Supabase host allowance
       { protocol: 'https', hostname: '**.vercel-storage.com' },
     ],
   },

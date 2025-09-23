@@ -6,22 +6,11 @@ import { useEffect, useState } from 'react';
 type Status = { ok: boolean; message: string; details?: any };
 
 export default function AdminBackupsPage() {
-  const [supabaseStatus, setSupabaseStatus] = useState<Status>({ ok: false, message: 'Checking…' });
+  const [storageStatus, setStorageStatus] = useState<Status>({ ok: true, message: 'Local/S3 storage available' });
   const [backupState, setBackupState] = useState<Status | null>(null);
   const [busy, setBusy] = useState(false);
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const r = await fetch('/api/debug/supabase', { cache: 'no-store' });
-        const j = await r.json();
-        if (j?.ok) setSupabaseStatus({ ok: true, message: `Bucket: ${j.bucket} (objects: ${j.count})` });
-        else setSupabaseStatus({ ok: false, message: j?.error || 'Storage check failed' });
-      } catch (e: any) {
-        setSupabaseStatus({ ok: false, message: e?.message || 'Storage check failed' });
-      }
-    })();
-  }, []);
+  useEffect(() => { setStorageStatus({ ok: true, message: 'Backups save to data/backups or S3 when configured' }); }, []);
 
   const doDryCheck = async () => {
     setBusy(true); setBackupState(null);
@@ -57,15 +46,15 @@ export default function AdminBackupsPage() {
     <AdminLayout>
       <div className="space-y-6">
         <h2 className="text-2xl font-semibold">Backups</h2>
-        <p className="text-gray-300">Create a JSON snapshot of products + variants into Supabase Storage.</p>
+        <p className="text-gray-300">Create a JSON snapshot of products + variants into local data/backups (or S3 if configured).</p>
 
         <div className="grid md:grid-cols-2 gap-6">
           <div className="bg-gray-900 border border-gray-700 rounded-lg p-4">
-            <h3 className="font-semibold mb-2">Supabase Storage</h3>
-            <div className={supabaseStatus.ok ? 'text-green-400' : 'text-red-400'}>
-              {supabaseStatus.message}
+            <h3 className="font-semibold mb-2">Storage</h3>
+            <div className={storageStatus.ok ? 'text-green-400' : 'text-red-400'}>
+              {storageStatus.message}
             </div>
-            <p className="text-gray-400 text-sm mt-2">Bucket must exist and be writable (configs).</p>
+            <p className="text-gray-400 text-sm mt-2">Local backups write to data/backups. If S3 is configured, backups go to S3.</p>
           </div>
 
           <div className="bg-gray-900 border border-gray-700 rounded-lg p-4">

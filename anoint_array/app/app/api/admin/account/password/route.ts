@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/auth';
-import { createSupabaseAdminClient } from '@/lib/supabaseClient';
+import { runConvex } from '@/lib/convexCli';
+import { callConvex } from '@/lib/convexHttp';
 import { withApiErrorHandling } from '@/lib/api-handler';
 import bcrypt from 'bcryptjs';
 
@@ -21,22 +22,18 @@ async function POST_handler(req: NextRequest) {
     return NextResponse.json({ error: 'New password must be at least 8 characters' }, { status: 400 });
   }
 
-  const s = createSupabaseAdminClient();
-  // Fetch legacy password hash from users table if available
-  const { data: user } = await s.from('users').select('id, email, password').eq('email', (u?.email || '').toLowerCase()).maybeSingle();
-  if (!user) {
-    return NextResponse.json({ error: 'Account not found or invalid' }, { status: 404 });
-  }
-
-  const ok = user.password ? await bcrypt.compare(String(oldPassword), user.password) : false;
+  let user: any = null;
+  try { user = await runConvex('users:byEmail', { email: (u?.email || '').toLowerCase() }); }
+  catch { user = await callConvex({ functionPath: 'users:byEmail', args: { email: (u?.email || '').toLowerCase() } }); }
+  if (!user) return NextResponse.json({ error: 'Account not found or invalid' }, { status: 404 });
+  const ok = user.passwordHash ? await bcrypt.compare(String(oldPassword), user.passwordHash) : false;
   if (!ok) {
     return NextResponse.json({ error: 'Old password is incorrect' }, { status: 400 });
   }
 
   const hashed = await bcrypt.hash(String(newPassword), 12);
-  await s.from('users').update({ password: hashed }).eq('id', user.id);
-  // Update Supabase Auth password via admin API
-  await s.auth.admin.updateUserById(u!.id, { password: String(newPassword) });
+  try { await runConvex('users:setPasswordHash', { email: (u?.email || '').toLowerCase(), passwordHash: hashed }); }
+  catch { await callConvex({ functionPath: 'users:setPasswordHash', args: { email: (u?.email || '').toLowerCase(), passwordHash: hashed } }); }
 
   return NextResponse.json({ ok: true });
 }

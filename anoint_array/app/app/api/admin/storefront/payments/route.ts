@@ -3,7 +3,7 @@ import { requireAdmin } from '@/lib/auth';
 import fs from 'fs/promises';
 import fsSync from 'fs';
 import path from 'path';
-import { createSupabaseServerClient, useSupabaseStorage, PRODUCT_IMAGES_BUCKET } from '@/lib/supabase-server';
+// Supabase removed; config reads/writes are file-based only now
 
 const FILE = path.join(process.cwd(), 'data', 'storefront-payments.json');
 
@@ -14,21 +14,7 @@ export async function GET() {
     let fileCfg: any = {};
     try { if (fsSync.existsSync(FILE)) fileCfg = JSON.parse(await fs.readFile(FILE, 'utf-8')); }
     catch {}
-    if ((!fileCfg || !Object.keys(fileCfg).length) && useSupabaseStorage()) {
-      try {
-        const supabase = createSupabaseServerClient();
-        const bucket = process.env.SUPABASE_CONFIGS_BUCKET || 'configs' || PRODUCT_IMAGES_BUCKET || 'Storage';
-        const { data, error } = await supabase.storage.from(bucket).download('configs/storefront-payments.json');
-        if (!error && data) {
-          let text = '';
-          if (typeof (data as any).text === 'function') text = await (data as any).text();
-          else if (typeof (data as any).arrayBuffer === 'function') {
-            const buf = Buffer.from(await (data as any).arrayBuffer()); text = buf.toString('utf8');
-          }
-          fileCfg = JSON.parse(text || '{}');
-        }
-      } catch {}
-    }
+    // No Supabase fallback — only file-based config is supported now.
 
     const stripeTest = bool(fileCfg?.stripe?.testMode) || !!process.env.STRIPE_SECRET_TEST_KEY;
     const stripe = {
@@ -68,31 +54,9 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const payload = { ...body, lastUpdated: new Date().toISOString() };
-    try {
-      await fs.mkdir(path.dirname(FILE), { recursive: true });
-      await fs.writeFile(FILE, JSON.stringify(payload, null, 2), 'utf8');
-      return NextResponse.json({ ok: true, storage: 'file' });
-    } catch (e: any) {
-      try {
-        if (!useSupabaseStorage()) throw new Error('Supabase storage not configured');
-        // Store sanitized snapshot (no secrets) in Supabase storage for UI reading in RO envs
-        const safe: any = {
-          stripe: { enabled: !!payload?.stripe?.enabled, testMode: !!payload?.stripe?.testMode },
-          paypal: { enabled: !!payload?.paypal?.enabled, testMode: !!payload?.paypal?.testMode },
-          nowPayments: { enabled: !!payload?.nowPayments?.enabled, testMode: !!payload?.nowPayments?.testMode },
-          pricing: { currency: String(payload?.pricing?.currency || 'USD').toUpperCase() },
-          lastUpdated: new Date().toISOString(),
-        };
-        const supabase = createSupabaseServerClient();
-        const bucket = process.env.SUPABASE_CONFIGS_BUCKET || 'configs' || PRODUCT_IMAGES_BUCKET || 'Storage';
-        const blob = new Blob([JSON.stringify(safe)], { type: 'application/json' });
-        const { error } = await supabase.storage.from(bucket).upload('configs/storefront-payments.json', blob, { upsert: true, contentType: 'application/json' });
-        if (error) throw error;
-        return NextResponse.json({ ok: true, storage: 'supabase' });
-      } catch (be: any) {
-        return NextResponse.json({ error: be?.message || e?.message || 'Failed to save configuration' }, { status: 500 });
-      }
-    }
+    await fs.mkdir(path.dirname(FILE), { recursive: true });
+    await fs.writeFile(FILE, JSON.stringify(payload, null, 2), 'utf8');
+    return NextResponse.json({ ok: true, storage: 'file' });
   } catch (e: any) {
     return NextResponse.json({ error: e?.message || 'Failed to save configuration' }, { status: 500 });
   }

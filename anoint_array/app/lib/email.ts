@@ -67,22 +67,7 @@ export async function loadTemplates(): Promise<Templates> {
 
 async function loadThemeHtml(): Promise<string> {
   try { return await fs.readFile(THEME_PATH, 'utf-8'); } catch {}
-  // Try Supabase configs bucket
-  try {
-    const { createSupabaseServerClient, useSupabaseStorage } = await import('@/lib/supabase-server');
-    if (useSupabaseStorage()) {
-      const supabase = createSupabaseServerClient();
-      const bucket = process.env.SUPABASE_CONFIGS_BUCKET || 'configs';
-      const { data, error } = await supabase.storage.from(bucket).download('configs/email-theme.html');
-      if (!error && data) {
-        if (typeof (data as any).text === 'function') return await (data as any).text();
-        if (typeof (data as any).arrayBuffer === 'function') {
-          const ab = await (data as any).arrayBuffer();
-          return Buffer.from(ab).toString('utf8');
-        }
-      }
-    }
-  } catch {}
+  // Supabase removed; consider sourcing from S3 or default template only
   // Fallback default
   const year = new Date().getFullYear();
   return `<!doctype html><html><head><meta charset="utf-8"/><title>{{title}}</title></head><body><div style="max-width:640px;margin:0 auto;border:1px solid #26304a;border-radius:12px;padding:18px;background:#0b0f1a;color:#e6e6f0;font-family:Arial,Helvetica,sans-serif"><h2 style="margin:0 0 12px;background:linear-gradient(90deg,#6d28d9,#22d3ee);color:#fff;padding:10px 14px;border-radius:8px">ANOINT ARRAY</h2><div>{{content}}</div><div style="margin-top:16px;font-size:12px;color:#a0a8c0">© ${year} ANOINT ARRAY</div></div></body></html>`;
