@@ -29,10 +29,9 @@ command = "pnpm"
 args = ["dlx", "@github/mcp-server-github@latest"]
 env.GITHUB_TOKEN = "${GIT_PERSONAL_ACCESS_TOKEN}"
 
-# PayPal MCP
-# Requires: PAYPAL_ACCESS_TOKEN and PAYPAL_ENVIRONMENT (SANDBOX or LIVE)
-[mcpServers.paypal]
-command = "pnpm"
-args = ["dlx", "@paypal/mcp@latest", "--tools=all"]
-env.PAYPAL_ACCESS_TOKEN = "${PAYPAL_ACCESS_TOKEN}"
-env.PAYPAL_ENVIRONMENT = "${PAYPAL_ENVIRONMENT}"
+# PayPal MCP (disabled until configured)
+# [mcpServers.paypal]
+# command = "pnpm"
+# args = ["dlx", "@paypal/mcp@latest", "--tools=all"]
+# env.PAYPAL_ACCESS_TOKEN = "${PAYPAL_ACCESS_TOKEN}"
+# env.PAYPAL_ENVIRONMENT = "${PAYPAL_ENVIRONMENT}"

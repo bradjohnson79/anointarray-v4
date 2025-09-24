@@ -30,7 +30,10 @@ export async function callConvex(params: { functionPath: string; args: any }) {
   }
 
   const client = ensureClient(url.replace(/\/$/, ''));
-  client.setAdminAuth(resolveAdminKey());
+  // ConvexHttpClient exposes setAdminAuth at runtime, but the current type
+  // definitions don’t include it. Cast to any so we can elevate privileges
+  // for administrative function calls (signup, admin tools, etc.).
+  (client as any).setAdminAuth(resolveAdminKey());
 
   try {
     return await client.function(
