@@ -10,6 +10,7 @@ import { Mail, Lock, User, Eye, EyeOff, Sparkles } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import EnergyRibbons from '@/components/energy-ribbons';
+import { createAccountAction } from './actions';
 
 export default function SignupPage() {
   const [formData, setFormData] = useState({
@@ -49,56 +50,52 @@ export default function SignupPage() {
     }
 
     try {
-      // Create the user
-      const response = await fetch('/api/signup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: formData.email,
-          password: formData.password,
-          fullName: formData.fullName,
-        }),
+      const rawCallbackUrl = searchParams.get('callbackUrl');
+      const callbackUrl = (() => {
+        if (!rawCallbackUrl) return null;
+        try {
+          const origin = typeof window !== 'undefined' ? window.location.origin : '';
+          if (!origin) return null;
+          const candidate = new URL(rawCallbackUrl, origin);
+          if (candidate.origin !== origin) return null;
+          return `${candidate.pathname}${candidate.search}${candidate.hash}`;
+        } catch {
+          return null;
+        }
+      })();
+
+      const bcrypt = await import('bcryptjs');
+      const passwordHash = await bcrypt.hash(formData.password, 12);
+
+      const result = await createAccountAction({
+        name: formData.fullName.trim(),
+        email: formData.email,
+        passwordHash,
       });
 
-      if (response.ok) {
-        toast.success('Account created successfully!');
-
-        const rawCallbackUrl = searchParams.get('callbackUrl');
-        const callbackUrl = (() => {
-          if (!rawCallbackUrl) return null;
-          try {
-            const origin = typeof window !== 'undefined' ? window.location.origin : '';
-            if (!origin) return null;
-            const candidate = new URL(rawCallbackUrl, origin);
-            if (candidate.origin !== origin) return null;
-            return `${candidate.pathname}${candidate.search}${candidate.hash}`;
-          } catch {
-            return null;
-          }
-        })();
-
-        let destination = '/dashboard';
-        try {
-          await login(formData.email, formData.password, { callbackUrl });
-          const session = await getSession();
-          const role = String(session?.user?.role || '').toUpperCase();
-          destination = callbackUrl || (role === 'ADMIN' ? '/admin' : '/dashboard');
-        } catch {
-          toast.error('Account created but login failed. Please try logging in manually.');
-          destination = callbackUrl ? `/auth/login?callbackUrl=${encodeURIComponent(callbackUrl)}` : '/auth/login';
-        }
-
-        router.push(destination);
-      } else {
-        let payload: any = null;
-        try { payload = await response.json(); } catch {}
-        const cid = payload?.cid ? ` (CID: ${payload.cid})` : '';
-        const hint = payload?.hint ? ` — ${payload.hint}` : '';
-        const message = payload?.error || 'Failed to create account';
-        toast.error(`${message}${hint}${cid}`);
+      if (!result?.ok) {
+        toast.error(result?.error || 'Failed to create account');
+        setIsLoading(false);
+        return;
       }
+
+      toast.success('Account created successfully!');
+
+      let destination = '/dashboard';
+      try {
+        await login(formData.email, formData.password, { callbackUrl });
+        const session = await getSession();
+        const role = String(session?.user?.role || '').toUpperCase();
+        destination = callbackUrl || (role === 'ADMIN' ? '/admin' : '/dashboard');
+      } catch {
+        toast.error('Account created but login failed. Please try logging in manually.');
+        destination = callbackUrl ? `/auth/login?callbackUrl=${encodeURIComponent(callbackUrl)}` : '/auth/login';
+      }
+
+      router.push(destination);
     } catch (error) {
-      toast.error('Network error. Please try again.');
+      const message = error instanceof Error ? error.message : 'Network error. Please try again.';
+      toast.error(message);
     } finally {
       setIsLoading(false);
     }

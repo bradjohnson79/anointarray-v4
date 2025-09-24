@@ -7,6 +7,7 @@ export default defineSchema({
     name: v.optional(v.string()),
     role: v.optional(v.string()),
     isActive: v.optional(v.boolean()),
+    passwordHash: v.optional(v.string()),
     createdAt: v.number(),
   }).index("by_email", ["email"]),
 

@@ -72,3 +72,17 @@ export async function upsertConvexUserProfile(email: string, payload: { name?: s
     () => runConvex('users:upsertByEmail', args)
   );
 }
+
+export async function createConvexUserAccount(params: { email: string; name?: string | null; passwordHash: string }) {
+  const normalized = normalizeEmail(params.email);
+  if (!normalized) throw new Error('Email is required');
+  const args = {
+    email: normalized,
+    name: params.name ?? null,
+    passwordHash: params.passwordHash,
+  };
+  return withConvexFallback(
+    () => callConvex({ functionPath: 'users:createWithPassword', args }),
+    () => runConvex('users:createWithPassword', args)
+  );
+}

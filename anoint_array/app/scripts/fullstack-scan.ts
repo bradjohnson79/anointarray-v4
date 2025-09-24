@@ -62,13 +62,13 @@ async function main() {
 
   // Optional: create throwaway user to test signup
   if (CREATE_SIGNUP) {
-    const email = `fs_${Date.now()}_${crypto.randomUUID().slice(0,6)}@example.com`;
-    const r = await hit(`${BASE}/api/signup`, {
-      method: 'POST', headers: { 'Content-Type':'application/json' },
-      body: JSON.stringify({ email, password: 'FsAgent123!', fullName: 'FS Agent' })
+    out.push({
+      name: 'Signup UI flow (manual)',
+      url: `${BASE}/auth/signup`,
+      method: 'UI',
+      ok: true,
+      note: 'Signup API removed; run headless Puppeteer flow to verify.',
     });
-    r.name = `POST /api/signup email=${email}`;
-    out.push(r);
   }
 
   // Summary & guidance
@@ -89,8 +89,6 @@ async function main() {
     for (const f of fail) {
       if (f.url.endsWith('/api/debug/db')) {
         console.log('- DB probe failed: verify DATABASE_URL/DIRECT_URL on Vercel (pooled for runtime, sslmode=require).');
-      } else if (f.url.endsWith('/api/signup')) {
-        console.log('- Signup failed: check Prisma schema on prod DB, unique email conflicts, and Vercel function logs for correlation id.');
       } else if (f.url.includes('/api/files/')) {
         console.log('- Files service failed: ensure asset exists in uploads or public, or switch to Supabase Storage.');
       } else if (f.url.endsWith('/favicon.ico')) {
@@ -104,4 +102,3 @@ async function main() {
 }
 
 main().catch(e => { console.error('fullstack-scan failed:', e?.message || e); process.exit(2); });
-

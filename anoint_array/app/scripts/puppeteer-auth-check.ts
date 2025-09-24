@@ -18,7 +18,7 @@ async function main() {
   const doCreate = process.env.DO_CREATE_TEST_USER === '1';
 
   const browser = await puppeteer.launch({ headless: 'new', args: ['--no-sandbox','--disable-setuid-sandbox'] });
-  const page = await browser.newPage();
+  let page = await browser.newPage();
   page.setDefaultTimeout(60000);
   const report: any = { base, steps: [] };
   try {
@@ -33,9 +33,12 @@ async function main() {
       await page.type('input[name="confirmPassword"]', password);
       await Promise.all([
         page.click('button[type="submit"]'),
-        page.waitForResponse((resp) => resp.url().includes('/api/signup')),
+        page.waitForNavigation({ waitUntil: 'networkidle2' }),
       ]);
       report.steps.push({ step: 'signup', ok: true });
+      await page.close();
+      page = await browser.newPage();
+      page.setDefaultTimeout(60000);
       await sleep(500);
     }
 

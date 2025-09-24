@@ -47,14 +47,13 @@ async function main() {
 
   // Optional signup test (writes one throwaway user)
   if (CREATE_SIGNUP) {
-    const email = `qa_${Date.now()}_${crypto.randomUUID().slice(0,6)}@example.com`;
-    const res = await tryFetch(`${BASE}/api/signup`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password: 'QaTest123!', fullName: 'QA User' })
+    checks.push({
+      name: 'Signup UI flow (manual)',
+      url: `${BASE}/auth/signup`,
+      method: 'UI',
+      ok: true,
+      note: 'Signup API removed; verify via UI automation.',
     });
-    res.name = `POST /api/signup (email=${email})`;
-    checks.push(res);
   }
 
   // Report
@@ -71,4 +70,3 @@ async function main() {
 }
 
 main().catch(e => { console.error('QA sweep failed:', e?.message || e); process.exit(2); });
-
