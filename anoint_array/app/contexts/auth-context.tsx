@@ -1,12 +1,23 @@
 "use client";
-import { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import { createContext, useContext, useMemo, useCallback } from 'react';
+import { getSession, signIn, signOut, useSession } from 'next-auth/react';
 
-type AuthUser = { id: string; email: string | null } | null;
+type AuthUser = {
+  id: string;
+  email: string | null;
+  role?: string | null;
+  isActive?: boolean | null;
+} | null;
+
+type LoginOptions = {
+  callbackUrl?: string | null;
+};
+
 type AuthState = {
   user: AuthUser;
   isAuthenticated: boolean;
   loading: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string, options?: LoginOptions) => Promise<void>;
   logout: () => Promise<void>;
   refresh: () => Promise<void>;
 };
@@ -14,64 +25,55 @@ type AuthState = {
 const AuthContext = createContext<AuthState | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<AuthUser>(null);
-  const [loading, setLoading] = useState(true);
+  const { data: session, status } = useSession();
 
-  useEffect(() => {
-    let isMounted = true;
-    (async () => {
-      try {
-        const res = await fetch('/api/me/account', { cache: 'no-store' });
-        if (res.ok) {
-          const j = await res.json();
-          if (j?.id) setUser({ id: String(j.id), email: j.email || null });
-        } else if (res.status === 401) {
-          // Unauthenticated is a valid state on public pages
-          if (typeof window !== 'undefined') console.log('Unauthenticated user — skipping /api/me/account');
-          setUser(null);
-        }
-      } catch {
-        // Network issues: don’t crash the app; leave user as null
-        setUser(null);
-      }
-      setLoading(false);
-    })();
-    return () => { isMounted = false; };
-  }, []);
+  const user = useMemo<AuthUser>(() => {
+    const details = session?.user;
+    if (!details) return null;
+    const email = details.email ?? null;
+    const id = details.id ?? email;
+    if (!id) return null;
+    return {
+      id: String(id),
+      email,
+      role: details.role ?? null,
+      isActive: typeof details.isActive === 'boolean' ? details.isActive : null,
+    };
+  }, [session]);
 
-  const login = useCallback(async (email: string, password: string) => {
-    setLoading(true);
-    const r = await fetch('/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }) });
-    const j = await r.json();
-    if (!r.ok) { setLoading(false); throw new Error(j?.error || 'Login failed'); }
-    // Minimal set; a later refresh will hydrate full profile/role
-    setUser({ id: j.email, email: j.email });
-    setLoading(false);
+  const login = useCallback(async (email: string, password: string, options?: LoginOptions) => {
+    const result = await signIn('credentials', {
+      email,
+      password,
+      redirect: false,
+      ...(options?.callbackUrl ? { callbackUrl: options.callbackUrl } : {}),
+    });
+    if (!result || result.error) {
+      throw new Error('Invalid email or password');
+    }
+    await getSession();
   }, []);
 
   const logout = useCallback(async () => {
-    setLoading(true);
-    await fetch('/api/auth/logout', { method: 'POST' });
-    setUser(null);
-    setLoading(false);
+    await signOut({ redirect: false });
+    await getSession();
   }, []);
 
-  async function refresh() {
-    try {
-      const res = await fetch('/api/me/account', { cache: 'no-store' });
-      if (res.ok) {
-        const j = await res.json();
-        if (j?.id) setUser({ id: String(j.id), email: j.email || null });
-      } else if (res.status === 401) {
-        // If session expired, reflect unauthenticated state silently
-        if (typeof window !== 'undefined') console.log('Session expired — /api/me/account returned 401');
-        setUser(null);
-      }
-    } catch {}
-  }
+  const refresh = useCallback(async () => {
+    await getSession();
+  }, []);
+
+  const value = useMemo<AuthState>(() => ({
+    user,
+    isAuthenticated: !!user,
+    loading: status === 'loading',
+    login,
+    logout,
+    refresh,
+  }), [user, status, login, logout, refresh]);
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated: !!user, loading, login, logout, refresh }}>
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );

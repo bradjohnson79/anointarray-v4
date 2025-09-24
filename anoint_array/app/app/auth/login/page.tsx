@@ -2,8 +2,9 @@
 'use client';
 
 import { useState } from 'react';
+import { getSession } from 'next-auth/react';
 import { useAuth } from '@/contexts/auth-context';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Mail, Lock, Eye, EyeOff, Sparkles } from 'lucide-react';
 import Link from 'next/link';
@@ -18,7 +19,8 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
-  const { login, refresh } = useAuth();
+  const searchParams = useSearchParams();
+  const { login } = useAuth();
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData(prev => ({
@@ -32,26 +34,29 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      const resp = await fetch('/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: formData.email, password: formData.password }) });
-      if (!resp.ok) {
-        toast.error('Invalid email or password');
-      } else {
-        toast.success('Login successful!');
-        // Sync client auth state from server cookie
-        try { await refresh(); } catch {}
-        // Determine destination based on role
+      const rawCallbackUrl = searchParams.get('callbackUrl');
+      const callbackUrl = (() => {
+        if (!rawCallbackUrl) return null;
         try {
-          const acct = await fetch('/api/me/account', { cache: 'no-store' });
-          if (acct.ok) {
-            const j = await acct.json();
-            const role = String(j?.role || '').toUpperCase();
-            if (role === 'ADMIN') { router.push('/admin'); return; }
-          }
-        } catch {}
-        router.push('/dashboard');
-      }
+          const origin = typeof window !== 'undefined' ? window.location.origin : '';
+          if (!origin) return null;
+          const candidate = new URL(rawCallbackUrl, origin);
+          if (candidate.origin !== origin) return null;
+          return `${candidate.pathname}${candidate.search}${candidate.hash}`;
+        } catch {
+          return null;
+        }
+      })();
+
+      await login(formData.email, formData.password, { callbackUrl });
+      const session = await getSession();
+      const role = String(session?.user?.role || '').toUpperCase();
+      toast.success('Login successful!');
+      const destination = callbackUrl || (role === 'ADMIN' ? '/admin' : '/dashboard');
+      router.push(destination);
     } catch (error) {
-      toast.error('An error occurred during login');
+      const message = error instanceof Error ? error.message : 'Invalid email or password';
+      toast.error(message);
     } finally {
       setIsLoading(false);
     }

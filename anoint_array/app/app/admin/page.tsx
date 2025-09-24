@@ -18,21 +18,12 @@ export default function AdminDashboard() {
       router.push('/auth/login');
       return;
     }
-    // Confirm ADMIN role before rendering admin dashboard
-    (async () => {
-      try {
-        const r = await fetch('/api/me/account', { cache: 'no-store' });
-        if (!r.ok) { router.push('/auth/login'); return; }
-        const j = await r.json();
-        if (String(j?.role || '').toUpperCase() !== 'ADMIN' || j?.isActive === false) {
-          router.push('/dashboard');
-          return;
-        }
-        setOk(true);
-      } catch {
-        router.push('/auth/login');
-      }
-    })();
+    const role = String(user.role || '').toUpperCase();
+    if (role !== 'ADMIN' || user.isActive === false) {
+      router.push('/dashboard');
+      return;
+    }
+    setOk(true);
   }, [user, authLoading, router]);
 
   if (authLoading || ok === null) {

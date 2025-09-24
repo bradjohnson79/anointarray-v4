@@ -1,43 +1,51 @@
-import { headers } from 'next/headers';
-import { NextRequest } from 'next/server';
-import { readSessionFromCookies, verifySession } from '@/lib/jwt-auth';
-import { runConvex } from '@/lib/convexCli';
-import { callConvex } from '@/lib/convexHttp';
+import { getServerSession } from 'next-auth/next';
+import type { NextRequest } from 'next/server';
+import { authOptions } from '@/lib/next-auth';
+import { fetchConvexUserByEmail } from '@/lib/convexUsers';
 
-export type AuthUser = { id: string; email: string | null } | null;
+export type AuthUser = {
+  id: string;
+  email: string | null;
+  role?: string | null;
+  isActive?: boolean | null;
+} | null;
 
-export async function getAuthUserFromRequest(req?: NextRequest): Promise<AuthUser> {
-  try {
-    const h = headers();
-    const authHeader = h.get('Authorization') || (req?.headers?.get?.('Authorization') ?? null);
-    const bearer = authHeader?.match(/^Bearer\s+(.+)$/i)?.[1];
-    if (bearer) {
-      const s = verifySession(bearer);
-      return s?.email ? { id: s.email, email: s.email } : null;
-    }
-    const s = readSessionFromCookies();
-    return s?.email ? { id: s.email, email: s.email } : null;
-  } catch { return null; }
+export async function getAuthUserFromRequest(_req?: NextRequest): Promise<AuthUser> {
+  const session = await getServerSession(authOptions);
+  const details = session?.user;
+  if (!details) return null;
+  const email = details.email || null;
+  const id = details.id || email || null;
+  if (!id) return null;
+  return {
+    id: String(id),
+    email,
+    role: details.role ?? null,
+    isActive: typeof details.isActive === 'boolean' ? details.isActive : null,
+  };
 }
 
 export async function requireUser(req?: NextRequest) {
-  const u = await getAuthUserFromRequest(req);
-  if (!u) throw new Error('Unauthorized');
-  return u;
+  const user = await getAuthUserFromRequest(req);
+  if (!user) throw new Error('Unauthorized');
+  if (user.isActive === false) throw new Error('Forbidden');
+  return user;
 }
 
 export async function requireAdmin(req?: NextRequest) {
-  const u = await requireUser(req);
-  const email = (u?.email || '').toLowerCase();
+  const user = await requireUser(req);
+  const email = (user.email || '').toLowerCase();
   if (!email) throw new Error('Unauthorized');
-  try {
-    const out: any = await runConvex('users:byEmail', { email });
-    if (!out || out.role !== 'ADMIN' || out.isActive === false) throw new Error('Forbidden');
-    return u;
-  } catch {
-    const out: any = await callConvex({ functionPath: 'users:byEmail', args: { email } });
-    if (!out || out.role !== 'ADMIN' || out.isActive === false) throw new Error('Forbidden');
-    return u;
-  }
-}
 
+  const record = await fetchConvexUserByEmail(email);
+  if (!record || record.role !== 'ADMIN' || record.isActive === false) {
+    throw new Error('Forbidden');
+  }
+
+  return {
+    id: user.id,
+    email: user.email,
+    role: record.role ?? 'ADMIN',
+    isActive: record.isActive ?? true,
+  };
+}

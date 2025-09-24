@@ -46,7 +46,7 @@ async function main() {
     await page.waitForSelector('input[name="password"], #password, [data-test="login-password"]', { timeout: 15000 });
     await page.type('input[name="email"]', email);
     await page.type('input[name="password"]', password);
-    const respPromise = page.waitForResponse((resp) => resp.url().includes('/api/auth/login'));
+    const respPromise = page.waitForResponse((resp) => resp.url().includes('/api/auth/callback/credentials'));
     await page.click('button[type="submit"]');
     const resp = await respPromise;
     const status = resp.status();
@@ -55,16 +55,16 @@ async function main() {
 
     // Cookie check
     const cookies = await page.cookies();
-    const session = cookies.find((c:any) => c.name === 'aa_session');
-    report.steps.push({ step: 'cookies', sessionDomain: session?.domain || null, present: !!session });
+    const sessionCookie = cookies.find((c: any) => typeof c.name === 'string' && c.name.includes('next-auth.session-token'));
+    report.steps.push({ step: 'cookies', sessionDomain: sessionCookie?.domain || null, present: !!sessionCookie });
 
-    // /api/me/account
+    // /api/me/profile
     const accountResp = await page.evaluate(async () => {
-      const r = await fetch('/api/me/account?diag=1', { cache: 'no-store' });
+      const r = await fetch('/api/me/profile?diag=1', { cache: 'no-store' });
       let j: any = null; try { j = await r.json(); } catch {}
       return { status: r.status, body: j };
     });
-    report.steps.push({ step: 'me.account', ...accountResp });
+    report.steps.push({ step: 'me.profile', ...accountResp });
 
     // Admin health (may 401 for non-admin)
     const healthResp = await page.evaluate(async () => {
@@ -75,7 +75,7 @@ async function main() {
     report.steps.push({ step: 'admin.db.health', ...healthResp });
 
     // Outcome
-    const ok = (status === 200) && accountResp.status === 200 && !!session;
+    const ok = (status === 200) && accountResp.status === 200 && !!sessionCookie;
     report.ok = ok;
     console.log(JSON.stringify(report, null, 2));
     if (!ok) process.exit(2);

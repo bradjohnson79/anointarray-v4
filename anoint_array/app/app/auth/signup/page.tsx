@@ -2,8 +2,9 @@
 'use client';
 
 import { useState } from 'react';
+import { getSession } from 'next-auth/react';
 import { useAuth } from '@/contexts/auth-context';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Mail, Lock, User, Eye, EyeOff, Sparkles } from 'lucide-react';
 import Link from 'next/link';
@@ -21,6 +22,7 @@ export default function SignupPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { login } = useAuth();
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -60,11 +62,33 @@ export default function SignupPage() {
 
       if (response.ok) {
         toast.success('Account created successfully!');
-        
-        // Auto-login after successful signup
-        const resp = await fetch('/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: formData.email, password: formData.password }) });
-        if (!resp.ok) toast.error('Account created but login failed. Please try logging in manually.');
-        router.push('/dashboard');
+
+        const rawCallbackUrl = searchParams.get('callbackUrl');
+        const callbackUrl = (() => {
+          if (!rawCallbackUrl) return null;
+          try {
+            const origin = typeof window !== 'undefined' ? window.location.origin : '';
+            if (!origin) return null;
+            const candidate = new URL(rawCallbackUrl, origin);
+            if (candidate.origin !== origin) return null;
+            return `${candidate.pathname}${candidate.search}${candidate.hash}`;
+          } catch {
+            return null;
+          }
+        })();
+
+        let destination = '/dashboard';
+        try {
+          await login(formData.email, formData.password, { callbackUrl });
+          const session = await getSession();
+          const role = String(session?.user?.role || '').toUpperCase();
+          destination = callbackUrl || (role === 'ADMIN' ? '/admin' : '/dashboard');
+        } catch {
+          toast.error('Account created but login failed. Please try logging in manually.');
+          destination = callbackUrl ? `/auth/login?callbackUrl=${encodeURIComponent(callbackUrl)}` : '/auth/login';
+        }
+
+        router.push(destination);
       } else {
         let payload: any = null;
         try { payload = await response.json(); } catch {}

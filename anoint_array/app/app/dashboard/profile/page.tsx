@@ -28,7 +28,7 @@ export default function ProfilePage() {
     const load = async () => {
       if (!user) return;
       try {
-        const r = await fetch('/api/me/account', { cache: 'no-store' });
+        const r = await fetch('/api/me/profile', { cache: 'no-store' });
         const j = await r.json();
         setFormData({
           name: j?.name || '',
@@ -66,7 +66,7 @@ export default function ProfilePage() {
     try {
       // For now, only save name + email
       const payload = { name: formData.name, email: formData.email };
-      const r = await fetch('/api/me/account', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      const r = await fetch('/api/me/profile', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       const j = await r.json().catch(()=>({}));
       if (!r.ok) throw new Error(j?.error || 'Update failed');
       toast.success('Profile updated successfully!');

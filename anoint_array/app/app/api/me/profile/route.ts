@@ -1,5 +1,5 @@
 import type { NextRequest } from 'next/server';
-import { handleProfileGet, handleProfilePatch } from '../profile/shared';
+import { handleProfileGet, handleProfilePatch } from './shared';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
