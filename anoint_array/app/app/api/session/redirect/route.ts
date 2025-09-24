@@ -9,7 +9,7 @@ function normalizeRole(input: unknown): string | null {
 }
 
 export async function GET(request: Request) {
-  const { userId } = auth();
+  const { userId } = await auth();
   if (!userId) {
     return NextResponse.json({ redirectTo: '/auth/login' });
   }
