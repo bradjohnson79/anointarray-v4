@@ -10,7 +10,8 @@ export type AuthUser = {
 } | null;
 
 export async function getAuthUserFromRequest(_req?: NextRequest): Promise<AuthUser> {
-  const { userId } = await auth();
+  const session = await auth();
+  const userId = session?.userId;
   if (!userId) return null;
   const user = await currentUser();
   const email = user?.primaryEmailAddress?.emailAddress ?? null;
@@ -23,7 +24,8 @@ export async function getAuthUserFromRequest(_req?: NextRequest): Promise<AuthUs
 }
 
 export async function requireUser(_req?: NextRequest) {
-  const { userId } = await auth();
+  const session = await auth();
+  const userId = session?.userId;
   if (!userId) throw new Error('Unauthorized');
   const user = await currentUser();
   const email = user?.primaryEmailAddress?.emailAddress ?? null;
