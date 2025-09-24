@@ -38,39 +38,12 @@ export const setPasswordHash = mutation({
     const lower = email.toLowerCase();
     const existing = await ctx.db.query('users').withIndex('by_email', q=> q.eq('email', lower)).unique();
     if (!existing) {
-      await ctx.db.insert('users', { email: lower, name: null, role: 'ADMIN', isActive: true, createdAt: Date.now(), passwordHash });
+      await ctx.db.insert('users', { email: lower, name: null, role: 'USER', isActive: true, createdAt: Date.now(), passwordHash });
       return { ok: true, created: true };
     }
     await ctx.db.patch(existing._id, { passwordHash });
     return { ok: true, updated: true };
   }
-});
-
-export const createWithPassword = mutation({
-  args: {
-    email: v.string(),
-    name: v.optional(v.union(v.string(), v.null())),
-    passwordHash: v.string(),
-  },
-  handler: async (ctx, { email, name, passwordHash }) => {
-    const lower = email.toLowerCase();
-    const existing = await ctx.db
-      .query('users')
-      .withIndex('by_email', q => q.eq('email', lower))
-      .unique();
-    if (existing) {
-      throw new Error('user_exists');
-    }
-    await ctx.db.insert('users', {
-      email: lower,
-      name: name ?? null,
-      role: 'USER',
-      isActive: true,
-      passwordHash,
-      createdAt: Date.now(),
-    });
-    return { ok: true };
-  },
 });
 export const updateByEmail = mutation({ args: { email: v.string(), name: v.optional(v.union(v.string(), v.null())), role: v.optional(v.string()), isActive: v.optional(v.boolean()) }, handler: async (ctx, { email, name, role, isActive }) => { const lower = email.toLowerCase(); const existing = await ctx.db.query('users').withIndex('by_email', q=> q.eq('email', lower)).unique(); if (!existing) return { ok: false, error: 'not_found' }; const patch: any = {}; if (name !== undefined) patch.name = name; if (role !== undefined) patch.role = role; if (isActive !== undefined) patch.isActive = isActive; if (Object.keys(patch).length) await ctx.db.patch(existing._id, patch); return { ok: true }; } });
 
