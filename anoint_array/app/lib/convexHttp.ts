@@ -1,20 +1,45 @@
+import { ConvexHttpClient } from 'convex/browser';
+import { makeFunctionReference } from 'convex/server';
+
+let cachedClient: ConvexHttpClient | null = null;
+let cachedUrl: string | null = null;
+
+function ensureClient(url: string): ConvexHttpClient {
+  if (!cachedClient || cachedUrl !== url) {
+    cachedClient = new ConvexHttpClient(url);
+    cachedUrl = url;
+  }
+  return cachedClient;
+}
+
+function resolveAdminKey(): string {
+  let adminKey = process.env.CONVEX_ADMIN_KEY || process.env.CONVEX_DEPLOY_KEY || process.env.CONVEX_TEAM_ACCESS_TOKEN || '';
+  if (!adminKey) {
+    throw new Error('Convex is not configured (missing CONVEX_ADMIN_KEY or CONVEX_TEAM_ACCESS_TOKEN)');
+  }
+  if (adminKey.includes('|')) {
+    adminKey = adminKey.split('|').pop() || adminKey;
+  }
+  return adminKey;
+}
+
 export async function callConvex(params: { functionPath: string; args: any }) {
   const url = process.env.CONVEX_URL || '';
-  const adminKey = process.env.CONVEX_ADMIN_KEY || process.env.CONVEX_TEAM_ACCESS_TOKEN || '';
-  if (!url || !adminKey) {
-    throw new Error('Convex is not configured (missing CONVEX_URL or CONVEX_ADMIN_KEY)');
+  if (!url) {
+    throw new Error('Convex is not configured (missing CONVEX_URL)');
   }
-  const endpoint = url.replace(/\/$/, '') + '/api/run/' + encodeURIComponent(params.functionPath);
-  const res = await fetch(endpoint, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + adminKey },
-    body: JSON.stringify({ args: params.args || {} }),
-  });
-  const text = await res.text();
-  let json: any = null;
-  try { json = JSON.parse(text); } catch { json = { raw: text }; }
-  if (!res.ok) {
-    throw new Error((json && (json.error || json.message)) || ('Convex call failed (' + res.status + ')'));
+
+  const client = ensureClient(url.replace(/\/$/, ''));
+  client.setAdminAuth(resolveAdminKey());
+
+  try {
+    return await client.function(
+      makeFunctionReference(params.functionPath),
+      undefined,
+      params.args || {},
+    );
+  } catch (error: any) {
+    const message = error?.message || String(error);
+    throw new Error(message);
   }
-  return json;
 }
