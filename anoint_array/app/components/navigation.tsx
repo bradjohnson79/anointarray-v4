@@ -63,7 +63,7 @@ export default function Navigation() {
     await logout();
     router.push('/');
   };
-  const isAdmin = false;
+  const isAdmin = String(user?.role || '').toUpperCase() === 'ADMIN';
 
   return (
     <nav className={`fixed top-0 w-full z-50 transition-all duration-300 ${
@@ -140,7 +140,7 @@ export default function Navigation() {
                   >
                     <User className="h-4 w-4 text-purple-400" />
                     <span className="text-sm text-white">
-                      User
+                      {user?.name?.split(' ')[0] || user?.email || 'Account'}
                     </span>
                     {isAdmin && <Shield className="h-3 w-3 text-yellow-400" />}
                   </motion.button>

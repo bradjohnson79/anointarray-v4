@@ -11,7 +11,8 @@ const reqKeys = [
   'NEXT_PUBLIC_SUPABASE_ANON_KEY',
   'SUPABASE_SERVICE_ROLE_KEY',
   'DATABASE_URL',
-  'NEXTAUTH_SECRET',
+  'CLERK_SECRET_KEY',
+  'NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY',
 ];
 
 const dotenvPath = path.resolve(process.cwd(), '.env.local');
@@ -42,4 +43,3 @@ if (!ok) {
   process.exit(2);
 }
 console.log('[guard:env] ok');
-

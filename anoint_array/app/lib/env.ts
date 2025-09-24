@@ -12,8 +12,7 @@ export const serverEnv = {
   DATABASE_URL: process.env.DATABASE_URL!,
   
   // Authentication
-  NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET!,
-  NEXTAUTH_URL: process.env.NEXTAUTH_URL || 'http://localhost:3000',
+  CLERK_SECRET_KEY: process.env.CLERK_SECRET_KEY!,
   
   // AI Models API
   OPENAI_API_KEY: process.env.OPENAI_API_KEY,
@@ -80,13 +79,14 @@ export const clientEnv = {
   NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY,
   NEXT_PUBLIC_GOOGLE_ANALYTICS_ID: process.env.NEXT_PUBLIC_GOOGLE_ANALYTICS_ID,
   NEXT_PUBLIC_NOWPAYMENTS_PUBLIC_KEY: process.env.NEXT_PUBLIC_NOWPAYMENTS_PUBLIC_KEY,
+  NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY,
 } as const;
 
 // Validation function to check required environment variables
 export function validateServerEnv() {
   const requiredVars = [
     'DATABASE_URL',
-    'NEXTAUTH_SECRET',
+    'CLERK_SECRET_KEY',
   ] as const;
   
   const missing = requiredVars.filter(key => !serverEnv[key]);

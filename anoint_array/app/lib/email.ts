@@ -212,9 +212,10 @@ export async function sendPasswordResetEmail(to: string, args: { resetUrl: strin
 export async function sendSignupConfirmationEmail(to: string, args: { customerName?: string; verifyUrl?: string }) {
   const from = process.env.EMAIL_FROM || 'noreply@anointarray.com';
   const templates = await loadTemplates();
+  const baseUrl = process.env.APP_BASE_URL || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
   const vars = {
     customerName: args.customerName || 'Friend',
-    verifyUrl: args.verifyUrl || `${process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || ''}/auth/login`,
+    verifyUrl: args.verifyUrl || `${baseUrl.replace(/\/$/, '')}/auth/login`,
   } as any;
   const subject = substitute(templates.signup_confirmation.subject, vars);
   const html = await wrapHtml(substitute(templates.signup_confirmation.html, vars));

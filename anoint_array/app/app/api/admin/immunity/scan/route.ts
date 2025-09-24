@@ -6,7 +6,7 @@ import path from 'path';
 
 export async function POST() {
   try { await requireAdmin(); } catch { return NextResponse.json({ error: 'Unauthorized' }, { status: 401 }); }
-  const base = process.env.NEXTAUTH_URL || 'http://localhost:3000';
+  const base = process.env.APP_BASE_URL || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
   // Build target paths (public pages only)
   const staticPaths = ['/', '/auth/login', '/auth/signup'];

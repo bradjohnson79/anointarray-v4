@@ -143,6 +143,7 @@ async function createShippingLabel(order: any, carrier: string) {
     }
   };
 
+  const baseUrl = (process.env.APP_BASE_URL || process.env.NEXT_PUBLIC_APP_URL || 'https://anointarray.com').replace(/\/$/, '');
   let labelData: any;
 
   if (carrier === 'canada-post') {
@@ -161,8 +162,7 @@ async function createShippingLabel(order: any, carrier: string) {
         }
       }
     };
-    
-    const response = await fetch(`${process.env.NEXTAUTH_URL}/api/shipping/canada-post/label`, {
+    const response = await fetch(`${baseUrl}/api/shipping/canada-post/label`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(labelData)
@@ -179,7 +179,7 @@ async function createShippingLabel(order: any, carrier: string) {
       package: packageInfo
     };
     
-    const response = await fetch(`${process.env.NEXTAUTH_URL}/api/shipping/ups/label`, {
+    const response = await fetch(`${baseUrl}/api/shipping/ups/label`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(labelData)

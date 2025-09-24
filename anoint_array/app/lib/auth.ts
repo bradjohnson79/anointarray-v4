@@ -1,6 +1,5 @@
-import { getServerSession } from 'next-auth/next';
+import { auth, currentUser } from '@clerk/nextjs/server';
 import type { NextRequest } from 'next/server';
-import { authOptions } from '@/lib/next-auth';
 import { fetchConvexUserByEmail } from '@/lib/convexUsers';
 
 export type AuthUser = {
@@ -11,30 +10,37 @@ export type AuthUser = {
 } | null;
 
 export async function getAuthUserFromRequest(_req?: NextRequest): Promise<AuthUser> {
-  const session = await getServerSession(authOptions);
-  const details = session?.user;
-  if (!details) return null;
-  const email = details.email || null;
-  const id = details.id || email || null;
-  if (!id) return null;
+  const { userId } = auth();
+  if (!userId) return null;
+  const user = await currentUser();
+  const email = user?.primaryEmailAddress?.emailAddress ?? null;
   return {
-    id: String(id),
+    id: userId,
     email,
-    role: details.role ?? null,
-    isActive: typeof details.isActive === 'boolean' ? details.isActive : null,
+    role: null,
+    isActive: true,
   };
 }
 
-export async function requireUser(req?: NextRequest) {
-  const user = await getAuthUserFromRequest(req);
-  if (!user) throw new Error('Unauthorized');
-  if (user.isActive === false) throw new Error('Forbidden');
-  return user;
+export async function requireUser(_req?: NextRequest) {
+  const { userId } = auth();
+  if (!userId) throw new Error('Unauthorized');
+  const user = await currentUser();
+  const email = user?.primaryEmailAddress?.emailAddress ?? null;
+  if (!email) throw new Error('Unauthorized');
+  const record = await fetchConvexUserByEmail(email.toLowerCase()).catch(() => null);
+  if (record?.isActive === false) throw new Error('Forbidden');
+  return {
+    id: userId,
+    email,
+    role: record?.role ?? null,
+    isActive: record?.isActive ?? true,
+  };
 }
 
 export async function requireAdmin(req?: NextRequest) {
   const user = await requireUser(req);
-  const email = (user.email || '').toLowerCase();
+  const email = (user?.email || '').toLowerCase();
   if (!email) throw new Error('Unauthorized');
 
   const record = await fetchConvexUserByEmail(email);
@@ -43,8 +49,8 @@ export async function requireAdmin(req?: NextRequest) {
   }
 
   return {
-    id: user.id,
-    email: user.email,
+    id: user!.id,
+    email: user!.email,
     role: record.role ?? 'ADMIN',
     isActive: record.isActive ?? true,
   };

@@ -36,7 +36,7 @@ export async function GET(_req: NextRequest) {
       }
       // Provide inbound webhook hint
       try {
-        const base = process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || '';
+        const base = process.env.APP_BASE_URL || process.env.NEXT_PUBLIC_APP_URL || '';
         if (base) data.inboundWebhook = base.replace(/\/$/, '') + '/api/email/inbound/postmark';
       } catch {}
       return NextResponse.json(data);

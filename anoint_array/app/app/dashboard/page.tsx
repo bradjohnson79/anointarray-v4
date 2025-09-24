@@ -33,7 +33,14 @@ export default function MemberDashboard() {
 
   return (
     <DashboardLayout>
-      <DashboardOverview user={{ id: user.id, email: user.email || '' } as any} />
+      <DashboardOverview
+        user={{
+          id: user.id,
+          email: user.email || '',
+          name: user.name || user.email || 'Member',
+          role: String(user.role || 'USER'),
+        }}
+      />
     </DashboardLayout>
   );
 }

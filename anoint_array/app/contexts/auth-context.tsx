@@ -1,76 +1,113 @@
 "use client";
-import { createContext, useContext, useMemo, useCallback } from 'react';
-import { getSession, signIn, signOut, useSession } from 'next-auth/react';
 
-type AuthUser = {
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
+import { useUser, useClerk } from '@clerk/nextjs';
+
+export type AuthUser = {
   id: string;
   email: string | null;
+  name?: string | null;
   role?: string | null;
   isActive?: boolean | null;
 } | null;
-
-type LoginOptions = {
-  callbackUrl?: string | null;
-};
 
 type AuthState = {
   user: AuthUser;
   isAuthenticated: boolean;
   loading: boolean;
-  login: (email: string, password: string, options?: LoginOptions) => Promise<void>;
   logout: () => Promise<void>;
   refresh: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthState | undefined>(undefined);
 
+async function fetchProfile() {
+  const res = await fetch('/api/me/profile', { cache: 'no-store' });
+  if (!res.ok) throw new Error('Profile fetch failed');
+  return res.json();
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const { data: session, status } = useSession();
+  const { user: clerkUser, isLoaded, isSignedIn } = useUser();
+  const { signOut } = useClerk();
+  const [profile, setProfile] = useState<any | null>(null);
+  const [loadingProfile, setLoadingProfile] = useState(false);
+  const [profileError, setProfileError] = useState<string | null>(null);
 
-  const user = useMemo<AuthUser>(() => {
-    const details = session?.user;
-    if (!details) return null;
-    const email = details.email ?? null;
-    const id = details.id ?? email;
-    if (!id) return null;
-    return {
-      id: String(id),
-      email,
-      role: details.role ?? null,
-      isActive: typeof details.isActive === 'boolean' ? details.isActive : null,
-    };
-  }, [session]);
-
-  const login = useCallback(async (email: string, password: string, options?: LoginOptions) => {
-    const result = await signIn('credentials', {
-      email,
-      password,
-      redirect: false,
-      ...(options?.callbackUrl ? { callbackUrl: options.callbackUrl } : {}),
-    });
-    if (!result || result.error) {
-      throw new Error('Invalid email or password');
+  const loadProfile = useCallback(async () => {
+    if (!clerkUser) {
+      setProfile(null);
+      return;
     }
-    await getSession();
-  }, []);
+    try {
+      setLoadingProfile(true);
+      const data = await fetchProfile();
+      setProfile(data);
+      setProfileError(null);
+    } catch (error: any) {
+      setProfileError(error?.message || 'Unable to load profile');
+    } finally {
+      setLoadingProfile(false);
+    }
+  }, [clerkUser]);
+
+  useEffect(() => {
+    if (!isLoaded) return;
+    if (!isSignedIn || !clerkUser) {
+      setProfile(null);
+      setProfileError(null);
+      return;
+    }
+    (async () => {
+      try {
+        await fetch('/api/onboard', { method: 'POST' });
+      } catch (error) {
+        // non-critical; continue to load profile
+        console.error('Failed to onboard user', error);
+      }
+      await loadProfile();
+    })();
+  }, [isLoaded, isSignedIn, clerkUser, loadProfile]);
+
+  const combinedUser: AuthUser = useMemo(() => {
+    if (!isSignedIn || !clerkUser) return null;
+    const email =
+      profile?.email ??
+      clerkUser.primaryEmailAddress?.emailAddress ??
+      (clerkUser.emailAddresses[0]?.emailAddress ?? null);
+    return {
+      id: clerkUser.id,
+      email,
+      name: profile?.name ?? clerkUser.fullName ?? clerkUser.username ?? email,
+      role: profile?.role ?? null,
+      isActive: profile?.isActive ?? true,
+    };
+  }, [isSignedIn, clerkUser, profile]);
 
   const logout = useCallback(async () => {
-    await signOut({ redirect: false });
-    await getSession();
-  }, []);
+    await signOut({ redirectUrl: '/' });
+    setProfile(null);
+  }, [signOut]);
 
   const refresh = useCallback(async () => {
-    await getSession();
-  }, []);
+    if (!isSignedIn || !clerkUser) return;
+    await loadProfile();
+  }, [isSignedIn, clerkUser, loadProfile]);
 
   const value = useMemo<AuthState>(() => ({
-    user,
-    isAuthenticated: !!user,
-    loading: status === 'loading',
-    login,
+    user: combinedUser,
+    isAuthenticated: !!combinedUser,
+    loading: !isLoaded || (isSignedIn && loadingProfile && !profile && !profileError),
     logout,
     refresh,
-  }), [user, status, login, logout, refresh]);
+  }), [combinedUser, isLoaded, isSignedIn, loadingProfile, profile, profileError, logout, refresh]);
 
   return (
     <AuthContext.Provider value={value}>

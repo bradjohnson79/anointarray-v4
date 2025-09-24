@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
+import { clerkMiddleware } from '@clerk/nextjs/server';
 
-export function middleware(req: NextRequest) {
-  // Skip canonical redirects in local/dev to keep DX smooth
+export default clerkMiddleware((auth, req) => {
   const inProd = process.env.VERCEL === '1' || process.env.NODE_ENV === 'production';
   const url = req.nextUrl.clone();
   const host = req.headers.get('host') || '';
@@ -13,7 +13,6 @@ export function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  // Default to production domain if env is missing in a preview build
   const canonical = (process.env.CANONICAL_URL || 'https://anointarray.com').replace(/\/$/, '');
 
   try {
@@ -26,8 +25,11 @@ export function middleware(req: NextRequest) {
   } catch {}
 
   return NextResponse.next();
-}
+});
 
 export const config = {
-  matcher: ['/((?!api|_next|favicon.ico).*)'],
+  matcher: [
+    '/((?!_next|.*\\..*|favicon\\.ico).*)',
+    '/api/(.*)',
+  ],
 };

@@ -53,6 +53,8 @@ export async function POST(request: Request) {
       totalAmount = Math.round(totalAmount * rate * 100) / 100;
     }
 
+    const baseUrl = (process.env.APP_BASE_URL || process.env.NEXT_PUBLIC_APP_URL || 'https://anointarray.com').replace(/\/$/, '');
+
     // Create NOWPayments payment
     const apiKey = await loadNowPaymentsKey();
     const paymentResponse = await fetch('https://api.nowpayments.io/v1/payment', {
@@ -67,9 +69,9 @@ export async function POST(request: Request) {
         pay_currency: currency.toLowerCase(),
         order_id: `anoint_${Date.now()}_${userId}`,
         order_description: `ANOINT Array Order - ${items.length} items`,
-        ipn_callback_url: `${process.env.NEXTAUTH_URL}/api/payment/crypto/webhook`,
-        success_url: `${process.env.NEXTAUTH_URL}/success?provider=crypto`,
-        cancel_url: `${process.env.NEXTAUTH_URL}/dashboard?payment=cancelled`,
+        ipn_callback_url: `${baseUrl}/api/payment/crypto/webhook`,
+        success_url: `${baseUrl}/success?provider=crypto`,
+        cancel_url: `${baseUrl}/dashboard?payment=cancelled`,
         customer_email: userEmail,
         case: 'success',
       }),

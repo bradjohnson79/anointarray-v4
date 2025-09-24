@@ -2,6 +2,7 @@
 import type { Metadata } from 'next';
 import Script from 'next/script';
 import { Inter } from 'next/font/google';
+import { ClerkProvider } from '@clerk/nextjs';
 import './globals.css';
 import { ThemeProvider } from '@/components/theme-provider';
 import { Providers } from '@/components/providers';
@@ -30,24 +31,26 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body className={inter.className} suppressHydrationWarning>
-        <Providers>
-          <ThemeProvider
-            attribute="class"
-            defaultTheme="dark"
-            enableSystem
-            disableTransitionOnChange
-          >
-            {/* GoAffPro loader (affiliates) */}
-            <Script src="https://api.goaffpro.com/loader.js?shop=ihmumhbevz" strategy="afterInteractive" />
-            {children}
-            <FloatingCartButton />
-            <CookieBanner />
-            <Toaster position="bottom-left" />
-          </ThemeProvider>
-        </Providers>
-      </body>
-    </html>
+    <ClerkProvider>
+      <html lang="en" suppressHydrationWarning>
+        <body className={inter.className} suppressHydrationWarning>
+          <Providers>
+            <ThemeProvider
+              attribute="class"
+              defaultTheme="dark"
+              enableSystem
+              disableTransitionOnChange
+            >
+              {/* GoAffPro loader (affiliates) */}
+              <Script src="https://api.goaffpro.com/loader.js?shop=ihmumhbevz" strategy="afterInteractive" />
+              {children}
+              <FloatingCartButton />
+              <CookieBanner />
+              <Toaster position="bottom-left" />
+            </ThemeProvider>
+          </Providers>
+        </body>
+      </html>
+    </ClerkProvider>
   );
 }
